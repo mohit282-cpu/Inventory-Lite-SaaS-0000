@@ -80,10 +80,10 @@ export default function SalesPage() {
   const columns: Column<Sale>[] = [
     {
       key: 'saleNumber',
-      header: 'Sale / Invoice #',
+      header: 'Sale / Order #',
       sortable: true,
       render: (item) => (
-        <span className="font-mono font-bold text-white">
+        <span className="font-mono font-bold text-indigo-700">
           {item.saleNumber || `SALE-${item.$id.slice(-6)}`}
         </span>
       ),
@@ -92,7 +92,7 @@ export default function SalesPage() {
       key: 'customerId',
       header: 'Customer',
       render: (item) => (
-        <span className="text-slate-300 font-medium">{getCustomerName(item.customerId)}</span>
+        <span className="text-slate-900 font-bold">{getCustomerName(item.customerId)}</span>
       ),
     },
     {
@@ -100,7 +100,7 @@ export default function SalesPage() {
       header: 'Total Amount',
       sortable: true,
       render: (item) => (
-        <span className="font-mono font-bold text-emerald-400">
+        <span className="font-mono font-bold text-emerald-700">
           Rs. {item.total.toFixed(2)}
         </span>
       ),
@@ -109,14 +109,14 @@ export default function SalesPage() {
       key: 'paidAmount',
       header: 'Paid Amount',
       render: (item) => (
-        <span className="font-mono text-slate-300">Rs. {item.paidAmount.toFixed(2)}</span>
+        <span className="font-mono text-slate-700 font-medium">Rs. {item.paidAmount.toFixed(2)}</span>
       ),
     },
     {
       key: 'dueAmount',
       header: 'Due Amount',
       render: (item) => (
-        <span className={`font-mono font-semibold ${item.dueAmount > 0 ? 'text-red-400' : 'text-slate-400'}`}>
+        <span className={`font-mono font-bold ${item.dueAmount > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
           Rs. {item.dueAmount.toFixed(2)}
         </span>
       ),
@@ -125,7 +125,7 @@ export default function SalesPage() {
       key: 'paymentMethod',
       header: 'Payment Method',
       render: (item) => (
-        <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+        <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
           {item.paymentMethod.replace('_', ' ')}
         </span>
       ),
@@ -140,7 +140,7 @@ export default function SalesPage() {
       header: 'Date & Time',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-500 font-medium">
           {new Date(item.createdAt).toLocaleString()}
         </span>
       ),
@@ -153,8 +153,8 @@ export default function SalesPage() {
           variant="ghost"
           size="sm"
           onClick={() => router.push(`/app/sales/${item.$id}`)}
-          className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-          title="View Invoice Preview"
+          className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+          title="View Receipt / Invoice"
         >
           <Eye className="h-4 w-4" />
         </Button>
@@ -163,14 +163,14 @@ export default function SalesPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <PageHeader
-        title="Sales & Transactions"
-        description="View past billing invoices, track customer payments, and issue point-of-sale orders."
+        title="Sales Ledger & POS Orders"
+        description="Audit completed cashier transactions, customer invoices, payment methods, and outstanding dues."
         actions={
           <Button
             onClick={() => router.push('/app/sales/new')}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-600/20"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
           >
             <Plus className="mr-2 h-4 w-4" /> Create New Sale (POS)
           </Button>
@@ -179,9 +179,10 @@ export default function SalesPage() {
 
       <div className="flex items-center justify-between gap-4">
         <SearchInput
-          placeholder="Search sales by invoice #, customer name, or payment method..."
+          placeholder="Search sales by receipt #, customer, or payment method..."
           value={searchQuery}
           onChange={setSearchQuery}
+          className="w-full sm:max-w-md"
         />
       </div>
 
@@ -189,12 +190,12 @@ export default function SalesPage() {
         data={filteredSales}
         columns={columns}
         isLoading={isLoading}
-        emptyTitle="No sales transactions recorded"
-        emptyDescription="Process customer billing via POS terminal to record sales and deduct inventory."
+        emptyTitle="No sales recorded"
+        emptyDescription="Create your first sale from the POS terminal counter."
         emptyAction={
           <Button
             onClick={() => router.push('/app/sales/new')}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
           >
             <ShoppingCart className="mr-2 h-4 w-4" /> Open POS Terminal
           </Button>

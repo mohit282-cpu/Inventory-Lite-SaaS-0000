@@ -11,6 +11,7 @@ export interface Column<T> {
   header: string
   sortable?: boolean
   width?: string
+  align?: 'left' | 'center' | 'right'
   render?: (item: T) => React.ReactNode
 }
 
@@ -82,43 +83,66 @@ export function DataTable<T extends Record<string, any>>({
   return (
     <div className="w-full space-y-3">
       {/* Responsive Table Wrapper */}
-      <div className="overflow-x-auto scrollbar-thin rounded-lg border border-slate-800 bg-slate-900/60 shadow-sm">
-        <table className="w-full text-left text-sm text-slate-200">
-          <thead className="bg-slate-950/70 text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+      <div className="overflow-x-auto scrollbar-thin rounded-xl border border-slate-200 bg-white shadow-xs">
+        <table className="w-full text-left text-sm text-slate-800 border-collapse">
+          <thead className="bg-slate-50 text-[12px] font-semibold text-slate-600 border-b border-slate-200">
             <tr>
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  style={{ width: col.width }}
-                  className="px-4 py-3"
-                >
-                  {col.sortable ? (
-                    <button
-                      type="button"
-                      onClick={() => handleSort(col.key)}
-                      className="inline-flex items-center gap-1.5 hover:text-white transition-colors focus:outline-none"
-                    >
-                      {col.header}
-                      <ArrowUpDown className="h-3 w-3 opacity-60" />
-                    </button>
-                  ) : (
-                    col.header
-                  )}
-                </th>
-              ))}
+              {columns.map((col) => {
+                const alignClass =
+                  col.align === 'right'
+                    ? 'text-right'
+                    : col.align === 'center'
+                    ? 'text-center'
+                    : 'text-left'
+
+                return (
+                  <th
+                    key={col.key}
+                    style={{ width: col.width }}
+                    className={`px-4 py-3.5 font-semibold ${alignClass}`}
+                  >
+                    {col.sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => handleSort(col.key)}
+                        className={`inline-flex items-center gap-1.5 hover:text-slate-900 transition-colors focus:outline-none ${
+                          col.align === 'right' ? 'flex-row-reverse' : ''
+                        }`}
+                      >
+                        <span>{col.header}</span>
+                        <ArrowUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      </button>
+                    ) : (
+                      col.header
+                    )}
+                  </th>
+                )
+              })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
+          <tbody className="divide-y divide-slate-100">
             {paginatedData.map((item, rowIdx) => (
               <tr
                 key={item.$id || item.id || rowIdx}
-                className="hover:bg-slate-800/30 transition-colors"
+                className="hover:bg-slate-50 transition-colors duration-150"
               >
-                {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3 whitespace-nowrap text-xs sm:text-sm">
-                    {col.render ? col.render(item) : item[col.key]}
-                  </td>
-                ))}
+                {columns.map((col) => {
+                  const alignClass =
+                    col.align === 'right'
+                      ? 'text-right'
+                      : col.align === 'center'
+                      ? 'text-center'
+                      : 'text-left'
+
+                  return (
+                    <td
+                      key={col.key}
+                      className={`px-4 py-3.5 text-sm text-slate-800 ${alignClass}`}
+                    >
+                      {col.render ? col.render(item) : item[col.key]}
+                    </td>
+                  )
+                })}
               </tr>
             ))}
           </tbody>
@@ -127,13 +151,13 @@ export function DataTable<T extends Record<string, any>>({
 
       {/* Pagination Bar */}
       {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-1 text-xs text-slate-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-1 text-xs text-slate-500">
           <div>
-            Showing <span className="font-semibold text-white">{startIndex + 1}</span> to{' '}
-            <span className="font-semibold text-white">
+            Showing <span className="font-semibold text-slate-800">{startIndex + 1}</span> to{' '}
+            <span className="font-semibold text-slate-800">
               {Math.min(startIndex + pageSize, data.length)}
             </span>{' '}
-            of <span className="font-semibold text-white">{data.length}</span> entries
+            of <span className="font-semibold text-slate-800">{data.length}</span> entries
           </div>
 
           <div className="flex items-center gap-2">
@@ -142,12 +166,12 @@ export function DataTable<T extends Record<string, any>>({
               size="sm"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="h-8 px-2.5 border-slate-800 bg-slate-900 text-slate-300 disabled:opacity-40"
+              className="h-8 px-3 border-slate-300 bg-white text-slate-700 disabled:opacity-40 font-medium"
             >
-              <ChevronLeft className="h-4 w-4" /> Previous
+              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
             </Button>
 
-            <span className="px-2 text-slate-300 font-medium">
+            <span className="px-2 text-slate-700 font-semibold">
               Page {currentPage} of {totalPages}
             </span>
 
@@ -156,9 +180,9 @@ export function DataTable<T extends Record<string, any>>({
               size="sm"
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="h-8 px-2.5 border-slate-800 bg-slate-900 text-slate-300 disabled:opacity-40"
+              className="h-8 px-3 border-slate-300 bg-white text-slate-700 disabled:opacity-40 font-medium"
             >
-              Next <ChevronRight className="h-4 w-4" />
+              Next <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
         </div>

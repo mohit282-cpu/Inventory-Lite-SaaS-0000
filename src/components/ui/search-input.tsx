@@ -52,19 +52,19 @@ export function SearchInput({
 
   return (
     <div className={cn('relative w-full max-w-sm', className)}>
-      <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
       <Input
         type="text"
         placeholder={placeholder}
         value={internalValue}
         onChange={handleChange}
-        className="pl-9 pr-8 bg-slate-950/60 border-slate-800 text-white placeholder:text-slate-500 focus:border-indigo-500"
+        className="pl-10 pr-9 h-11 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 text-sm font-medium rounded-lg"
       />
       {internalValue && (
         <button
           type="button"
           onClick={handleClear}
-          className="absolute right-2.5 top-2.5 p-0.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
         >
           <X className="h-3.5 w-3.5" />
         </button>

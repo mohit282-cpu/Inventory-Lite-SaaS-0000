@@ -47,8 +47,15 @@ export default function CreateSalePage() {
   // Cart & Checkout State
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
-  const [overallDiscount, setOverallDiscount] = useState<number>(0)
+  
+  // Discount Toggle State: 'rs' | 'percent'
+  const [discountType, setDiscountType] = useState<'rs' | 'percent'>('rs')
+  const [discountInputValue, setDiscountInputValue] = useState<number>(0)
+
+  // VAT Tax State & Toggle
+  const [isVatEnabled, setIsVatEnabled] = useState<boolean>(true)
   const [taxRate, setTaxRate] = useState<number>(13) // Default 13% VAT Nepal
+
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [paidAmountInput, setPaidAmountInput] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -90,15 +97,30 @@ export default function CreateSalePage() {
     )
   }, [searchQuery, products])
 
-  // Memoized Calculations
-  const { subtotal, grandTotal, dueAmount, effectivePaidAmount } =
+  // Effective Discount in Rupees Calculation
+  const effectiveOverallDiscount = React.useMemo(() => {
+    const sub = cart.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice - item.discount,
+      0
+    )
+    if (discountType === 'percent') {
+      return (sub * (discountInputValue || 0)) / 100
+    }
+    return discountInputValue || 0
+  }, [cart, discountType, discountInputValue])
+
+  // Effective Tax Rate Calculation
+  const effectiveTaxRate = isVatEnabled ? taxRate : 0
+
+  // Memoized Billing Totals Calculations
+  const { subtotal, grandTotal, dueAmount, effectivePaidAmount, taxAmount } =
     React.useMemo(() => {
       const sub = cart.reduce(
         (sum, item) => sum + item.quantity * item.unitPrice - item.discount,
         0
       )
-      const taxable = Math.max(0, sub - overallDiscount)
-      const tax = (taxable * taxRate) / 100
+      const taxable = Math.max(0, sub - effectiveOverallDiscount)
+      const tax = (taxable * effectiveTaxRate) / 100
       const total = taxable + tax
       const paid = paidAmountInput !== '' ? parseFloat(paidAmountInput) || 0 : total
       const due = Math.max(0, total - paid)
@@ -111,7 +133,7 @@ export default function CreateSalePage() {
         dueAmount: due,
         effectivePaidAmount: paid,
       }
-    }, [cart, overallDiscount, taxRate, paidAmountInput])
+    }, [cart, effectiveOverallDiscount, effectiveTaxRate, paidAmountInput])
 
   // Handle Barcode Scan / Fast Input
   const handleBarcodeSubmit = (e: React.FormEvent) => {
@@ -235,8 +257,8 @@ export default function CreateSalePage() {
           unitPrice: item.unitPrice,
           discount: item.discount,
         })),
-        overallDiscount,
-        taxRate,
+        overallDiscount: effectiveOverallDiscount,
+        taxRate: effectiveTaxRate,
         paidAmount: effectivePaidAmount,
         paymentMethod,
       }
@@ -261,7 +283,7 @@ export default function CreateSalePage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-slate-900">
       <PageHeader
         title="POS Billing Terminal"
         description="Quick point-of-sale terminal for instant customer billing and stock deduction."
@@ -269,7 +291,7 @@ export default function CreateSalePage() {
           <Button
             variant="outline"
             onClick={() => router.push('/app/sales')}
-            className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
+            className="border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold"
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Sales Ledger
           </Button>
@@ -282,33 +304,33 @@ export default function CreateSalePage() {
           {/* Barcode & Search Controls */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <form onSubmit={handleBarcodeSubmit} className="relative">
-              <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-400" />
+              <Barcode className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-600 pointer-events-none" />
               <Input
                 placeholder="Scan Barcode or SKU..."
                 value={barcodeInput}
                 onChange={(e) => setBarcodeInput(e.target.value)}
-                className="pl-9 bg-slate-900 border-slate-800 text-white font-mono placeholder:text-slate-500"
+                className="pl-10 font-mono h-11 bg-white border-slate-300"
               />
             </form>
 
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
               <Input
                 placeholder="Search catalog by product name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-slate-900 border-slate-800 text-white placeholder:text-slate-500"
+                className="pl-10 h-11 bg-white border-slate-300"
               />
             </div>
           </div>
 
           {/* Catalog Grid */}
           {isLoading ? (
-            <div className="flex items-center justify-center p-12 text-slate-400">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-500 mr-2" /> Loading inventory...
+            <div className="flex items-center justify-center p-12 text-slate-500">
+              <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mr-2" /> Loading inventory catalog...
             </div>
           ) : filteredProducts.length === 0 ? (
-            <div className="p-8 text-center border border-slate-800 rounded-xl bg-slate-900/60 text-slate-400 text-sm">
+            <div className="p-8 text-center border border-slate-200 rounded-xl bg-white text-slate-500 text-sm">
               No products found matching &quot;{searchQuery}&quot;
             </div>
           ) : (
@@ -321,25 +343,25 @@ export default function CreateSalePage() {
                     type="button"
                     onClick={() => addToCart(p)}
                     disabled={isOutOfStock}
-                    className={`p-3 text-left rounded-xl border transition-all ${
+                    className={`p-3.5 text-left rounded-xl border transition-all ${
                       isOutOfStock
-                        ? 'border-slate-800/40 bg-slate-950/40 opacity-50 cursor-not-allowed'
-                        : 'border-slate-800 bg-slate-900/80 hover:border-indigo-500/60 hover:bg-slate-800/80 active:scale-[0.98]'
+                        ? 'border-slate-200 bg-slate-100/60 opacity-50 cursor-not-allowed'
+                        : 'border-slate-200 bg-white hover:border-indigo-600 hover:shadow-md active:scale-[0.98]'
                     }`}
                   >
-                    <div className="font-semibold text-white text-xs truncate">{p.name}</div>
+                    <div className="font-bold text-slate-900 text-xs truncate">{p.name}</div>
                     <div className="text-[10px] text-slate-500 font-mono mt-0.5">SKU: {p.sku}</div>
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/60">
-                      <span className="font-mono font-bold text-indigo-400 text-xs">
+                    <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100">
+                      <span className="font-mono font-bold text-indigo-600 text-xs">
                         Rs. {p.sellingPrice.toFixed(2)}
                       </span>
                       <span
-                        className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded ${
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
                           isOutOfStock
-                            ? 'bg-red-500/20 text-red-400'
+                            ? 'bg-red-50 text-red-700 border border-red-200'
                             : p.stockQuantity <= (p.lowStockThreshold || 5)
-                            ? 'bg-amber-500/20 text-amber-400'
-                            : 'bg-emerald-500/20 text-emerald-400'
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         }`}
                       >
                         {p.stockQuantity} {p.unit}
@@ -354,16 +376,16 @@ export default function CreateSalePage() {
 
         {/* Right Panel: Interactive POS Cart & Billing */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/90 backdrop-blur-md space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4 text-indigo-400" /> Current Cart ({cart.length})
+          <div className="p-5 rounded-xl border border-slate-200 bg-white space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-indigo-600" /> Current Cart ({cart.length})
               </h3>
               {cart.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setCart([])}
-                  className="text-xs text-red-400 hover:text-red-300 font-medium"
+                  className="text-xs text-red-600 hover:text-red-700 font-bold"
                 >
                   Clear Cart
                 </button>
@@ -372,12 +394,12 @@ export default function CreateSalePage() {
 
             {/* Customer Selector */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Select Customer (Optional)</Label>
+              <Label className="text-xs font-bold text-slate-700">Select Customer (Optional)</Label>
               <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                <SelectTrigger className="bg-slate-950/60 border-slate-800 text-white text-xs">
+                <SelectTrigger className="text-xs font-medium">
                   <SelectValue placeholder="Walk-in Guest / Select Customer" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs max-h-48">
+                <SelectContent className="max-h-48">
                   <SelectItem value="guest">Walk-in Guest</SelectItem>
                   {customers.map((c) => (
                     <SelectItem key={c.$id} value={c.$id}>
@@ -390,44 +412,44 @@ export default function CreateSalePage() {
 
             {/* Cart Items List */}
             {cart.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl bg-slate-950/40">
+              <div className="py-10 text-center text-xs text-slate-500 border border-dashed border-slate-200 rounded-xl bg-slate-50">
                 Click products from the catalog or scan barcodes to add to cart.
               </div>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {cart.map((item) => {
                   const lineTotal = item.quantity * item.unitPrice - item.discount
                   return (
                     <div
                       key={item.product.$id}
-                      className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 space-y-2 text-xs"
+                      className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2 text-xs"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-white truncate max-w-[160px]">
+                        <span className="font-bold text-slate-900 truncate max-w-[160px]">
                           {item.product.name}
                         </span>
-                        <span className="font-mono font-bold text-emerald-400">
+                        <span className="font-mono font-bold text-emerald-700">
                           Rs. {lineTotal.toFixed(2)}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/40">
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200">
                         {/* Quantity controls */}
-                        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-md p-0.5">
+                        <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-md p-0.5">
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.product.$id, item.quantity - 1)}
-                            className="p-1 hover:bg-slate-800 text-slate-300 rounded"
+                            className="p-1 hover:bg-slate-100 text-slate-600 rounded"
                           >
                             <Minus className="h-3 w-3" />
                           </button>
-                          <span className="font-mono font-bold text-white px-2">
+                          <span className="font-mono font-bold text-slate-900 px-2">
                             {item.quantity}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.product.$id, item.quantity + 1)}
-                            className="p-1 hover:bg-slate-800 text-slate-300 rounded"
+                            className="p-1 hover:bg-slate-100 text-slate-600 rounded"
                           >
                             <Plus className="h-3 w-3" />
                           </button>
@@ -435,25 +457,25 @@ export default function CreateSalePage() {
 
                         {/* Unit Price input */}
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-slate-500">Rate:</span>
+                          <span className="text-[10px] text-slate-500 font-semibold">Rate:</span>
                           <Input
                             type="number"
                             min="0"
                             value={item.unitPrice}
                             onChange={(e) => updateUnitPrice(item.product.$id, parseFloat(e.target.value) || 0)}
-                            className="w-16 h-7 text-xs font-mono bg-slate-900 border-slate-800 text-white px-1.5 py-0"
+                            className="w-16 h-7 text-xs font-mono px-1.5 py-0 bg-white"
                           />
                         </div>
 
                         {/* Line Discount input */}
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-slate-500">Disc:</span>
+                          <span className="text-[10px] text-slate-500 font-semibold">Disc:</span>
                           <Input
                             type="number"
                             min="0"
                             value={item.discount}
                             onChange={(e) => updateLineDiscount(item.product.$id, parseFloat(e.target.value) || 0)}
-                            className="w-14 h-7 text-xs font-mono bg-slate-900 border-slate-800 text-white px-1 py-0"
+                            className="w-14 h-7 text-xs font-mono px-1 py-0 bg-white"
                           />
                         </div>
 
@@ -461,7 +483,7 @@ export default function CreateSalePage() {
                         <button
                           type="button"
                           onClick={() => removeFromCart(item.product.$id)}
-                          className="text-slate-500 hover:text-red-400 p-1"
+                          className="text-slate-400 hover:text-red-600 p-1"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -473,53 +495,140 @@ export default function CreateSalePage() {
             )}
 
             {/* Overall Billing Summary */}
-            <div className="space-y-2 pt-3 border-t border-slate-800 text-xs">
-              <div className="flex justify-between text-slate-400">
+            <div className="space-y-2.5 pt-3 border-t border-slate-100 text-xs">
+              <div className="flex justify-between text-slate-600 font-medium">
                 <span>Subtotal</span>
-                <span className="font-mono font-bold text-white">Rs. {subtotal.toFixed(2)}</span>
+                <span className="font-mono font-bold text-slate-900">Rs. {subtotal.toFixed(2)}</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 py-1">
-                <div>
-                  <Label className="text-[10px] text-slate-400">Overall Discount (Rs.)</Label>
+              {/* Interactive Discount & VAT Controls Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-1">
+                {/* Discount Section with Toggle (Rs. vs %) */}
+                <div className="space-y-1.5 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-extrabold text-slate-700">
+                      Discount ({discountType === 'percent' ? '%' : 'Rs.'})
+                    </Label>
+
+                    {/* Segmented Toggle Button: Rs. | % */}
+                    <div className="inline-flex items-center bg-slate-200 p-0.5 rounded-md text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setDiscountType('rs')}
+                        className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                          discountType === 'rs'
+                            ? 'bg-white text-indigo-700 shadow-xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Rs.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDiscountType('percent')}
+                        className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                          discountType === 'percent'
+                            ? 'bg-white text-indigo-700 shadow-xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        %
+                      </button>
+                    </div>
+                  </div>
+
                   <Input
                     type="number"
                     min="0"
-                    value={overallDiscount}
-                    onChange={(e) => setOverallDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="h-8 bg-slate-950/60 border-slate-800 text-white font-mono text-xs"
+                    max={discountType === 'percent' ? 100 : undefined}
+                    placeholder={discountType === 'percent' ? 'e.g. 10%' : 'e.g. 50'}
+                    value={discountInputValue === 0 ? '' : discountInputValue}
+                    onChange={(e) => setDiscountInputValue(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="h-8 font-mono text-xs bg-white border-slate-300"
                   />
+
+                  {effectiveOverallDiscount > 0 && (
+                    <div className="text-[10px] text-emerald-700 font-bold font-mono text-right">
+                      - Rs. {effectiveOverallDiscount.toFixed(2)}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <Label className="text-[10px] text-slate-400">VAT Tax (%)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={taxRate}
-                    onChange={(e) => setTaxRate(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="h-8 bg-slate-950/60 border-slate-800 text-white font-mono text-xs"
-                  />
+
+                {/* VAT Section with Toggle (ON vs OFF) */}
+                <div className="space-y-1.5 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-extrabold text-slate-700">
+                      VAT ({isVatEnabled ? `${taxRate}%` : 'OFF'})
+                    </Label>
+
+                    {/* Segmented Toggle Button: OFF | ON */}
+                    <div className="inline-flex items-center bg-slate-200 p-0.5 rounded-md text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setIsVatEnabled(false)}
+                        className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                          !isVatEnabled
+                            ? 'bg-white text-slate-900 shadow-xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        OFF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsVatEnabled(true)}
+                        className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                          isVatEnabled
+                            ? 'bg-indigo-600 text-white shadow-xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        ON (13%)
+                      </button>
+                    </div>
+                  </div>
+
+                  {isVatEnabled ? (
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="h-8 font-mono text-xs bg-white border-slate-300"
+                    />
+                  ) : (
+                    <div className="h-8 rounded-md bg-slate-100 border border-slate-200 text-slate-400 text-xs font-mono font-bold flex items-center justify-center">
+                      VAT Disabled (0%)
+                    </div>
+                  )}
+
+                  {isVatEnabled && (
+                    <div className="text-[10px] text-slate-600 font-bold font-mono text-right">
+                      + Rs. {taxAmount.toFixed(2)}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex justify-between items-center text-slate-200 font-bold py-2.5 px-3 border border-slate-800 bg-slate-950/60 rounded-lg my-2">
-                <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Grand Total</span>
-                <span className="font-mono text-xl text-emerald-400 font-extrabold">
+              <div className="flex justify-between items-center text-slate-900 font-bold py-3 px-3.5 border border-indigo-100 bg-indigo-50/60 rounded-xl my-2">
+                <span className="text-xs uppercase tracking-wider text-indigo-900 font-extrabold">Grand Total</span>
+                <span className="font-mono text-2xl text-indigo-700 font-extrabold">
                   Rs. {grandTotal.toFixed(2)}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <div>
-                  <Label className="text-[10px] text-slate-400">Payment Method</Label>
+                  <Label className="text-[10px] font-bold text-slate-700">Payment Method</Label>
                   <Select
                     value={paymentMethod}
                     onValueChange={(val) => setPaymentMethod(val as PaymentMethod)}
                   >
-                    <SelectTrigger className="h-8 bg-slate-950/60 border-slate-800 text-white text-xs">
+                    <SelectTrigger className="h-8 text-xs font-medium">
                       <SelectValue placeholder="Payment Method" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-800 text-white text-xs">
+                    <SelectContent>
                       <SelectItem value="cash">Cash</SelectItem>
                       <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                       <SelectItem value="card">Card / Fonepay</SelectItem>
@@ -529,24 +638,24 @@ export default function CreateSalePage() {
                 </div>
 
                 <div>
-                  <Label className="text-[10px] text-slate-400">Paid Amount (Rs.)</Label>
+                  <Label className="text-[10px] font-bold text-slate-700">Paid Amount (Rs.)</Label>
                   <Input
                     type="number"
                     min="0"
                     placeholder={`Full (Rs. ${grandTotal.toFixed(2)})`}
                     value={paidAmountInput}
                     onChange={(e) => setPaidAmountInput(e.target.value)}
-                    className="h-8 bg-slate-950/60 border-slate-800 text-white font-mono text-xs"
+                    className="h-8 font-mono text-xs"
                   />
                 </div>
               </div>
 
               {dueAmount > 0 && (
-                <div className="p-2 rounded-lg bg-red-950/40 border border-red-800/60 text-xs flex justify-between text-red-200">
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs flex justify-between text-red-700 font-bold">
                   <span className="flex items-center gap-1">
-                    <AlertCircle className="h-3.5 w-3.5 text-red-400" /> Outstanding Due:
+                    <AlertCircle className="h-3.5 w-3.5 text-red-600" /> Outstanding Due:
                   </span>
-                  <span className="font-mono font-bold">Rs. {dueAmount.toFixed(2)}</span>
+                  <span className="font-mono font-extrabold">Rs. {dueAmount.toFixed(2)}</span>
                 </div>
               )}
             </div>
@@ -555,7 +664,7 @@ export default function CreateSalePage() {
             <Button
               onClick={handleCompleteSale}
               disabled={isSubmitting || cart.length === 0}
-              className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-600/20 disabled:opacity-50 mt-2"
+              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-sm disabled:opacity-50 mt-2"
             >
               {isSubmitting ? (
                 <>

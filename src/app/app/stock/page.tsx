@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { StockInDialog } from '@/components/features/stock/stock-in-dialog'
 import { StockOutDialog } from '@/components/features/stock/stock-out-dialog'
 import { StockAdjustmentDialog } from '@/components/features/stock/stock-adjustment-dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { stockMovementService } from '@/services/stock-movement.service'
 import { productService } from '@/services/product.service'
 import { useAuth } from '@/hooks/use-auth'
@@ -195,7 +196,7 @@ export default function StockMovementsPage() {
       sortable: true,
       render: (item) => (
         <div>
-          <div className="font-semibold text-white">{getProductName(item.productId)}</div>
+          <div className="font-bold text-slate-900">{getProductName(item.productId)}</div>
           <div className="text-xs text-slate-500 font-mono">SKU: {getProductSku(item.productId)}</div>
         </div>
       ),
@@ -212,20 +213,20 @@ export default function StockMovementsPage() {
       render: (item) => {
         const unit = getProductUnit(item.productId)
         if (item.type === 'stock_in') {
-          return <span className="font-mono font-bold text-emerald-400">+{item.quantity} {unit}</span>
+          return <span className="font-mono font-bold text-emerald-700">+{item.quantity} {unit}</span>
         }
         if (item.type === 'stock_out') {
-          return <span className="font-mono font-bold text-red-400">-{item.quantity} {unit}</span>
+          return <span className="font-mono font-bold text-red-700">-{item.quantity} {unit}</span>
         }
-        return <span className="font-mono font-bold text-amber-400">Adj ({item.quantity} {unit})</span>
+        return <span className="font-mono font-bold text-amber-800">Adj ({item.quantity} {unit})</span>
       },
     },
     {
       key: 'stockTransition',
       header: 'Stock Transition',
       render: (item) => (
-        <span className="font-mono text-xs text-slate-300">
-          {item.previousQuantity} → <span className="font-bold text-white">{item.newQuantity}</span>
+        <span className="font-mono text-xs text-slate-600">
+          {item.previousQuantity} → <span className="font-bold text-slate-900">{item.newQuantity}</span>
         </span>
       ),
     },
@@ -234,7 +235,7 @@ export default function StockMovementsPage() {
       header: 'Reason / Reference',
       render: (item) => (
         <div>
-          <div className="text-slate-300 text-xs">{item.reason || 'Routine update'}</div>
+          <div className="text-slate-700 text-xs font-medium">{item.reason || 'Routine update'}</div>
           {item.referenceId && (
             <div className="text-[10px] text-slate-500 font-mono">Ref: {item.referenceId}</div>
           )}
@@ -246,7 +247,7 @@ export default function StockMovementsPage() {
       header: 'Date & Time',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-500 font-medium">
           {new Date(item.createdAt).toLocaleString()}
         </span>
       ),
@@ -254,7 +255,7 @@ export default function StockMovementsPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <PageHeader
         title="Stock Movements & Ledger"
         description="Audit stock intakes, sales deductions, damages, and manual count adjustments."
@@ -265,7 +266,7 @@ export default function StockMovementsPage() {
                 setPreselectedProductId(undefined)
                 setIsStockInOpen(true)
               }}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium shadow-md shadow-emerald-600/20"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-3.5"
             >
               <ArrowDownRight className="mr-1.5 h-4 w-4" /> Stock In
             </Button>
@@ -274,7 +275,7 @@ export default function StockMovementsPage() {
                 setPreselectedProductId(undefined)
                 setIsStockOutOpen(true)
               }}
-              className="bg-red-600 hover:bg-red-500 text-white font-medium shadow-md shadow-red-600/20"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-3.5"
             >
               <ArrowUpRight className="mr-1.5 h-4 w-4" /> Stock Out
             </Button>
@@ -284,7 +285,7 @@ export default function StockMovementsPage() {
                 setIsAdjustmentOpen(true)
               }}
               variant="outline"
-              className="border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+              className="border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold h-10 px-3.5"
             >
               <RefreshCw className="mr-1.5 h-4 w-4" /> Adjust Stock
             </Button>
@@ -294,79 +295,75 @@ export default function StockMovementsPage() {
 
       {/* Low Stock & Out of Stock Alert Summary Banner */}
       {lowStockProducts.length > 0 && (
-        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-bold text-sm text-white">
-                Low Stock Alert ({lowStockProducts.length} items require restock)
-              </h4>
-              <p className="text-xs text-amber-300/80 mt-0.5">
-                The following products are at or below their alert threshold:{' '}
-                <span className="font-semibold text-white">
-                  {lowStockProducts.map((p) => `${p.name} (${p.stockQuantity} ${p.unit})`).join(', ')}
-                </span>
-              </p>
+              <div className="font-bold text-amber-950 text-sm">
+                Attention Required: {lowStockProducts.length} Items Low or Out of Stock
+              </div>
+              <div className="mt-0.5 text-amber-800">
+                Replenish inventory to avoid stockouts at the POS checkout counter.
+              </div>
             </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => {
-              setPreselectedProductId(lowStockProducts[0].$id)
-              setIsStockInOpen(true)
-            }}
-            className="bg-amber-600 hover:bg-amber-500 text-white font-medium shrink-0"
-          >
-            <ArrowDownRight className="mr-1 h-4 w-4" /> Restock Item
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {lowStockProducts.slice(0, 3).map((p) => (
+              <Button
+                key={p.$id}
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setPreselectedProductId(p.$id)
+                  setIsStockInOpen(true)
+                }}
+                className="h-7 text-xs border-amber-300 bg-white text-amber-900 hover:bg-amber-100 font-bold"
+              >
+                + Restock {p.name}
+              </Button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Filter Tabs & Search */}
+      {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <SearchInput
-          placeholder="Search stock history by product, SKU, or reason..."
+          placeholder="Search ledger by product, SKU, or reference #..."
           value={searchQuery}
           onChange={setSearchQuery}
           className="w-full sm:max-w-md"
         />
 
-        <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
-          {[
-            { label: 'All Movements', value: 'ALL' },
-            { label: 'Stock In', value: 'stock_in' },
-            { label: 'Stock Out', value: 'stock_out' },
-            { label: 'Adjustments', value: 'adjustment' },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => setSelectedTypeFilter(tab.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                selectedTypeFilter === tab.value
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder="All Movement Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Movements</SelectItem>
+            <SelectItem value="stock_in">Stock In (Purchase)</SelectItem>
+            <SelectItem value="stock_out">Stock Out (Deduction)</SelectItem>
+            <SelectItem value="adjustment">Stock Adjustment</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Stock History DataTable */}
+      {/* Stock Ledger Table */}
       <DataTable
         data={filteredMovements}
         columns={columns}
         isLoading={isLoading}
         emptyTitle="No stock movements recorded"
-        emptyDescription="All inventory intakes, deductions, and count reconciliations are logged here."
+        emptyDescription="Record your first stock-in transaction or stock movement to populate the ledger."
         emptyAction={
           <Button
-            onClick={() => setIsStockInOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
+            onClick={() => {
+              setPreselectedProductId(undefined)
+              setIsStockInOpen(true)
+            }}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
           >
-            <ArrowDownRight className="mr-2 h-4 w-4" /> Record First Stock In
+            <ArrowDownRight className="mr-1.5 h-4 w-4" /> Record First Stock In
           </Button>
         }
       />

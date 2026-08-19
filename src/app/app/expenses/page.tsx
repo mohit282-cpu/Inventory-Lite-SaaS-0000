@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LoadingPage } from '@/components/ui/loading'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ExpenseFormDialog } from '@/components/features/expenses/expense-form-dialog'
@@ -13,7 +14,7 @@ import { useAuth } from '@/context/auth-context'
 import { expenseService, ExpenseSummary } from '@/services/expense.service'
 import { ExpenseInput } from '@/lib/validations'
 import { Expense } from '@/types'
-import { Plus, Edit, Trash2, Receipt, Calendar, DollarSign } from 'lucide-react'
+import { Plus, Edit, Trash2, Receipt, Calendar, CreditCard } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 
 export default function ExpensesPage() {
@@ -25,8 +26,6 @@ export default function ExpensesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState<string>('all')
-  const [minAmount, setMinAmount] = useState<string>('')
-  const [maxAmount, setMaxAmount] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   // Dialog States
@@ -124,12 +123,6 @@ export default function ExpensesPage() {
     const notesMatch = (exp.notes || '').toLowerCase().includes(query)
     const textPass = titleMatch || categoryMatch || notesMatch
 
-    const min = parseFloat(minAmount)
-    const max = parseFloat(maxAmount)
-    let amountPass = true
-    if (!isNaN(min) && exp.amount < min) amountPass = false
-    if (!isNaN(max) && exp.amount > max) amountPass = false
-
     const todayStr = new Date().toISOString().slice(0, 10)
     const monthStr = new Date().toISOString().slice(0, 7)
     const expDate = (exp.date || exp.createdAt || '').slice(0, 10)
@@ -138,7 +131,7 @@ export default function ExpensesPage() {
     if (dateFilter === 'today' && expDate !== todayStr) datePass = false
     if (dateFilter === 'month' && !expDate.startsWith(monthStr)) datePass = false
 
-    return textPass && amountPass && datePass
+    return textPass && datePass
   })
 
   const currency = activeBusiness?.currency || 'NPR'
@@ -150,8 +143,8 @@ export default function ExpensesPage() {
       sortable: true,
       render: (item) => (
         <div>
-          <p className="font-semibold text-slate-100">{item.title || item.description}</p>
-          {item.notes && <p className="text-xs text-slate-400 mt-0.5">{item.notes}</p>}
+          <p className="font-bold text-slate-900">{item.title || item.description}</p>
+          {item.notes && <p className="text-xs text-slate-500 mt-0.5">{item.notes}</p>}
         </div>
       ),
     },
@@ -159,7 +152,7 @@ export default function ExpensesPage() {
       key: 'category',
       header: 'Category',
       render: (item) => (
-        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold font-mono uppercase bg-slate-800 text-slate-300 border border-slate-700">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
           {item.category}
         </span>
       ),
@@ -169,7 +162,7 @@ export default function ExpensesPage() {
       header: 'Amount (Rs.)',
       sortable: true,
       render: (item) => (
-        <span className="font-mono font-bold text-rose-400 text-base">
+        <span className="font-mono font-bold text-rose-700 text-base">
           Rs. {item.amount.toFixed(2)}
         </span>
       ),
@@ -179,7 +172,7 @@ export default function ExpensesPage() {
       header: 'Date',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-500 font-medium">
           {item.date ? item.date.slice(0, 10) : item.createdAt?.slice(0, 10)}
         </span>
       ),
@@ -188,7 +181,7 @@ export default function ExpensesPage() {
       key: 'actions',
       header: 'Actions',
       render: (item) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
@@ -196,7 +189,7 @@ export default function ExpensesPage() {
               setEditingExpense(item)
               setFormOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-800"
+            className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
             title="Edit Expense"
           >
             <Edit className="h-4 w-4" />
@@ -208,7 +201,7 @@ export default function ExpensesPage() {
               setDeletingExpenseId(item.$id)
               setDeleteConfirmOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-red-400 hover:bg-slate-800"
+            className="h-8 w-8 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50"
             title="Delete Expense"
           >
             <Trash2 className="h-4 w-4" />
@@ -223,7 +216,7 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <PageHeader
         title="Expense Tracker"
         description="Log and monitor operational costs (rent, utilities, salaries) for accurate net profit estimations."
@@ -233,7 +226,7 @@ export default function ExpensesPage() {
               setEditingExpense(null)
               setFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
           >
             <Plus className="mr-2 h-4 w-4" /> Record New Expense
           </Button>
@@ -242,159 +235,127 @@ export default function ExpensesPage() {
 
       {/* 3 Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <Card className="border-slate-200 bg-white shadow-sm p-5">
+          <div className="flex items-center justify-between pb-2">
+            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
               Today&apos;s Expenses
-            </CardTitle>
-            <div className="h-8 w-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
-              <Calendar className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-rose-400 font-mono">
-              {currency} {summary.todayExpenses.toFixed(2)}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Expenses logged today</p>
-          </CardContent>
+            </span>
+            <Calendar className="h-4 w-4 text-rose-600 shrink-0" />
+          </div>
+          <div className="text-2xl font-extrabold text-rose-700 font-mono tracking-tight">
+            {currency} {summary.todayExpenses.toFixed(2)}
+          </div>
+          <p className="text-xs text-slate-500 mt-1">Expenses logged today</p>
         </Card>
 
-        <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <Card className="border-slate-200 bg-white shadow-sm p-5">
+          <div className="flex items-center justify-between pb-2">
+            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
               This Month&apos;s Expenses
-            </CardTitle>
-            <div className="h-8 w-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-              <Receipt className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white font-mono">
-              {currency} {summary.thisMonthExpenses.toFixed(2)}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Current calendar month total</p>
-          </CardContent>
+            </span>
+            <Receipt className="h-4 w-4 text-amber-600 shrink-0" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+            {currency} {summary.thisMonthExpenses.toFixed(2)}
+          </div>
+          <p className="text-xs text-slate-500 mt-1">Current calendar month total</p>
         </Card>
 
-        <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <Card className="border-slate-200 bg-white shadow-sm p-5">
+          <div className="flex items-center justify-between pb-2">
+            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
               All-Time Total Expenses
-            </CardTitle>
-            <div className="h-8 w-8 rounded-lg bg-slate-500/10 text-slate-300 flex items-center justify-center">
-              <DollarSign className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white font-mono">
-              {currency} {summary.totalExpenses.toFixed(2)}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Cumulative operational expenditure</p>
-          </CardContent>
+            </span>
+            <CreditCard className="h-4 w-4 text-slate-400 shrink-0" />
+          </div>
+          <div className="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+            {currency} {summary.totalExpenses.toFixed(2)}
+          </div>
+          <p className="text-xs text-slate-500 mt-1">Cumulative operational expenditure</p>
         </Card>
       </div>
 
       {/* Filters Bar */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <SearchInput
           placeholder="Search by title, notes, or category..."
           value={searchQuery}
           onChange={setSearchQuery}
+          className="w-full sm:max-w-md"
         />
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Date Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400 whitespace-nowrap">Date:</span>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="h-10 bg-slate-900 border border-slate-800 text-slate-200 text-sm rounded-lg px-3 focus:outline-none focus:border-indigo-500"
-            >
-              <option value="all">All Dates</option>
-              <option value="today">Today</option>
-              <option value="month">This Month</option>
-            </select>
-          </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="rent">Rent</SelectItem>
+              <SelectItem value="utilities">Utilities</SelectItem>
+              <SelectItem value="salaries">Salaries</SelectItem>
+              <SelectItem value="supplies">Supplies</SelectItem>
+              <SelectItem value="transport">Transport</SelectItem>
+              <SelectItem value="maintenance">Maintenance</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
 
-          {/* Category Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400 whitespace-nowrap">Category:</span>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="h-10 bg-slate-900 border border-slate-800 text-slate-200 text-sm rounded-lg px-3 focus:outline-none focus:border-indigo-500"
-            >
-              <option value="all">All Categories</option>
-              <option value="rent">Rent</option>
-              <option value="utilities">Utilities</option>
-              <option value="salaries">Salaries</option>
-              <option value="supplies">Supplies</option>
-              <option value="transport">Transport</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          {/* Amount Range Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400 whitespace-nowrap">Amount:</span>
-            <input
-              type="number"
-              placeholder="Min"
-              value={minAmount}
-              onChange={(e) => setMinAmount(e.target.value)}
-              className="h-10 w-20 bg-slate-900 border border-slate-800 text-slate-200 text-sm font-mono rounded-lg px-2.5 focus:outline-none focus:border-indigo-500 placeholder:text-slate-600"
-            />
-            <span className="text-slate-600 text-xs">-</span>
-            <input
-              type="number"
-              placeholder="Max"
-              value={maxAmount}
-              onChange={(e) => setMaxAmount(e.target.value)}
-              className="h-10 w-20 bg-slate-900 border border-slate-800 text-slate-200 text-sm font-mono rounded-lg px-2.5 focus:outline-none focus:border-indigo-500 placeholder:text-slate-600"
-            />
-          </div>
+          <Select value={dateFilter} onValueChange={setDateFilter}>
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue placeholder="All Time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Dates</SelectItem>
+              <SelectItem value="today">Today Only</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Expenses DataTable */}
+      {/* Expense Table */}
       <DataTable
         data={filteredExpenses}
         columns={columns}
-        emptyTitle="No expense records found"
-        emptyDescription="Log your operational expenses to keep your business financial ledger up-to-date."
+        emptyTitle="No expenses recorded"
+        emptyDescription="Record business expenses to track operating costs."
         emptyAction={
           <Button
             onClick={() => {
               setEditingExpense(null)
               setFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
           >
-            <Plus className="mr-2 h-4 w-4" /> Record First Expense
+            <Plus className="mr-2 h-4 w-4" /> Record Expense
           </Button>
         }
       />
 
-      {/* Create/Edit Form Dialog */}
+      {/* Record / Edit Form Modal */}
       <ExpenseFormDialog
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={(op) => {
+          setFormOpen(op)
+          if (!op) setEditingExpense(null)
+        }}
         onSubmit={handleCreateOrEditSubmit}
         initialData={editingExpense}
         loading={submitting}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Modal */}
       <ConfirmDialog
         isOpen={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        title="Delete Expense Record"
-        description="Are you sure you want to delete this expense entry? This action cannot be undone."
+        onClose={() => {
+          setDeleteConfirmOpen(false)
+          setDeletingExpenseId(null)
+        }}
         onConfirm={handleDeleteConfirm}
-        confirmText="Delete Expense"
-        cancelText="Cancel"
+        title="Delete Expense Record"
+        description="Are you sure you want to remove this expense entry? This action cannot be undone."
+        confirmText="Delete Entry"
       />
     </div>
   )

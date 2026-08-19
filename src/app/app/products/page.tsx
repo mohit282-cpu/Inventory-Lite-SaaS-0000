@@ -194,7 +194,7 @@ export default function ProductsPage() {
       sortable: true,
       render: (item) => (
         <div>
-          <div className="font-semibold text-white">{item.name}</div>
+          <div className="font-bold text-slate-900">{item.name}</div>
           <div className="text-xs text-slate-500 font-mono">SKU: {item.sku}</div>
         </div>
       ),
@@ -203,7 +203,7 @@ export default function ProductsPage() {
       key: 'categoryId',
       header: 'Category',
       render: (item) => (
-        <span className="text-slate-300 font-medium">
+        <span className="text-slate-700 font-medium">
           {getCategoryName(item.categoryId)}
         </span>
       ),
@@ -213,7 +213,7 @@ export default function ProductsPage() {
       header: 'Selling Price',
       sortable: true,
       render: (item) => (
-        <span className="font-mono font-bold text-emerald-400">
+        <span className="font-mono font-bold text-emerald-700">
           Rs. {item.sellingPrice.toFixed(2)}
         </span>
       ),
@@ -226,10 +226,10 @@ export default function ProductsPage() {
         <span
           className={`font-mono font-bold ${
             item.stockQuantity === 0
-              ? 'text-red-400'
+              ? 'text-red-700'
               : item.stockQuantity <= (item.lowStockThreshold || 5)
-              ? 'text-amber-400'
-              : 'text-slate-200'
+              ? 'text-amber-800'
+              : 'text-slate-900'
           }`}
         >
           {item.stockQuantity} {item.unit}
@@ -243,21 +243,21 @@ export default function ProductsPage() {
         const status = getStockStatus(item.stockQuantity, item.lowStockThreshold)
         if (status === 'Out of Stock') {
           return (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-400 bg-red-500/15 px-2 py-0.5 rounded border border-red-500/30">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-400" /> Out of Stock
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-600" /> Out of Stock
             </span>
           )
         }
         if (status === 'Low Stock') {
           return (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Low Stock
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-600" /> Low Stock
             </span>
           )
         }
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/30">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> In Stock
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" /> In Stock
           </span>
         )
       },
@@ -266,7 +266,7 @@ export default function ProductsPage() {
       key: 'actions',
       header: 'Actions',
       render: (item) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
@@ -274,8 +274,8 @@ export default function ProductsPage() {
               setDetailsProduct(item)
               setIsDetailsOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-            title="View Specs"
+            className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+            title="View Details"
           >
             <Eye className="h-4 w-4" />
           </Button>
@@ -286,7 +286,7 @@ export default function ProductsPage() {
               setSelectedProduct(item)
               setIsFormOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+            className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
             title="Edit Product"
           >
             <Edit className="h-4 w-4" />
@@ -298,7 +298,7 @@ export default function ProductsPage() {
               setProductToDelete(item)
               setIsDeleteOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-red-400"
+            className="h-8 w-8 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50"
             title="Delete Product"
           >
             <Trash2 className="h-4 w-4" />
@@ -309,7 +309,7 @@ export default function ProductsPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <PageHeader
         title="Products Inventory"
         description="Manage store products, pricing, SKUs, and stock alert thresholds."
@@ -319,7 +319,7 @@ export default function ProductsPage() {
               setSelectedProduct(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>
@@ -341,11 +341,11 @@ export default function ProductsPage() {
             value={selectedCategoryFilter}
             onValueChange={setSelectedCategoryFilter}
           >
-            <SelectTrigger className="w-full sm:w-44 bg-slate-900 border-slate-800 text-slate-200">
+            <SelectTrigger className="w-full sm:w-44">
               <Filter className="mr-2 h-3.5 w-3.5 text-slate-400" />
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-slate-800 text-slate-100">
+            <SelectContent>
               <SelectItem value="ALL">All Categories</SelectItem>
               {categories.map((cat) => (
                 <SelectItem key={cat.$id} value={cat.$id}>
@@ -360,10 +360,10 @@ export default function ProductsPage() {
             value={selectedStatusFilter}
             onValueChange={setSelectedStatusFilter}
           >
-            <SelectTrigger className="w-full sm:w-40 bg-slate-900 border-slate-800 text-slate-200">
+            <SelectTrigger className="w-full sm:w-40">
               <SelectValue placeholder="All Stock Status" />
             </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-slate-800 text-slate-100">
+            <SelectContent>
               <SelectItem value="ALL">All Stock Status</SelectItem>
               <SelectItem value="IN_STOCK">In Stock</SelectItem>
               <SelectItem value="LOW_STOCK">Low Stock</SelectItem>
@@ -379,16 +379,16 @@ export default function ProductsPage() {
         columns={columns}
         isLoading={isLoading}
         emptyTitle="No products found"
-        emptyDescription="No inventory items match your current search and filter criteria."
+        emptyDescription="Add your first product to start tracking inventory, prices, and stock threshold alerts."
         emptyAction={
           <Button
             onClick={() => {
               setSelectedProduct(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
           >
-            <Plus className="mr-2 h-4 w-4" /> Add Your First Product
+            <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>
         }
       />

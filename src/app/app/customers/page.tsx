@@ -130,43 +130,65 @@ export default function CustomersPage() {
       key: 'name',
       header: 'Customer Name',
       sortable: true,
+      width: '18%',
+      align: 'left',
       render: (item) => (
         <div>
-          <div className="font-semibold text-white">{item.name}</div>
-          {item.panNumber && <div className="text-xs text-slate-500 font-mono">PAN: {item.panNumber}</div>}
+          <div className="font-bold text-slate-800 text-sm sm:text-base">{item.name}</div>
+          {item.panNumber && <div className="text-xs text-slate-500 font-mono mt-0.5">PAN: {item.panNumber}</div>}
         </div>
       ),
     },
     {
       key: 'phone',
       header: 'Phone Number',
-      render: (item) => <span className="font-mono text-slate-300">{item.phone || '-'}</span>,
+      width: '16%',
+      align: 'left',
+      render: (item) => <span className="font-mono text-slate-700 font-medium text-xs sm:text-sm">{item.phone || 'N/A'}</span>,
     },
     {
       key: 'email',
       header: 'Email Address',
-      render: (item) => <span className="text-slate-400">{item.email || '-'}</span>,
+      width: '20%',
+      align: 'left',
+      render: (item) => <span className="text-slate-600 text-xs sm:text-sm">{item.email || 'N/A'}</span>,
     },
     {
       key: 'address',
       header: 'Address',
-      render: (item) => <span className="text-slate-400 text-xs">{item.address || '-'}</span>,
+      width: '20%',
+      align: 'left',
+      render: (item) => <span className="text-slate-600 text-xs sm:text-sm">{item.address || 'N/A'}</span>,
     },
     {
       key: 'totalDue',
       header: 'Balance Due',
       sortable: true,
-      render: (item) => (
-        <span className={`font-mono font-bold ${(item.totalDue || 0) > 0 ? 'text-red-400' : 'text-slate-400'}`}>
-          Rs. {(item.totalDue || 0).toFixed(2)}
-        </span>
-      ),
+      width: '14%',
+      align: 'right',
+      render: (item) => {
+        const due = item.totalDue || 0
+        if (due > 0) {
+          return (
+            <span className="font-mono font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-xs sm:text-sm inline-block">
+              Rs. {due.toFixed(2)}
+            </span>
+          )
+        }
+        return (
+          <span className="font-mono font-semibold text-slate-800 text-xs sm:text-sm">
+            Rs. 0.00
+          </span>
+        )
+      },
     },
     {
       key: 'actions',
       header: 'Actions',
+      width: '12%',
+      align: 'right',
       render: (item) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-end gap-1">
           <Button
             variant="ghost"
             size="sm"
@@ -174,8 +196,8 @@ export default function CustomersPage() {
               setDetailsCustomer(item)
               setIsDetailsOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-            title="View Details & Purchase History"
+            className="h-9 w-9 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-600 rounded-lg"
+            title="View Customer Details & Ledger"
           >
             <Eye className="h-4 w-4" />
           </Button>
@@ -186,8 +208,8 @@ export default function CustomersPage() {
               setSelectedCustomer(item)
               setIsFormOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-            title="Edit Customer"
+            className="h-9 w-9 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-600 rounded-lg"
+            title="Edit Customer Info"
           >
             <Edit className="h-4 w-4" />
           </Button>
@@ -198,7 +220,7 @@ export default function CustomersPage() {
               setCustomerToDelete(item)
               setIsDeleteOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-red-400"
+            className="h-9 w-9 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50 focus:ring-2 focus:ring-red-600 rounded-lg"
             title="Delete Customer"
           >
             <Trash2 className="h-4 w-4" />
@@ -209,9 +231,9 @@ export default function CustomersPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <PageHeader
-        title="Customers Directory"
+        title="Customer Directory"
         description="Maintain customer contacts, credit ledger, and purchase history."
         actions={
           <Button
@@ -219,7 +241,7 @@ export default function CustomersPage() {
               setSelectedCustomer(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold h-11 px-4 rounded-lg shadow-xs"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Customer
           </Button>
@@ -231,6 +253,7 @@ export default function CustomersPage() {
           placeholder="Search customers by name, phone, email, or address..."
           value={searchQuery}
           onChange={setSearchQuery}
+          className="w-full sm:max-w-md"
         />
       </div>
 
@@ -238,17 +261,17 @@ export default function CustomersPage() {
         data={filteredCustomers}
         columns={columns}
         isLoading={isLoading}
-        emptyTitle="No customers added yet"
-        emptyDescription="Add customers to associate sales orders and track outstanding credit balances."
+        emptyTitle="No customers found"
+        emptyDescription="Add customers to manage contacts, credit ledger, and sales receipts."
         emptyAction={
           <Button
             onClick={() => {
               setSelectedCustomer(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold h-11 px-4 rounded-lg shadow-xs"
           >
-            <Plus className="mr-2 h-4 w-4" /> Add First Customer
+            <Plus className="mr-2 h-4 w-4" /> Add Customer
           </Button>
         }
       />
@@ -265,7 +288,7 @@ export default function CustomersPage() {
         isLoading={isSubmitting}
       />
 
-      {/* Customer Details & History Modal */}
+      {/* Customer Details Modal */}
       <CustomerDetailsDialog
         customer={detailsCustomer}
         isOpen={isDetailsOpen}
@@ -275,7 +298,7 @@ export default function CustomersPage() {
         }}
       />
 
-      {/* Customer Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       <ConfirmDialog
         isOpen={isDeleteOpen}
         onClose={() => {
@@ -283,9 +306,9 @@ export default function CustomersPage() {
           setCustomerToDelete(null)
         }}
         onConfirm={handleDelete}
-        title="Remove Customer"
+        title="Delete Customer"
         description={`Are you sure you want to remove "${customerToDelete?.name}" from your customer directory?`}
-        confirmText="Remove Customer"
+        confirmText="Delete Customer"
         isLoading={isSubmitting}
       />
     </div>

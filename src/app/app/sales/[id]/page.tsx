@@ -63,8 +63,8 @@ export default function SaleDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-slate-400 min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mb-3" />
+      <div className="flex flex-col items-center justify-center p-12 text-slate-500 min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-3" />
         <p className="text-sm font-medium">Loading sales invoice...</p>
       </div>
     )
@@ -73,7 +73,7 @@ export default function SaleDetailPage() {
   if (!sale) return null
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto text-slate-900">
       <PageHeader
         title={`Invoice ${sale.saleNumber || `SALE-${sale.$id.slice(-6)}`}`}
         description="Official point-of-sale tax invoice receipt."
@@ -82,13 +82,13 @@ export default function SaleDetailPage() {
             <Button
               variant="outline"
               onClick={() => router.push('/app/sales')}
-              className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
+              className="border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold"
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sales
             </Button>
             <Button
               onClick={handlePrint}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/20"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
             >
               <Printer className="mr-2 h-4 w-4" /> Print Invoice
             </Button>
@@ -97,58 +97,58 @@ export default function SaleDetailPage() {
       />
 
       {/* Invoice Card Container */}
-      <Card className="border-slate-800 bg-slate-900/90 text-slate-100 p-6 md:p-8 space-y-6 shadow-2xl">
+      <Card className="border-slate-200 bg-white text-slate-900 p-6 md:p-8 space-y-6 shadow-sm print:shadow-none print:border-none">
         {/* Header: Business Profile & Customer Profile */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-b border-slate-800 pb-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 font-bold text-lg text-white">
-              <Building className="h-5 w-5 text-indigo-400" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-b border-slate-100 pb-6">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 font-extrabold text-xl text-slate-900">
+              <Building className="h-5 w-5 text-indigo-600" />
               <span>{activeBusiness?.name || 'Inventory Lite SaaS'}</span>
             </div>
             {activeBusiness?.address && (
-              <div className="text-xs text-slate-400">{activeBusiness.address}</div>
+              <div className="text-xs text-slate-600">{activeBusiness.address}</div>
             )}
-            <div className="text-xs text-slate-400 font-mono">
+            <div className="text-xs text-slate-500 font-mono">
               PAN/VAT: {activeBusiness?.vatNumber || activeBusiness?.panNumber || 'N/A'}
             </div>
             {activeBusiness?.phone && (
-              <div className="text-xs text-slate-400 font-mono">Phone: {activeBusiness.phone}</div>
+              <div className="text-xs text-slate-500 font-mono">Phone: {activeBusiness.phone}</div>
             )}
           </div>
 
-          <div className="space-y-2 text-right sm:text-right">
+          <div className="space-y-2 sm:text-right">
             <div className="inline-block">
               <StatusBadge status={sale.status} />
             </div>
-            <div className="text-xs text-slate-400 font-mono flex items-center justify-end gap-1.5 mt-1">
-              <Calendar className="h-3.5 w-3.5 text-indigo-400" />
+            <div className="text-xs text-slate-500 font-mono flex items-center sm:justify-end gap-1.5 mt-1 font-medium">
+              <Calendar className="h-3.5 w-3.5 text-indigo-600" />
               {new Date(sale.createdAt).toLocaleString()}
             </div>
-            <div className="text-xs text-slate-400 flex items-center justify-end gap-1.5">
-              <CreditCard className="h-3.5 w-3.5 text-indigo-400" />
-              Payment: <span className="uppercase font-bold text-white">{sale.paymentMethod.replace('_', ' ')}</span>
+            <div className="text-xs text-slate-600 flex items-center sm:justify-end gap-1.5">
+              <CreditCard className="h-3.5 w-3.5 text-indigo-600" />
+              Payment: <span className="uppercase font-bold text-slate-900">{sale.paymentMethod.replace('_', ' ')}</span>
             </div>
           </div>
         </div>
 
         {/* Billed To Customer */}
-        <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-start gap-3">
-          <User className="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+          <User className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
           <div className="text-xs space-y-0.5">
-            <div className="text-slate-500 font-semibold uppercase text-[10px]">Billed To</div>
-            <div className="font-bold text-white text-sm">
+            <div className="text-slate-500 font-extrabold uppercase text-[10px]">Billed To</div>
+            <div className="font-extrabold text-slate-900 text-sm">
               {customer ? customer.name : 'Walk-in Guest'}
             </div>
-            {customer?.phone && <div className="text-slate-400 font-mono">Phone: {customer.phone}</div>}
-            {customer?.address && <div className="text-slate-400">{customer.address}</div>}
-            {customer?.panNumber && <div className="text-slate-400 font-mono">PAN: {customer.panNumber}</div>}
+            {customer?.phone && <div className="text-slate-600 font-mono">Phone: {customer.phone}</div>}
+            {customer?.address && <div className="text-slate-600">{customer.address}</div>}
+            {customer?.panNumber && <div className="text-slate-600 font-mono">PAN: {customer.panNumber}</div>}
           </div>
         </div>
 
         {/* Itemized Products Table */}
-        <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60">
-          <table className="w-full text-left text-xs text-slate-200">
-            <thead className="bg-slate-950 uppercase tracking-wider text-slate-400 border-b border-slate-800">
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="w-full text-left text-xs text-slate-900">
+            <thead className="bg-slate-50 uppercase tracking-wider text-slate-500 border-b border-slate-200 font-extrabold">
               <tr>
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Item Description</th>
@@ -158,15 +158,15 @@ export default function SaleDetailPage() {
                 <th className="px-4 py-3 text-right">Line Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-slate-100">
               {items.map((item, index) => (
                 <tr key={item.$id}>
-                  <td className="px-4 py-3 text-slate-500 font-mono">{index + 1}</td>
-                  <td className="px-4 py-3 font-semibold text-white">{item.productNameSnapshot}</td>
-                  <td className="px-4 py-3 font-mono text-slate-300">{item.quantity}</td>
-                  <td className="px-4 py-3 font-mono text-slate-300">Rs. {item.unitPrice.toFixed(2)}</td>
-                  <td className="px-4 py-3 font-mono text-slate-400">Rs. {item.discount.toFixed(2)}</td>
-                  <td className="px-4 py-3 font-mono font-bold text-emerald-400 text-right">
+                  <td className="px-4 py-3 text-slate-400 font-mono">{index + 1}</td>
+                  <td className="px-4 py-3 font-bold text-slate-900">{item.productNameSnapshot}</td>
+                  <td className="px-4 py-3 font-mono text-slate-700 font-medium">{item.quantity}</td>
+                  <td className="px-4 py-3 font-mono text-slate-700">Rs. {item.unitPrice.toFixed(2)}</td>
+                  <td className="px-4 py-3 font-mono text-slate-500">Rs. {item.discount.toFixed(2)}</td>
+                  <td className="px-4 py-3 font-mono font-bold text-emerald-700 text-right">
                     Rs. {item.total.toFixed(2)}
                   </td>
                 </tr>
@@ -178,32 +178,32 @@ export default function SaleDetailPage() {
         {/* Financial Totals Breakdown */}
         <div className="flex justify-end pt-2">
           <div className="w-full max-w-xs space-y-2 text-xs">
-            <div className="flex justify-between text-slate-400">
+            <div className="flex justify-between text-slate-600 font-medium">
               <span>Subtotal</span>
-              <span className="font-mono text-white font-semibold">Rs. {sale.subtotal.toFixed(2)}</span>
+              <span className="font-mono text-slate-900 font-bold">Rs. {sale.subtotal.toFixed(2)}</span>
             </div>
             {sale.discount > 0 && (
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-600 font-medium">
                 <span>Discount</span>
-                <span className="font-mono text-red-400">-Rs. {sale.discount.toFixed(2)}</span>
+                <span className="font-mono text-red-600 font-bold">-Rs. {sale.discount.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between text-slate-400">
+            <div className="flex justify-between text-slate-600 font-medium">
               <span>VAT Tax</span>
-              <span className="font-mono text-white font-semibold">Rs. {sale.tax.toFixed(2)}</span>
+              <span className="font-mono text-slate-900 font-bold">Rs. {sale.tax.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm font-bold text-white pt-2 border-t border-slate-800">
+            <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200">
               <span>Grand Total</span>
-              <span className="font-mono text-emerald-400">Rs. {sale.total.toFixed(2)}</span>
+              <span className="font-mono text-emerald-700 text-base">Rs. {sale.total.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-slate-400 pt-1">
+            <div className="flex justify-between text-slate-600 pt-1 font-medium">
               <span>Paid Amount</span>
-              <span className="font-mono text-slate-200">Rs. {sale.paidAmount.toFixed(2)}</span>
+              <span className="font-mono text-slate-900 font-bold">Rs. {sale.paidAmount.toFixed(2)}</span>
             </div>
             {sale.dueAmount > 0 && (
-              <div className="flex justify-between text-red-400 font-bold pt-1 border-t border-slate-800/60">
+              <div className="flex justify-between text-amber-800 font-extrabold pt-1 border-t border-slate-200">
                 <span>Outstanding Due</span>
-                <span className="font-mono">Rs. {sale.dueAmount.toFixed(2)}</span>
+                <span className="font-mono text-amber-900">Rs. {sale.dueAmount.toFixed(2)}</span>
               </div>
             )}
           </div>

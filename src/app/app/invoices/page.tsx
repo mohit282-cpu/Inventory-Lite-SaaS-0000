@@ -90,7 +90,7 @@ export default function InvoicesPage() {
       render: (item) => (
         <Link
           href={`/app/invoices/${item.$id}`}
-          className="font-mono font-semibold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1.5"
+          className="font-mono font-bold text-indigo-700 hover:text-indigo-800 transition-colors flex items-center gap-1.5"
         >
           <FileText className="h-3.5 w-3.5" />
           {item.invoiceNumber}
@@ -100,33 +100,33 @@ export default function InvoicesPage() {
     {
       key: 'saleNumber',
       header: 'Sale Ref',
-      render: (item) => <span className="font-mono text-slate-400 text-xs">{item.saleNumber}</span>,
+      render: (item) => <span className="font-mono text-slate-500 text-xs font-medium">{item.saleNumber}</span>,
     },
     {
       key: 'customerName',
       header: 'Customer',
-      render: (item) => <span className="text-slate-200 font-medium">{item.customerName}</span>,
+      render: (item) => <span className="text-slate-900 font-bold">{item.customerName}</span>,
     },
     {
       key: 'totalAmount',
       header: 'Total (Rs.)',
       sortable: true,
       render: (item) => (
-        <span className="font-mono font-bold text-emerald-400">Rs. {item.totalAmount.toFixed(2)}</span>
+        <span className="font-mono font-bold text-emerald-700">Rs. {item.totalAmount.toFixed(2)}</span>
       ),
     },
     {
       key: 'paidAmount',
       header: 'Paid (Rs.)',
       render: (item) => (
-        <span className="font-mono text-slate-300">Rs. {item.paidAmount.toFixed(2)}</span>
+        <span className="font-mono text-slate-700 font-medium">Rs. {item.paidAmount.toFixed(2)}</span>
       ),
     },
     {
       key: 'dueAmount',
       header: 'Due (Rs.)',
       render: (item) => (
-        <span className={`font-mono font-medium ${item.dueAmount > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+        <span className={`font-mono font-bold ${item.dueAmount > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
           Rs. {item.dueAmount.toFixed(2)}
         </span>
       ),
@@ -141,7 +141,7 @@ export default function InvoicesPage() {
       header: 'Date',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-500 font-medium">
           {new Date(item.issueDate || item.createdAt).toLocaleDateString()}
         </span>
       ),
@@ -150,21 +150,21 @@ export default function InvoicesPage() {
       key: 'actions',
       header: 'Actions',
       render: (item) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push(`/app/invoices/${item.$id}`)}
-            className="h-8 px-2.5 text-slate-300 hover:text-white hover:bg-slate-800"
-            title="View & Print Invoice"
+            className="h-8 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            title="View Invoice"
           >
             <Eye className="h-3.5 w-3.5 mr-1" /> View
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => router.push(`/app/invoices/${item.$id}?print=true`)}
-            className="h-8 px-2.5 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/50"
+            className="h-8 px-2.5 border-slate-300 text-indigo-700 hover:bg-indigo-50 font-bold"
             title="Print Tax Invoice"
           >
             <Printer className="h-3.5 w-3.5 mr-1" /> Print
@@ -179,14 +179,14 @@ export default function InvoicesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <PageHeader
         title="Tax Invoices"
         description="Generate, view, and print PAN/VAT compliant sales invoices."
         actions={
           <Button
             onClick={() => router.push('/app/sales/new')}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
           >
             <Plus className="mr-2 h-4 w-4" /> Issue New Invoice (POS)
           </Button>
@@ -204,10 +204,10 @@ export default function InvoicesPage() {
       <DataTable
         data={filteredInvoices}
         columns={columns}
-        emptyTitle="No invoices found"
-        emptyDescription="Completing sales from the POS terminal will automatically generate sequential tax invoices."
+        emptyTitle="No invoices yet"
+        emptyDescription="Invoices generated from completed POS sales will appear here."
         emptyAction={
-          <Button onClick={() => router.push('/app/sales/new')} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+          <Button onClick={() => router.push('/app/sales/new')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
             <Plus className="mr-2 h-4 w-4" /> Open POS Terminal
           </Button>
         }

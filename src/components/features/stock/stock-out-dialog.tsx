@@ -90,15 +90,15 @@ export function StockOutDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md border-slate-800 bg-slate-900 text-slate-100">
+      <DialogContent className="sm:max-w-md border-slate-200 bg-white text-slate-900 shadow-xl">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center font-bold shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-red-50 text-red-700 border border-red-200 flex items-center justify-center font-bold shrink-0">
               <ArrowUpRight className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold text-white">Record Stock Out</DialogTitle>
-              <DialogDescription className="text-slate-400 mt-0.5">
+              <DialogTitle className="text-xl font-bold text-slate-900">Record Stock Out</DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 mt-0.5">
                 Deduct inventory for sales, dispatches, damages, or samples.
               </DialogDescription>
             </div>
@@ -106,8 +106,8 @@ export function StockOutDialog({
         </DialogHeader>
 
         {(serverError || isExceedingStock) && (
-          <div className="p-3 text-xs rounded-lg bg-red-950/50 border border-red-800/80 text-red-200 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
+          <div className="p-3 text-xs rounded-lg bg-red-50 border border-red-200 text-red-700 font-semibold flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
             <span>
               {serverError ||
                 `Requested ${enteredQuantity} ${activeProduct?.unit} exceeds available stock (${activeProduct?.stockQuantity} ${activeProduct?.unit})`}
@@ -117,16 +117,16 @@ export function StockOutDialog({
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
           {/* Select Product */}
-          <div className="space-y-2">
-            <Label htmlFor="productId">Select Product *</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="productId" className="text-xs font-bold text-slate-700">Select Product *</Label>
             <Select
               value={selectedProductId}
               onValueChange={(val) => setValue('productId', val)}
             >
-              <SelectTrigger className="bg-slate-950/60 border-slate-800 text-white">
+              <SelectTrigger>
                 <SelectValue placeholder="Select product" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-800 text-white max-h-56">
+              <SelectContent className="max-h-56">
                 {products.map((p) => (
                   <SelectItem key={p.$id} value={p.$id}>
                     {p.name} (SKU: {p.sku}) — Available: {p.stockQuantity} {p.unit}
@@ -134,21 +134,21 @@ export function StockOutDialog({
                 ))}
               </SelectContent>
             </Select>
-            {errors.productId && <p className="text-xs text-red-400">{errors.productId.message}</p>}
+            {errors.productId && <p className="text-xs text-red-600 font-medium">{errors.productId.message}</p>}
           </div>
 
           {activeProduct && (
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs flex justify-between">
-              <span className="text-slate-400">Available Stock:</span>
-              <span className="font-mono font-bold text-white">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex justify-between">
+              <span className="text-slate-500 font-medium">Available Stock:</span>
+              <span className="font-mono font-bold text-slate-900">
                 {activeProduct.stockQuantity} {activeProduct.unit}
               </span>
             </div>
           )}
 
           {/* Deduction Quantity */}
-          <div className="space-y-2">
-            <Label htmlFor="quantity">Deduction Quantity *</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="quantity" className="text-xs font-bold text-slate-700">Deduction Quantity *</Label>
             <Input
               id="quantity"
               type="number"
@@ -156,30 +156,29 @@ export function StockOutDialog({
               max={activeProduct?.stockQuantity || 999999}
               step="1"
               {...register('quantity')}
-              className="bg-slate-950/60 border-slate-800 text-white font-mono"
+              className="font-mono"
             />
-            {errors.quantity && <p className="text-xs text-red-400">{errors.quantity.message}</p>}
+            {errors.quantity && <p className="text-xs text-red-600 font-medium">{errors.quantity.message}</p>}
           </div>
 
           {/* Reason */}
-          <div className="space-y-2">
-            <Label htmlFor="reason">Reason / Deduction Note</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="reason" className="text-xs font-bold text-slate-700">Reason / Deduction Note</Label>
             <Input
               id="reason"
               placeholder="e.g. Damaged goods, Sample dispatch, Expired item"
               {...register('reason')}
-              className="bg-slate-950/60 border-slate-800 text-white placeholder:text-slate-500"
             />
           </div>
 
           {/* Reference # */}
-          <div className="space-y-2">
-            <Label htmlFor="referenceId">Reference # (Optional)</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="referenceId" className="text-xs font-bold text-slate-700">Reference # (Optional)</Label>
             <Input
               id="referenceId"
               placeholder="e.g. Sales Receipt # / Dispatch Note #"
               {...register('referenceId')}
-              className="bg-slate-950/60 border-slate-800 text-white font-mono placeholder:text-slate-500"
+              className="font-mono"
             />
           </div>
 
@@ -189,14 +188,13 @@ export function StockOutDialog({
               variant="outline"
               onClick={onClose}
               disabled={isLoading}
-              className="border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isLoading || isExceedingStock}
-              className="bg-red-600 hover:bg-red-500 text-white font-medium shadow-lg shadow-red-600/20 disabled:opacity-50"
+              variant="destructive"
             >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Confirm Stock Out

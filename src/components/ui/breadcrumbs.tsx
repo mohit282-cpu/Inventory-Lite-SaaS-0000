@@ -25,15 +25,15 @@ export function Breadcrumbs() {
   }
 
   // Filter out leading 'app' segment for cleaner breadcrumbs
-  const displaySegments = pathSegments.filter(s => s !== 'app')
+  const displaySegments = pathSegments.filter((s) => s !== 'app')
 
   if (displaySegments.length === 0) return null
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center text-xs text-slate-400 space-x-1 mb-2">
+    <nav aria-label="Breadcrumb" className="flex items-center text-xs text-slate-500 space-x-1.5 mb-2">
       <Link
         href="/app/dashboard"
-        className="hover:text-white transition-colors flex items-center gap-1"
+        className="text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-1 font-medium"
       >
         <Home className="h-3.5 w-3.5" />
         <span className="sr-only">Home</span>
@@ -46,13 +46,13 @@ export function Breadcrumbs() {
 
         return (
           <React.Fragment key={href}>
-            <ChevronRight className="h-3 w-3 text-slate-600 shrink-0" />
+            <ChevronRight className="h-3.5 w-3.5 text-slate-300 shrink-0" />
             {isLast ? (
-              <span className="font-semibold text-slate-200 capitalize">{label}</span>
+              <span className="font-semibold text-slate-800 capitalize">{label}</span>
             ) : (
               <Link
                 href={href}
-                className="hover:text-white transition-colors capitalize"
+                className="text-slate-500 hover:text-slate-900 transition-colors capitalize font-medium"
               >
                 {label}
               </Link>

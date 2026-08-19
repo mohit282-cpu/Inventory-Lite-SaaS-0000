@@ -57,12 +57,12 @@ export function InviteMemberDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[460px] bg-slate-900 border-slate-800 text-slate-100">
+      <DialogContent className="sm:max-w-[460px] bg-white border-slate-200 text-slate-900 shadow-xl">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-indigo-400" /> Invite Team Member
+          <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-indigo-600" /> Invite Team Member
           </DialogTitle>
-          <DialogDescription className="text-slate-400 text-xs">
+          <DialogDescription className="text-slate-500 text-xs">
             Add team members to your business workspace and assign role-based access permissions.
           </DialogDescription>
         </DialogHeader>
@@ -70,7 +70,7 @@ export function InviteMemberDialog({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
           {/* User Email */}
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs font-semibold text-slate-300">
+            <Label htmlFor="email" className="text-xs font-bold text-slate-700">
               Team Member Email *
             </Label>
             <Input
@@ -78,47 +78,44 @@ export function InviteMemberDialog({
               type="email"
               placeholder="colleague@example.com"
               {...register('email')}
-              className="bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:border-indigo-500"
             />
-            {errors.email && <p className="text-xs text-red-400">{errors.email.message}</p>}
+            {errors.email && <p className="text-xs text-red-600 font-medium">{errors.email.message}</p>}
           </div>
 
           {/* Role Selection */}
           <div className="space-y-1.5">
-            <Label htmlFor="role" className="text-xs font-semibold text-slate-300">
+            <Label htmlFor="role" className="text-xs font-bold text-slate-700">
               Assigned Role *
             </Label>
             <select
               id="role"
               {...register('role')}
-              className="w-full h-10 rounded-md bg-slate-950 border border-slate-800 text-white text-sm px-3 focus:outline-none focus:border-indigo-500"
+              className="w-full h-10 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm px-3 focus:outline-none focus:ring-2 focus:ring-indigo-600/30 focus:border-indigo-600 font-medium shadow-xs"
             >
               <option value="admin">Admin (Operational management, reports, inventory)</option>
               <option value="staff">Staff (POS Billing, Stock Viewing, Products Viewing)</option>
             </select>
-            {errors.role && <p className="text-xs text-red-400">{errors.role.message}</p>}
+            {errors.role && <p className="text-xs text-red-600 font-medium">{errors.role.message}</p>}
           </div>
 
           {/* Role Overview Guide */}
-          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs space-y-1 text-slate-400">
-            <p className="font-semibold text-slate-300">Role Permissions Overview:</p>
-            <p>• <strong className="text-indigo-400">Admin</strong>: Full access to products, stock, sales, POS, and financial reports.</p>
-            <p>• <strong className="text-emerald-400">Staff</strong>: Operational access for POS cashier billing and inventory viewing.</p>
+          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-1 text-slate-600">
+            <p className="font-bold text-slate-900">Role Permissions Overview:</p>
+            <p>• <strong className="text-indigo-700">Admin</strong>: Full access to products, stock, sales, POS, and financial reports.</p>
+            <p>• <strong className="text-emerald-700">Staff</strong>: Operational access for POS cashier billing and inventory viewing.</p>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-slate-800">
+          <DialogFooter className="pt-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/20"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Send Team Invite

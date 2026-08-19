@@ -15,11 +15,11 @@ export function PageHeader({
   showBreadcrumbs = true,
 }: PageHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800/60 mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200 mb-6">
       <div className="min-w-0">
         {showBreadcrumbs && <Breadcrumbs />}
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">{title}</h1>
-        {description && <p className="text-sm text-slate-400 mt-1 truncate">{description}</p>}
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
+        {description && <p className="text-sm sm:text-base text-slate-500 font-normal mt-1">{description}</p>}
       </div>
 
       {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}

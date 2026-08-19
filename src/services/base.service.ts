@@ -49,10 +49,40 @@ export abstract class BaseService {
     permissions?: string[],
     customId?: string
   ): Promise<T> {
+    const { $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...cleanData } = data || {}
+
+    const collectionsWithUpdatedAt = new Set<string>([
+      'users',
+      'businesses',
+      'categories',
+      'products',
+      'customers',
+      'expenses',
+    ])
+
+    const collectionsWithCreatedAt = new Set<string>([
+      'users',
+      'businesses',
+      'business_members',
+      'categories',
+      'products',
+      'stock_movements',
+      'customers',
+      'sales',
+      'invoices',
+      'expenses',
+    ])
+
     const documentData: any = {
-      ...data,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      ...cleanData,
+    }
+
+    if (collectionsWithCreatedAt.has(this.collectionId) || cleanData.createdAt !== undefined) {
+      documentData.createdAt = cleanData.createdAt || new Date().toISOString()
+    }
+
+    if (collectionsWithUpdatedAt.has(this.collectionId) || cleanData.updatedAt !== undefined) {
+      documentData.updatedAt = cleanData.updatedAt || new Date().toISOString()
     }
 
     if (userId && !documentData.createdBy) {
@@ -137,9 +167,23 @@ export abstract class BaseService {
       await this.getById(id, businessId)
     }
 
-    const updateData = {
-      ...data,
-      updatedAt: new Date().toISOString(),
+    const { $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...cleanData } = data || {}
+
+    const collectionsWithUpdatedAt = new Set<string>([
+      'users',
+      'businesses',
+      'categories',
+      'products',
+      'customers',
+      'expenses',
+    ])
+
+    const updateData: any = {
+      ...cleanData,
+    }
+
+    if (collectionsWithUpdatedAt.has(this.collectionId) || cleanData.updatedAt !== undefined) {
+      updateData.updatedAt = cleanData.updatedAt || new Date().toISOString()
     }
 
     const doc = await databases.updateDocument(

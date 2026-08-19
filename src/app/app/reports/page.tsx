@@ -127,23 +127,23 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <PageHeader
         title="Business Intelligence & Reports"
         description="Comprehensive real-data financial, sales, inventory, and net profit analytics."
         actions={
-          <Button onClick={handleExportCSV} variant="outline" className="border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 shadow-md">
-            <Download className="mr-2 h-4 w-4 text-emerald-400" /> Export Active Report (CSV)
+          <Button onClick={handleExportCSV} variant="outline" className="border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold shadow-xs">
+            <Download className="mr-2 h-4 w-4 text-emerald-600" /> Export Active Report (CSV)
           </Button>
         }
       />
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 overflow-x-auto pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto pb-2">
         <button
           onClick={() => setActiveTab('sales')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-            activeTab === 'sales' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
+            activeTab === 'sales' ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <TrendingUp className="h-4 w-4" /> 1. Sales Report
@@ -151,8 +151,8 @@ export default function ReportsPage() {
 
         <button
           onClick={() => setActiveTab('stock')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-            activeTab === 'stock' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
+            activeTab === 'stock' ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Package className="h-4 w-4" /> 2. Product & Stock Report
@@ -160,8 +160,8 @@ export default function ReportsPage() {
 
         <button
           onClick={() => setActiveTab('dues')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-            activeTab === 'dues' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
+            activeTab === 'dues' ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Users className="h-4 w-4" /> 3. Customer Dues Report
@@ -169,8 +169,8 @@ export default function ReportsPage() {
 
         <button
           onClick={() => setActiveTab('expenses')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-            activeTab === 'expenses' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
+            activeTab === 'expenses' ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Receipt className="h-4 w-4" /> 4. Expense Report
@@ -178,8 +178,8 @@ export default function ReportsPage() {
 
         <button
           onClick={() => setActiveTab('profit')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
-            activeTab === 'profit' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
+            activeTab === 'profit' ? 'bg-emerald-50 text-emerald-800 border-2 border-emerald-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <DollarSign className="h-4 w-4" /> 5. Profit Estimate
@@ -190,17 +190,17 @@ export default function ReportsPage() {
       {activeTab === 'sales' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <SearchInput placeholder="Search sales by invoice # or customer..." value={searchQuery} onChange={setSearchQuery} />
-            <div className="text-sm font-semibold text-slate-300">
-              Total Sales Volume: <span className="text-emerald-400 font-mono font-bold">Rs. {sales.reduce((sum, s) => sum + s.total, 0).toFixed(2)}</span>
+            <SearchInput placeholder="Search sales by invoice # or customer..." value={searchQuery} onChange={setSearchQuery} className="w-full sm:max-w-md" />
+            <div className="text-sm font-bold text-slate-700">
+              Total Sales Volume: <span className="text-emerald-700 font-mono font-extrabold">Rs. {sales.reduce((sum, s) => sum + s.total, 0).toFixed(2)}</span>
             </div>
           </div>
 
-          <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-6">
+          <Card className="border-slate-200 bg-white shadow-sm p-5">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase">
+                  <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-500 bg-slate-50">
                     <th className="py-2.5 px-3">Sale #</th>
                     <th className="py-2.5 px-3">Subtotal</th>
                     <th className="py-2.5 px-3">VAT (13%)</th>
@@ -210,18 +210,18 @@ export default function ReportsPage() {
                     <th className="py-2.5 px-3 text-right">Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50">
+                <tbody className="divide-y divide-slate-100">
                   {sales
                     .filter((s) => (s.saleNumber || s.$id).toLowerCase().includes(searchQuery.toLowerCase()))
                     .map((s) => (
-                      <tr key={s.$id} className="hover:bg-slate-800/30">
-                        <td className="py-3 px-3 font-mono font-medium text-indigo-400">{s.saleNumber || s.$id.slice(0, 8)}</td>
-                        <td className="py-3 px-3 font-mono text-slate-300">Rs. {s.subtotal.toFixed(2)}</td>
-                        <td className="py-3 px-3 font-mono text-slate-400">Rs. {s.tax.toFixed(2)}</td>
-                        <td className="py-3 px-3 font-mono font-bold text-emerald-400">Rs. {s.total.toFixed(2)}</td>
-                        <td className="py-3 px-3 uppercase text-xs text-slate-300">{s.paymentMethod}</td>
+                      <tr key={s.$id} className="hover:bg-slate-50/80">
+                        <td className="py-3 px-3 font-mono font-bold text-indigo-700">{s.saleNumber || s.$id.slice(0, 8)}</td>
+                        <td className="py-3 px-3 font-mono text-slate-700 font-medium">Rs. {s.subtotal.toFixed(2)}</td>
+                        <td className="py-3 px-3 font-mono text-slate-500">Rs. {s.tax.toFixed(2)}</td>
+                        <td className="py-3 px-3 font-mono font-bold text-emerald-700">Rs. {s.total.toFixed(2)}</td>
+                        <td className="py-3 px-3 uppercase text-xs font-bold text-slate-700">{s.paymentMethod}</td>
                         <td className="py-3 px-3"><StatusBadge status={s.status} /></td>
-                        <td className="py-3 px-3 text-right text-xs text-slate-400">{new Date(s.createdAt || '').toLocaleDateString()}</td>
+                        <td className="py-3 px-3 text-right text-xs text-slate-500 font-medium">{new Date(s.createdAt || '').toLocaleDateString()}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -235,30 +235,30 @@ export default function ReportsPage() {
       {activeTab === 'stock' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-4">
-              <p className="text-xs text-slate-400 uppercase font-semibold">Cost Valuation</p>
-              <p className="text-2xl font-bold font-mono text-indigo-400 mt-1">{currency} {totalStockValuationCost.toFixed(2)}</p>
+            <Card className="border-slate-200 bg-white shadow-sm p-5">
+              <p className="text-[11px] text-slate-500 uppercase font-extrabold">Cost Valuation</p>
+              <p className="text-2xl font-extrabold font-mono text-indigo-700 mt-1">{currency} {totalStockValuationCost.toFixed(2)}</p>
               <p className="text-xs text-slate-500 mt-1">Based on purchase prices</p>
             </Card>
 
-            <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-4">
-              <p className="text-xs text-slate-400 uppercase font-semibold">Retail Valuation</p>
-              <p className="text-2xl font-bold font-mono text-emerald-400 mt-1">{currency} {totalStockValuationRetail.toFixed(2)}</p>
+            <Card className="border-slate-200 bg-white shadow-sm p-5">
+              <p className="text-[11px] text-slate-500 uppercase font-extrabold">Retail Valuation</p>
+              <p className="text-2xl font-extrabold font-mono text-emerald-700 mt-1">{currency} {totalStockValuationRetail.toFixed(2)}</p>
               <p className="text-xs text-slate-500 mt-1">Based on selling prices</p>
             </Card>
 
-            <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-4">
-              <p className="text-xs text-slate-400 uppercase font-semibold">Potential Margin</p>
-              <p className="text-2xl font-bold font-mono text-amber-400 mt-1">{currency} {potentialProfitMargin.toFixed(2)}</p>
+            <Card className="border-slate-200 bg-white shadow-sm p-5">
+              <p className="text-[11px] text-slate-500 uppercase font-extrabold">Potential Margin</p>
+              <p className="text-2xl font-extrabold font-mono text-amber-800 mt-1">{currency} {potentialProfitMargin.toFixed(2)}</p>
               <p className="text-xs text-slate-500 mt-1">Estimated gross asset profit</p>
             </Card>
           </div>
 
-          <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-6">
+          <Card className="border-slate-200 bg-white shadow-sm p-5">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase">
+                  <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-500 bg-slate-50">
                     <th className="py-2.5 px-3">Product Name</th>
                     <th className="py-2.5 px-3">SKU</th>
                     <th className="py-2.5 px-3 text-center">Stock Qty</th>
@@ -267,15 +267,15 @@ export default function ReportsPage() {
                     <th className="py-2.5 px-3 text-right">Total Cost Value</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50">
+                <tbody className="divide-y divide-slate-100">
                   {products.map((p) => (
-                    <tr key={p.$id} className="hover:bg-slate-800/30">
-                      <td className="py-3 px-3 font-medium text-slate-200">{p.name}</td>
-                      <td className="py-3 px-3 font-mono text-xs text-slate-400">{p.sku}</td>
-                      <td className="py-3 px-3 text-center font-mono font-bold text-white">{p.stockQuantity}</td>
-                      <td className="py-3 px-3 text-right font-mono text-slate-300">Rs. {p.purchasePrice.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right font-mono text-emerald-400">Rs. {p.sellingPrice.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-indigo-400">
+                    <tr key={p.$id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-3 font-bold text-slate-900">{p.name}</td>
+                      <td className="py-3 px-3 font-mono text-xs text-slate-500">{p.sku}</td>
+                      <td className="py-3 px-3 text-center font-mono font-bold text-slate-900">{p.stockQuantity}</td>
+                      <td className="py-3 px-3 text-right font-mono text-slate-700">Rs. {p.purchasePrice.toFixed(2)}</td>
+                      <td className="py-3 px-3 text-right font-mono text-emerald-700 font-bold">Rs. {p.sellingPrice.toFixed(2)}</td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-indigo-700">
                         Rs. {(p.stockQuantity * p.purchasePrice).toFixed(2)}
                       </td>
                     </tr>
@@ -290,10 +290,10 @@ export default function ReportsPage() {
       {/* TAB 3: CUSTOMER DUES REPORT */}
       {activeTab === 'dues' && (
         <div className="space-y-6">
-          <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
-              <h3 className="text-base font-bold text-white">Outstanding Customer Dues Summary</h3>
-              <div className="text-right font-mono font-bold text-amber-400 text-lg">
+          <Card className="border-slate-200 bg-white shadow-sm p-5">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
+              <h3 className="text-base font-extrabold text-slate-900">Outstanding Customer Dues Summary</h3>
+              <div className="text-right font-mono font-extrabold text-amber-800 text-lg">
                 Total Credit Due: Rs. {totalCustomerDues.toFixed(2)}
               </div>
             </div>
@@ -301,20 +301,20 @@ export default function ReportsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase">
+                  <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-500 bg-slate-50">
                     <th className="py-2.5 px-3">Customer Name</th>
                     <th className="py-2.5 px-3">Phone</th>
                     <th className="py-2.5 px-3">Email</th>
                     <th className="py-2.5 px-3 text-right">Outstanding Due</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50">
+                <tbody className="divide-y divide-slate-100">
                   {customers.map((c) => (
-                    <tr key={c.$id} className="hover:bg-slate-800/30">
-                      <td className="py-3 px-3 font-medium text-slate-200">{c.name}</td>
-                      <td className="py-3 px-3 font-mono text-xs text-slate-400">{c.phone || '-'}</td>
-                      <td className="py-3 px-3 text-slate-400 text-xs">{c.email || '-'}</td>
-                      <td className={`py-3 px-3 text-right font-mono font-bold ${c.totalDue > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                    <tr key={c.$id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-3 font-bold text-slate-900">{c.name}</td>
+                      <td className="py-3 px-3 font-mono text-xs text-slate-600">{c.phone || '-'}</td>
+                      <td className="py-3 px-3 text-slate-600 text-xs">{c.email || '-'}</td>
+                      <td className={`py-3 px-3 text-right font-mono font-extrabold ${c.totalDue > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
                         Rs. {(c.totalDue || 0).toFixed(2)}
                       </td>
                     </tr>
@@ -329,10 +329,10 @@ export default function ReportsPage() {
       {/* TAB 4: EXPENSE REPORT */}
       {activeTab === 'expenses' && (
         <div className="space-y-6">
-          <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
-              <h3 className="text-base font-bold text-white">Expenditure Log & Summary</h3>
-              <div className="text-right font-mono font-bold text-rose-400 text-lg">
+          <Card className="border-slate-200 bg-white shadow-sm p-5">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
+              <h3 className="text-base font-extrabold text-slate-900">Expenditure Log & Summary</h3>
+              <div className="text-right font-mono font-extrabold text-rose-700 text-lg">
                 Total Expenses: Rs. {totalExpensesAmount.toFixed(2)}
               </div>
             </div>
@@ -340,20 +340,20 @@ export default function ReportsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase">
+                  <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-500 bg-slate-50">
                     <th className="py-2.5 px-3">Title</th>
                     <th className="py-2.5 px-3">Category</th>
                     <th className="py-2.5 px-3 text-right">Amount</th>
                     <th className="py-2.5 px-3 text-right">Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50">
+                <tbody className="divide-y divide-slate-100">
                   {expenses.map((e) => (
-                    <tr key={e.$id} className="hover:bg-slate-800/30">
-                      <td className="py-3 px-3 font-medium text-slate-200">{e.title}</td>
-                      <td className="py-3 px-3 uppercase text-xs font-mono text-slate-400">{e.category}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-rose-400">Rs. {e.amount.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right text-xs text-slate-400">{e.date || e.createdAt?.slice(0, 10)}</td>
+                    <tr key={e.$id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-3 font-bold text-slate-900">{e.title}</td>
+                      <td className="py-3 px-3 uppercase text-xs font-mono text-slate-600">{e.category}</td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-rose-700">Rs. {e.amount.toFixed(2)}</td>
+                      <td className="py-3 px-3 text-right text-xs text-slate-500 font-medium">{e.date || e.createdAt?.slice(0, 10)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -368,57 +368,59 @@ export default function ReportsPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Revenue Card */}
-            <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-6">
-              <p className="text-xs text-slate-400 uppercase font-semibold">1. Total Revenue</p>
-              <p className="text-3xl font-black font-mono text-emerald-400 mt-2">{currency} {profitReport.totalRevenue.toFixed(2)}</p>
+            <Card className="border-slate-200 bg-white shadow-sm p-5">
+              <p className="text-[11px] text-slate-500 uppercase font-extrabold">1. Total Revenue</p>
+              <p className="text-3xl font-black font-mono text-emerald-700 mt-2">{currency} {profitReport.totalRevenue.toFixed(2)}</p>
               <p className="text-xs text-slate-500 mt-1">From {profitReport.totalSalesCount} completed sales</p>
             </Card>
 
             {/* COGS Card */}
-            <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-6">
-              <p className="text-xs text-slate-400 uppercase font-semibold">2. Cost of Goods Sold (COGS)</p>
-              <p className="text-3xl font-black font-mono text-amber-400 mt-2">{currency} {profitReport.cogs.toFixed(2)}</p>
+            <Card className="border-slate-200 bg-white shadow-sm p-5">
+              <p className="text-[11px] text-slate-500 uppercase font-extrabold">2. Cost of Goods Sold (COGS)</p>
+              <p className="text-3xl font-black font-mono text-amber-800 mt-2">{currency} {profitReport.cogs.toFixed(2)}</p>
               <p className="text-xs text-slate-500 mt-1">Purchase cost of sold items</p>
             </Card>
 
             {/* Total Expenses */}
-            <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-6">
-              <p className="text-xs text-slate-400 uppercase font-semibold">3. Total Operating Expenses</p>
-              <p className="text-3xl font-black font-mono text-rose-400 mt-2">{currency} {profitReport.totalExpenses.toFixed(2)}</p>
+            <Card className="border-slate-200 bg-white shadow-sm p-5">
+              <p className="text-[11px] text-slate-500 uppercase font-extrabold">3. Total Operating Expenses</p>
+              <p className="text-3xl font-black font-mono text-rose-700 mt-2">{currency} {profitReport.totalExpenses.toFixed(2)}</p>
               <p className="text-xs text-slate-500 mt-1">Logged operational expenses</p>
             </Card>
           </div>
 
           {/* Profit & Loss Executive Summary Card */}
-          <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-md p-6 space-y-6">
-            <h3 className="text-lg font-bold text-white border-b border-slate-800 pb-3">
+          <Card className="border-slate-200 bg-white shadow-sm p-6 space-y-6">
+            <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3">
               Executive Profit & Loss Statement
             </h3>
 
             <div className="space-y-4 font-mono text-sm max-w-xl">
-              <div className="flex justify-between text-slate-300">
+              <div className="flex justify-between text-slate-700 font-medium">
                 <span>Total Gross Sales Revenue:</span>
-                <span className="font-bold text-white">+ {currency} {profitReport.totalRevenue.toFixed(2)}</span>
+                <span className="font-bold text-slate-900">+ {currency} {profitReport.totalRevenue.toFixed(2)}</span>
               </div>
 
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-600">
                 <span>Less: Cost of Goods Sold (COGS):</span>
-                <span className="text-amber-400">- {currency} {profitReport.cogs.toFixed(2)}</span>
+                <span className="text-amber-800 font-bold">- {currency} {profitReport.cogs.toFixed(2)}</span>
               </div>
 
-              <div className="flex justify-between text-slate-200 border-t border-slate-800 pt-2 font-bold">
+              <div className="flex justify-between text-slate-900 border-t border-slate-200 pt-2 font-bold">
                 <span>Gross Profit:</span>
-                <span className="text-emerald-400">= {currency} {profitReport.grossProfit.toFixed(2)}</span>
+                <span className="text-emerald-700 font-extrabold">= {currency} {profitReport.grossProfit.toFixed(2)}</span>
               </div>
 
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-600">
                 <span>Less: Total Operating Expenses:</span>
-                <span className="text-rose-400">- {currency} {profitReport.totalExpenses.toFixed(2)}</span>
+                <span className="text-rose-700 font-bold">- {currency} {profitReport.totalExpenses.toFixed(2)}</span>
               </div>
 
-              <div className="flex justify-between text-lg font-black border-t-2 border-slate-700 pt-3 text-white bg-slate-950/80 p-4 rounded-xl">
+              <div className={`flex justify-between text-lg font-black border-t-2 border-slate-200 pt-4 p-4 rounded-xl ${
+                profitReport.netProfit >= 0 ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : 'bg-rose-50 text-rose-900 border-rose-200'
+              }`}>
                 <span>Net Estimated Profit:</span>
-                <span className={profitReport.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                <span className={profitReport.netProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
                   {currency} {profitReport.netProfit.toFixed(2)} ({profitReport.netMarginPercent}%)
                 </span>
               </div>

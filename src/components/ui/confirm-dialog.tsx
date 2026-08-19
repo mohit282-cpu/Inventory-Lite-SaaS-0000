@@ -42,34 +42,34 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md border-slate-800 bg-slate-900 text-slate-100">
+      <DialogContent className="sm:max-w-md border-slate-200 bg-white text-slate-900 shadow-xl">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div
               className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
                 variant === 'destructive'
-                  ? 'bg-destructive/20 text-destructive'
-                  : 'bg-indigo-500/20 text-indigo-400'
+                  ? 'bg-red-50 text-red-600 border border-red-200'
+                  : 'bg-indigo-50 text-indigo-600 border border-indigo-200'
               }`}
             >
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-bold text-white">{title}</DialogTitle>
-              <DialogDescription className="text-sm text-slate-400 mt-1">
+              <DialogTitle className="text-lg font-bold text-slate-900">{title}</DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 mt-1">
                 {description}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <DialogFooter className="mt-6 flex flex-col-reverse sm:flex-row gap-2">
+        <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row gap-2">
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
             disabled={isLoading}
-            className="border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+            className="border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           >
             {cancelText}
           </Button>
@@ -77,11 +77,7 @@ export function ConfirmDialog({
             type="button"
             onClick={handleConfirm}
             disabled={isLoading}
-            className={
-              variant === 'destructive'
-                ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white'
-            }
+            variant={variant === 'destructive' ? 'destructive' : 'default'}
           >
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             {confirmText}

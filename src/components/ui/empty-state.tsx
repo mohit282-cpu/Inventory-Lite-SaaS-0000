@@ -2,13 +2,6 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "./button"
 
-/**
- * Empty State Component
- * 
- * Reusable empty state displays for different contexts.
- * Provides consistent UX when no data is available.
- */
-
 interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
   icon?: React.ReactNode | React.ComponentType<{ className?: string }>
   title: string
@@ -24,15 +17,15 @@ interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
 const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
   ({ className, icon, title, description, action, size = "md", ...props }, ref) => {
     const sizeClasses = {
-      sm: "p-6",
-      md: "p-8",
-      lg: "p-12",
+      sm: "p-6 py-8",
+      md: "p-8 py-10",
+      lg: "p-10 py-12",
     }
 
     const iconSizes = {
-      sm: "h-8 w-8",
-      md: "h-12 w-12",
-      lg: "h-16 w-16",
+      sm: "h-6 w-6",
+      md: "h-8 w-8",
+      lg: "h-10 w-10",
     }
 
     const renderIcon = () => {
@@ -46,20 +39,20 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
       <div
         ref={ref}
         className={cn(
-          "flex flex-col items-center justify-center text-center rounded-lg border border-slate-800 bg-slate-900/40 p-8 sm:p-12 my-2",
+          "flex flex-col items-center justify-center text-center rounded-xl border border-slate-200 bg-white p-6 sm:p-8 my-2 shadow-xs",
           sizeClasses[size],
           className
         )}
         {...props}
       >
         {icon && (
-          <div className="mb-3 h-12 w-12 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-400 flex items-center justify-center">
+          <div className="mb-3 h-10 w-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center">
             {renderIcon()}
           </div>
         )}
-        <h3 className="text-base font-semibold text-white mb-1">{title}</h3>
+        <h3 className="text-base font-bold text-slate-900 mb-1">{title}</h3>
         {description && (
-          <p className="text-xs text-slate-400 mb-5 max-w-xs leading-relaxed">
+          <p className="text-xs text-slate-500 mb-4 max-w-sm leading-relaxed">
             {description}
           </p>
         )}
@@ -71,7 +64,7 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
               onClick={(action as any).onClick}
               variant={(action as any).variant || "default"}
               size="sm"
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs h-9 px-4"
             >
               {(action as any).label}
             </Button>
@@ -105,57 +98,56 @@ const EmptyStateIcon = ({ className }: EmptyStateIconProps) => {
   )
 }
 
-// Pre-configured empty states for common scenarios
 const EmptyProducts = ({ onAdd }: { onAdd: () => void }) => (
   <EmptyState
-    icon={<EmptyStateIcon className="h-12 w-12" />}
+    icon={<EmptyStateIcon className="h-8 w-8" />}
     title="No products yet"
-    description="Get started by adding your first product to inventory."
-    action={{ label: "Add Product", onClick: onAdd }}
+    description="Add your first product to start tracking inventory, prices, and stock threshold alerts."
+    action={{ label: "+ Add Product", onClick: onAdd }}
   />
 )
 
 const EmptyCustomers = ({ onAdd }: { onAdd: () => void }) => (
   <EmptyState
-    icon={<EmptyStateIcon className="h-12 w-12" />}
+    icon={<EmptyStateIcon className="h-8 w-8" />}
     title="No customers yet"
-    description="Add your first customer to start managing relationships."
-    action={{ label: "Add Customer", onClick: onAdd }}
+    description="Add your first customer to track purchase history and outstanding credit (Udharo) balances."
+    action={{ label: "+ Add Customer", onClick: onAdd }}
   />
 )
 
 const EmptyInvoices = ({ onCreate }: { onCreate: () => void }) => (
   <EmptyState
-    icon={<EmptyStateIcon className="h-12 w-12" />}
+    icon={<EmptyStateIcon className="h-8 w-8" />}
     title="No invoices yet"
-    description="Create your first invoice to start billing customers."
-    action={{ label: "Create Invoice", onClick: onCreate }}
+    description="Invoices generated from completed POS counter sales will automatically appear here."
+    action={{ label: "+ Create Sale (POS)", onClick: onCreate }}
   />
 )
 
 const EmptyCategories = ({ onAdd }: { onAdd: () => void }) => (
   <EmptyState
-    icon={<EmptyStateIcon className="h-12 w-12" />}
+    icon={<EmptyStateIcon className="h-8 w-8" />}
     title="No categories yet"
-    description="Organize your products by creating categories."
-    action={{ label: "Add Category", onClick: onAdd }}
+    description="Organize your store products by adding categories."
+    action={{ label: "+ Add Category", onClick: onAdd }}
   />
 )
 
 const EmptySearchResults = ({ searchTerm }: { searchTerm: string }) => (
   <EmptyState
-    icon={<EmptyStateIcon className="h-12 w-12" />}
+    icon={<EmptyStateIcon className="h-8 w-8" />}
     title="No results found"
-    description={`We couldn't find anything matching "${searchTerm}"`}
+    description={`We couldn't find anything matching "${searchTerm}". Check for typos or try clearing filters.`}
     size="sm"
   />
 )
 
 const EmptyNotifications = () => (
   <EmptyState
-    icon={<EmptyStateIcon className="h-12 w-12" />}
+    icon={<EmptyStateIcon className="h-8 w-8" />}
     title="No notifications"
-    description="You're all caught up! No new notifications."
+    description="You're all caught up! No active stock or sales alerts."
     size="sm"
   />
 )

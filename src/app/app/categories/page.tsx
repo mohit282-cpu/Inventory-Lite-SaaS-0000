@@ -119,26 +119,26 @@ export default function CategoriesPage() {
       key: 'name',
       header: 'Category Name',
       sortable: true,
-      render: (item) => <div className="font-semibold text-white">{item.name}</div>,
+      render: (item) => <div className="font-bold text-slate-900">{item.name}</div>,
     },
     {
       key: 'description',
       header: 'Description',
-      render: (item) => <span className="text-slate-400">{item.description || 'No description'}</span>,
+      render: (item) => <span className="text-slate-500">{item.description || 'No description'}</span>,
     },
     {
       key: 'createdAt',
       header: 'Created Date',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-400">{new Date(item.createdAt).toLocaleDateString()}</span>
+        <span className="text-xs text-slate-500 font-medium">{new Date(item.createdAt).toLocaleDateString()}</span>
       ),
     },
     {
       key: 'actions',
       header: 'Actions',
       render: (item) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
@@ -146,7 +146,7 @@ export default function CategoriesPage() {
               setSelectedCategory(item)
               setIsFormOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+            className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
             title="Edit Category"
           >
             <Edit className="h-4 w-4" />
@@ -158,7 +158,7 @@ export default function CategoriesPage() {
               setCategoryToDelete(item)
               setIsDeleteOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-red-400"
+            className="h-8 w-8 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50"
             title="Delete Category"
           >
             <Trash2 className="h-4 w-4" />
@@ -169,7 +169,7 @@ export default function CategoriesPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900">
       <PageHeader
         title="Product Categories"
         description="Organize products into clear hierarchical categories for easier reporting."
@@ -179,7 +179,7 @@ export default function CategoriesPage() {
               setSelectedCategory(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Category
           </Button>
@@ -198,17 +198,17 @@ export default function CategoriesPage() {
         data={filteredCategories}
         columns={columns}
         isLoading={isLoading}
-        emptyTitle="No categories created yet"
-        emptyDescription="Create product categories (e.g. Electronics, Groceries, Apparel) to group your items."
+        emptyTitle="No categories yet"
+        emptyDescription="Create categories to organize your products."
         emptyAction={
           <Button
             onClick={() => {
               setSelectedCategory(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
           >
-            <Plus className="mr-2 h-4 w-4" /> Create First Category
+            <Plus className="mr-2 h-4 w-4" /> Add Category
           </Button>
         }
       />

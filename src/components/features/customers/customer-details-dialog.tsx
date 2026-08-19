@@ -78,84 +78,84 @@ export function CustomerDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl border-slate-800 bg-slate-900 text-slate-100 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl border-slate-200 bg-white text-slate-900 shadow-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center font-bold text-xl shrink-0">
+            <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center font-bold text-xl shrink-0">
               <User className="h-6 w-6" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold text-white">{customer.name}</DialogTitle>
+              <DialogTitle className="text-xl font-bold text-slate-900">{customer.name}</DialogTitle>
               {customer.panNumber && (
-                <div className="text-xs text-slate-400 font-mono mt-0.5">PAN: {customer.panNumber}</div>
+                <div className="text-xs text-slate-500 font-mono mt-0.5">PAN: {customer.panNumber}</div>
               )}
             </div>
           </div>
         </DialogHeader>
 
         {isLoading ? (
-          <div className="flex items-center justify-center p-8 text-slate-400">
-            <Loader2 className="h-6 w-6 animate-spin text-indigo-400 mr-2" /> Loading customer history...
+          <div className="flex items-center justify-center p-8 text-slate-500">
+            <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mr-2" /> Loading customer history...
           </div>
         ) : (
           <div className="space-y-5 py-2">
             {/* KPI Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center gap-1">
-                  <ShoppingBag className="h-3 w-3 text-indigo-400" /> Total Purchases
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
+                  <ShoppingBag className="h-3 w-3 text-indigo-600" /> Total Purchases
                 </div>
-                <div className="text-lg font-bold text-white font-mono mt-1">
+                <div className="text-lg font-bold text-slate-900 font-mono mt-1">
                   Rs. {summary.totalPurchases.toFixed(2)}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center gap-1">
-                  <CreditCard className="h-3 w-3 text-emerald-400" /> Total Paid
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
+                  <CreditCard className="h-3 w-3 text-emerald-600" /> Total Paid
                 </div>
-                <div className="text-lg font-bold text-emerald-400 font-mono mt-1">
+                <div className="text-lg font-bold text-emerald-700 font-mono mt-1">
                   Rs. {summary.totalPaid.toFixed(2)}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3 text-red-400" /> Outstanding Due
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3 text-red-600" /> Outstanding Due
                 </div>
-                <div className={`text-lg font-bold font-mono mt-1 ${summary.totalDue > 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                <div className={`text-lg font-bold font-mono mt-1 ${summary.totalDue > 0 ? 'text-red-700' : 'text-slate-500'}`}>
                   Rs. {summary.totalDue.toFixed(2)}
                 </div>
               </div>
             </div>
 
             {/* Contact Details Card */}
-            <div className="p-4 rounded-xl bg-slate-950/40 border border-slate-800/80 space-y-2 text-xs">
-              <div className="flex items-center gap-2 text-slate-300">
-                <Phone className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+              <div className="flex items-center gap-2 text-slate-700 font-medium">
+                <Phone className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
                 <span className="font-mono">{customer.phone || 'No phone recorded'}</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-300">
-                <Mail className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+              <div className="flex items-center gap-2 text-slate-700 font-medium">
+                <Mail className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
                 <span>{customer.email || 'No email recorded'}</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-300">
-                <MapPin className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+              <div className="flex items-center gap-2 text-slate-700 font-medium">
+                <MapPin className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
                 <span>{customer.address || 'No address recorded'}</span>
               </div>
             </div>
 
             {/* Recent Sales History */}
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Recent Sales History</h4>
+              <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">Recent Sales History</h4>
               {summary.sales.length === 0 ? (
-                <div className="text-xs text-slate-500 text-center py-6 border border-slate-800 rounded-xl bg-slate-950/40">
+                <div className="text-xs text-slate-500 text-center py-6 border border-slate-200 rounded-xl bg-slate-50">
                   No previous transactions recorded for this customer.
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60">
-                  <table className="w-full text-left text-xs text-slate-200">
-                    <thead className="bg-slate-950 uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                  <table className="w-full text-left text-xs text-slate-900">
+                    <thead className="bg-slate-50 uppercase tracking-wider text-slate-500 border-b border-slate-200 text-[10px] font-extrabold">
                       <tr>
                         <th className="px-3 py-2.5">Order #</th>
                         <th className="px-3 py-2.5">Total</th>
@@ -163,13 +163,13 @@ export function CustomerDetailsDialog({
                         <th className="px-3 py-2.5">Date</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-slate-100">
                       {summary.sales.map((s) => (
-                        <tr key={s.$id}>
-                          <td className="px-3 py-2 font-mono font-semibold text-white">{s.saleNumber}</td>
-                          <td className="px-3 py-2 font-mono text-emerald-400 font-bold">Rs. {s.totalAmount?.toFixed(2)}</td>
+                        <tr key={s.$id} className="hover:bg-slate-50">
+                          <td className="px-3 py-2 font-mono font-bold text-indigo-700">{s.saleNumber}</td>
+                          <td className="px-3 py-2 font-mono text-emerald-700 font-bold">Rs. {s.totalAmount?.toFixed(2)}</td>
                           <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
-                          <td className="px-3 py-2 text-slate-400">{new Date(s.createdAt).toLocaleDateString()}</td>
+                          <td className="px-3 py-2 text-slate-500 font-medium">{new Date(s.createdAt).toLocaleDateString()}</td>
                         </tr>
                       ))}
                     </tbody>

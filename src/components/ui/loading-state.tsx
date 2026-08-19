@@ -14,10 +14,10 @@ export function LoadingState({
 }: LoadingStateProps) {
   if (type === 'table') {
     return (
-      <div className="w-full space-y-3 p-4 bg-slate-900/40 border border-slate-800 rounded-xl">
-        <div className="h-8 bg-slate-800/60 rounded-md animate-pulse w-full mb-4" />
+      <div className="w-full space-y-3 p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
+        <div className="h-8 bg-slate-100 rounded-md animate-pulse w-full mb-4" />
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="h-12 bg-slate-800/40 rounded-md animate-pulse w-full" />
+          <div key={i} className="h-10 bg-slate-100/70 rounded-md animate-pulse w-full" />
         ))}
       </div>
     )
@@ -27,16 +27,16 @@ export function LoadingState({
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="h-32 bg-slate-800/40 border border-slate-800 rounded-xl animate-pulse" />
+          <div key={i} className="h-28 bg-white border border-slate-200 rounded-xl shadow-xs animate-pulse p-4" />
         ))}
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-12 text-center text-slate-400 min-h-[250px]">
-      <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mb-3" />
-      <p className="text-sm font-medium">{message}</p>
+    <div className="flex flex-col items-center justify-center p-12 text-center text-slate-500 min-h-[250px]">
+      <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mb-3" />
+      <p className="text-xs font-semibold text-slate-700">{message}</p>
     </div>
   )
 }
