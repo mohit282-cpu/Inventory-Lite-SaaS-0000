@@ -46,7 +46,8 @@ export abstract class BaseService {
     data: any,
     businessId: string,
     userId?: string,
-    permissions?: string[]
+    permissions?: string[],
+    customId?: string
   ): Promise<T> {
     const documentData: any = {
       ...data,
@@ -66,7 +67,7 @@ export abstract class BaseService {
     const doc = await databases.createDocument(
       DATABASE_ID,
       this.collectionId,
-      ID.unique(),
+      customId || ID.unique(),
       documentData,
       permissions
     )

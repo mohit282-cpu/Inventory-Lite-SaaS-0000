@@ -10,9 +10,6 @@ import { ID, Models } from 'appwrite'
 export class AuthService {
   /**
    * Register a new user account
-   * @param email - User email
-   * @param password - User password
-   * @param name - User display name
    */
   async register(email: string, password: string, name: string): Promise<Models.User<Models.Preferences>> {
     return await account.create(
@@ -25,10 +22,14 @@ export class AuthService {
 
   /**
    * Login with email and password
-   * @param email - User email
-   * @param password - User password
+   * Automatically clears any pre-existing active session to prevent 409 conflict errors
    */
   async login(email: string, password: string): Promise<Models.Session> {
+    try {
+      await account.deleteSession('current')
+    } catch {
+      // No active session to delete, proceed with login
+    }
     return await account.createEmailPasswordSession(email, password)
   }
 
@@ -63,7 +64,6 @@ export class AuthService {
 
   /**
    * Update user account
-   * @param data - User data to update
    */
   async updateAccount(data: { name?: string; email?: string; password?: string }): Promise<Models.User<Models.Preferences>> {
     return await account.updatePrefs(data)
@@ -71,17 +71,14 @@ export class AuthService {
 
   /**
    * Request password recovery
-   * @param email - User email
    */
   async recoverPassword(email: string): Promise<Models.Token> {
-    return await account.createRecovery(email, 'http://localhost:3000/auth/reset-password')
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+    return await account.createRecovery(email, `${origin}/auth/reset-password`)
   }
 
   /**
    * Complete password recovery
-   * @param userId - User ID
-   * @param secret - Recovery secret
-   * @param password - New password
    */
   async completePasswordRecovery(userId: string, secret: string, password: string): Promise<Models.Token> {
     return await account.updateRecovery(userId, secret, password)
@@ -89,7 +86,6 @@ export class AuthService {
 
   /**
    * Create email verification
-   * @param url - Redirect URL after verification
    */
   async createVerification(url: string): Promise<Models.Token> {
     return await account.createVerification(url)
@@ -97,8 +93,6 @@ export class AuthService {
 
   /**
    * Update email verification
-   * @param userId - User ID
-   * @param secret - Verification secret
    */
   async updateVerification(userId: string, secret: string): Promise<Models.Token> {
     return await account.updateVerification(userId, secret)

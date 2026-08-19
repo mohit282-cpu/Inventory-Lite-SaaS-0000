@@ -79,38 +79,39 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Handle API errors from Appwrite
+ * Handle API errors from Appwrite SDK & HTTP responses
  */
 export function handleApiError(error: any): AppError {
-  if (error?.response) {
-    const { status, data } = error.response
+  const code = error?.code || error?.response?.status || 500
+  const message = error?.message || error?.response?.data?.message || 'An unexpected error occurred'
+  const type = error?.type || error?.response?.data?.type
 
-    switch (status) {
-      case 400:
-        return new ValidationError(data?.message || 'Invalid request', data)
-      case 401:
-        return new AuthenticationError(data?.message || 'Authentication failed')
-      case 403:
-        return new AuthorizationError(data?.message || 'Access denied')
-      case 404:
-        return new NotFoundError(data?.message || 'Resource not found')
-      case 409:
-        return new ConflictError(data?.message || 'Resource conflict')
-      default:
-        return new AppError(
-          data?.message || 'Server error',
-          'API_ERROR',
-          status,
-          data
-        )
-    }
+  if (type === 'user_already_exists' || (code === 409 && message.includes('already exists'))) {
+    return new ConflictError('An account with this email address already exists. Please sign in instead.')
   }
 
-  if (error?.message) {
-    return new AppError(error.message, 'UNKNOWN_ERROR')
+  if (type === 'user_invalid_credentials' || (code === 401 && message.includes('Invalid credentials'))) {
+    return new AuthenticationError('Invalid email or password. Please check your credentials and try again.')
   }
 
-  return new AppError('An unexpected error occurred', 'UNKNOWN_ERROR')
+  if (type === 'user_session_already_exists') {
+    return new ConflictError('User session already active.')
+  }
+
+  switch (code) {
+    case 400:
+      return new ValidationError(message, error)
+    case 401:
+      return new AuthenticationError(message)
+    case 403:
+      return new AuthorizationError(message)
+    case 404:
+      return new NotFoundError(message)
+    case 409:
+      return new ConflictError(message)
+    default:
+      return new AppError(message, type || 'API_ERROR', code, error)
+  }
 }
 
 /**
@@ -127,19 +128,7 @@ export function logError(error: unknown, context?: string): void {
     } : error,
   }
 
-  // In development, log to console
   if (process.env.NODE_ENV === 'development') {
     console.error('Error:', errorInfo)
   }
-
-  // In production, you would send this to your error tracking service
-  // Example: Sentry.captureException(error, { extra: { context } })
-}
-
-/**
- * Error boundary component helper
- */
-export function componentDidCatch(error: Error, _errorInfo: React.ErrorInfo): void {
-  logError(error, 'React Error Boundary')
-  // Additional error reporting logic here
 }

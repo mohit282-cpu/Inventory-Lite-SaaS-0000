@@ -40,13 +40,18 @@ export class UserService extends BaseService {
     const userData = {
       name: data.name,
       email: data.email,
-      phone: data.phone,
-      avatar: data.avatar,
-      preferences: defaultPreferences,
+      phone: data.phone || '',
+      avatar: data.avatar || '',
+      preferences: JSON.stringify(defaultPreferences),
     }
 
-    // Top-level user entity, so system scope is used
-    return await this.create<AppUser>(userData, 'system', userId)
+    // Top-level user entity, pass userId as document ID
+    const doc = await this.create<any>(userData, 'system', userId, undefined, userId)
+
+    return {
+      ...doc,
+      preferences: defaultPreferences,
+    } as AppUser
   }
 
   /**
@@ -54,7 +59,23 @@ export class UserService extends BaseService {
    */
   async getUserProfile(userId: string): Promise<AppUser | null> {
     try {
-      return await this.getById<AppUser>(userId, 'system')
+      const doc = await this.getById<any>(userId, 'system')
+      let preferences: UserPreferences = {
+        theme: 'system',
+        language: 'en',
+        notifications: { email: true, push: true },
+      }
+      if (doc.preferences) {
+        try {
+          preferences = typeof doc.preferences === 'string' ? JSON.parse(doc.preferences) : doc.preferences
+        } catch {
+          // If parsing fails, fall back to default
+        }
+      }
+      return {
+        ...doc,
+        preferences,
+      } as AppUser
     } catch (error) {
       return null
     }
@@ -68,20 +89,31 @@ export class UserService extends BaseService {
     preferences: Partial<UserPreferences>
   ): Promise<AppUser> {
     const user = await this.getUserProfile(userId)
-    if (!user) {
-      throw new Error(`User profile not found for ID ${userId}`)
+    const currentPrefs: UserPreferences = user?.preferences || {
+      theme: 'system',
+      language: 'en',
+      notifications: { email: true, push: true },
     }
 
     const updatedPreferences: UserPreferences = {
-      ...user.preferences,
+      ...currentPrefs,
       ...preferences,
       notifications: {
-        ...user.preferences?.notifications,
+        ...currentPrefs.notifications,
         ...preferences.notifications,
       },
     }
 
-    return await this.update<AppUser>(userId, { preferences: updatedPreferences }, 'system')
+    const doc = await this.update<any>(
+      userId,
+      { preferences: JSON.stringify(updatedPreferences) },
+      'system'
+    )
+
+    return {
+      ...doc,
+      preferences: updatedPreferences,
+    } as AppUser
   }
 
   /**
