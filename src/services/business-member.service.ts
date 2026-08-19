@@ -3,6 +3,8 @@ import { COLLECTIONS } from '@/config/appwrite'
 import { BusinessMember, UserRole } from '@/types'
 import { Query } from 'appwrite'
 
+import { requireRole } from '@/lib/security'
+
 /**
  * Business Member Service
  * 
@@ -14,7 +16,7 @@ export class BusinessMemberService extends BaseService {
   }
 
   /**
-   * Add a user member to a business
+   * Add a user member to a business with RBAC check
    */
   async addMember(
     data: {
@@ -22,12 +24,17 @@ export class BusinessMemberService extends BaseService {
       role: UserRole
     },
     businessId: string,
-    creatorUserId: string
+    creatorUserId: string,
+    actorRole?: string
   ): Promise<BusinessMember> {
+    if (actorRole) {
+      requireRole(actorRole, ['owner', 'admin'], 'invite team members')
+    }
+
     // Check if membership already exists
     const existing = await this.getMemberByUserAndBusiness(data.userId, businessId)
     if (existing) {
-      throw new Error(`User ${data.userId} is already a member of business ${businessId}`)
+      throw new Error(`User is already a member of this business`)
     }
 
     return await this.create<BusinessMember>(
@@ -57,20 +64,31 @@ export class BusinessMemberService extends BaseService {
   }
 
   /**
-   * Update a member's role
+   * Update a member's role with RBAC check
    */
   async updateMemberRole(
     memberId: string,
     role: UserRole,
-    businessId: string
+    businessId: string,
+    actorRole?: string
   ): Promise<BusinessMember> {
+    if (actorRole) {
+      requireRole(actorRole, ['owner', 'admin'], 'update member roles')
+    }
     return await this.update<BusinessMember>(memberId, { role }, businessId)
   }
 
   /**
-   * Remove a member from a business
+   * Remove a member from a business with RBAC check
    */
-  async removeMember(memberId: string, businessId: string): Promise<void> {
+  async removeMember(
+    memberId: string,
+    businessId: string,
+    actorRole?: string
+  ): Promise<void> {
+    if (actorRole) {
+      requireRole(actorRole, ['owner', 'admin'], 'remove team members')
+    }
     await this.delete(memberId, businessId)
   }
 

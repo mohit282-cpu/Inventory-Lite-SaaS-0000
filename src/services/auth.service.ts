@@ -70,6 +70,13 @@ export class AuthService {
   }
 
   /**
+   * Update current user password
+   */
+  async updatePassword(password: string, oldPassword?: string): Promise<Models.User<Models.Preferences>> {
+    return await account.updatePassword(password, oldPassword)
+  }
+
+  /**
    * Request password recovery
    */
   async recoverPassword(email: string): Promise<Models.Token> {

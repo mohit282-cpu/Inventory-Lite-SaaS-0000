@@ -14,10 +14,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/components/ui/use-toast'
 import { Store, ArrowRight, Lock, Mail, User, Loader2, AlertCircle } from 'lucide-react'
 
+import { useRouter } from 'next/navigation'
+
 type SignupFormValues = z.infer<typeof registerSchema>
 
 export default function SignupPage() {
   const { signup } = useAuth()
+  const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
@@ -44,6 +47,7 @@ export default function SignupPage() {
         title: 'Account created successfully',
         description: 'Now complete your business onboarding profile.',
       })
+      router.push('/onboarding')
     } catch (err: any) {
       let msg = err.message || 'Registration failed'
       if (msg.includes('user_already_exists') || msg.toLowerCase().includes('already exists')) {

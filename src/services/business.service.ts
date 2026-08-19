@@ -2,6 +2,7 @@ import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { Business, Currency } from '@/types'
 import { Query } from 'appwrite'
+import { requireRole } from '@/lib/security'
 
 /**
  * Business Service
@@ -55,7 +56,7 @@ export class BusinessService extends BaseService {
   }
 
   /**
-   * Update business details
+   * Update business details with RBAC check
    */
   async updateBusiness(
     businessId: string,
@@ -69,8 +70,12 @@ export class BusinessService extends BaseService {
       logoUrl: string
       currency: Currency
       timezone: string
-    }>
+    }>,
+    actorRole?: string
   ): Promise<Business> {
+    if (actorRole) {
+      requireRole(actorRole, ['owner', 'admin'], 'update business settings')
+    }
     return await this.update<Business>(businessId, data, 'system')
   }
 

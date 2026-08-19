@@ -3,6 +3,12 @@ import { COLLECTIONS } from '@/config/appwrite'
 import { Expense } from '@/types'
 import { Query } from 'appwrite'
 
+export interface ExpenseSummary {
+  todayExpenses: number
+  thisMonthExpenses: number
+  totalExpenses: number
+}
+
 /**
  * Expense Service
  * 
@@ -18,10 +24,12 @@ export class ExpenseService extends BaseService {
    */
   async createExpense(
     data: {
+      title?: string
       category: string
-      description: string
+      description?: string
       amount: number
       date?: string
+      notes?: string
     },
     businessId: string,
     userId: string
@@ -30,11 +38,14 @@ export class ExpenseService extends BaseService {
       throw new Error('Expense amount must be greater than zero')
     }
 
+    const titleStr = data.title || data.description || 'Business Expense'
     const expenseData = {
+      title: titleStr,
       category: data.category,
-      description: data.description,
+      description: data.description || titleStr,
       amount: data.amount,
-      date: data.date || new Date().toISOString(),
+      date: data.date || new Date().toISOString().slice(0, 10),
+      notes: data.notes || '',
       createdBy: userId,
     }
 
@@ -59,11 +70,42 @@ export class ExpenseService extends BaseService {
   ): Promise<Expense[]> {
     const queries: any[] = [Query.orderDesc('date')]
 
-    if (filters?.category) {
+    if (filters?.category && filters.category !== 'all') {
       queries.push(Query.equal('category', filters.category))
     }
 
     return await this.list<Expense>(businessId, queries)
+  }
+
+  /**
+   * Get expense summary metrics for today, this month, and total
+   */
+  async getExpenseSummary(businessId: string): Promise<ExpenseSummary> {
+    const expenses = await this.listExpenses(businessId)
+    const now = new Date()
+    const todayStr = now.toISOString().slice(0, 10)
+    const monthStr = now.toISOString().slice(0, 7)
+
+    let todayExpenses = 0
+    let thisMonthExpenses = 0
+    let totalExpenses = 0
+
+    for (const exp of expenses) {
+      const amt = exp.amount || 0
+      totalExpenses += amt
+
+      const expDate = (exp.date || exp.createdAt || '').slice(0, 10)
+      const expMonth = (exp.date || exp.createdAt || '').slice(0, 7)
+
+      if (expDate === todayStr) todayExpenses += amt
+      if (expMonth === monthStr) thisMonthExpenses += amt
+    }
+
+    return {
+      todayExpenses: Math.round(todayExpenses * 100) / 100,
+      thisMonthExpenses: Math.round(thisMonthExpenses * 100) / 100,
+      totalExpenses: Math.round(totalExpenses * 100) / 100,
+    }
   }
 
   /**
@@ -72,10 +114,12 @@ export class ExpenseService extends BaseService {
   async updateExpense(
     expenseId: string,
     data: Partial<{
+      title: string
       category: string
       description: string
       amount: number
       date: string
+      notes: string
     }>,
     businessId: string
   ): Promise<Expense> {

@@ -31,7 +31,7 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
     }
 
     // 2. Authenticated user has NO business membership & route requires business -> redirect to /onboarding
-    const hasBusiness = activeBusiness !== null || memberships.length > 0
+    const hasBusiness = activeBusiness !== null || (memberships?.length ?? 0) > 0
     if (requireBusiness && !hasBusiness) {
       if (isAppRoute || isAuthRoute) {
         router.push('/onboarding')

@@ -191,12 +191,15 @@ export interface Invoice extends Models.Document {
 export interface Expense extends Models.Document {
   $id: string
   businessId: string
+  title?: string
   category: string
   description: string
   amount: number
   date: string
+  notes?: string
   createdBy: string
   createdAt: string
+  updatedAt?: string
 }
 
 // ==================== UI State & API Types ====================

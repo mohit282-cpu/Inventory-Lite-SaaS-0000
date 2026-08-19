@@ -82,6 +82,21 @@ export class UserService extends BaseService {
   }
 
   /**
+   * Update user profile details
+   */
+  async updateUserProfile(
+    userId: string,
+    data: Partial<{
+      name: string
+      phone: string
+      avatar: string
+    }>
+  ): Promise<AppUser> {
+    const doc = await this.update<any>(userId, data, 'system')
+    return doc as AppUser
+  }
+
+  /**
    * Update user preferences
    */
   async updateUserPreferences(

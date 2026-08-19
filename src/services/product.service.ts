@@ -207,6 +207,15 @@ export class ProductService extends BaseService {
     }
     return await this.update<Product>(productId, { stockQuantity: newQuantity }, businessId)
   }
+  /**
+   * Get products with low stock or out of stock status for a business
+   */
+  async getLowStockProducts(businessId: string): Promise<Product[]> {
+    const products = await this.listProducts(businessId, { isActive: true })
+    return products.filter(
+      (p) => p.stockQuantity <= (p.lowStockThreshold ?? 5)
+    )
+  }
 }
 
 export const productService = new ProductService()

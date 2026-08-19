@@ -104,17 +104,53 @@ export const productFormSchema = z.object({
   isActive: z.boolean(),
 })
 
-// ==================== Customer Validations ====================
+// ==================== Stock Movement Validations ====================
+
+export const stockInSchema = z.object({
+  productId: z.string().min(1, 'Product is required'),
+  quantity: z.coerce.number().gt(0, 'Quantity must be greater than zero'),
+  reason: z.string().optional(),
+  referenceId: z.string().optional(),
+})
+
+export const stockOutSchema = z.object({
+  productId: z.string().min(1, 'Product is required'),
+  quantity: z.coerce.number().gt(0, 'Quantity must be greater than zero'),
+  reason: z.string().optional(),
+  referenceId: z.string().optional(),
+})
+
+export const stockAdjustmentSchema = z.object({
+  productId: z.string().min(1, 'Product is required'),
+  newQuantity: z.coerce.number().min(0, 'Stock quantity cannot be negative'),
+  reason: z.string().min(2, 'Adjustment reason is required'),
+})
 
 export const customerSchema = z.object({
-  name: nameSchema,
-  email: emailSchema.optional(),
-  phone: phoneSchema.optional(),
+  name: z.string().min(2, 'Customer name must be at least 2 characters'),
+  phone: z.string().optional(),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
   address: z.string().optional(),
-  taxId: z.string().optional(),
-  creditLimit: z.number().min(0).optional(),
+  panNumber: z.string().optional(),
+})
+
+// ==================== Sales & POS Validations ====================
+
+export const saleItemSchema = z.object({
+  productId: z.string().min(1, 'Product is required'),
+  quantity: z.coerce.number().gt(0, 'Quantity must be greater than zero'),
+  unitPrice: z.coerce.number().min(0, 'Unit price cannot be negative'),
+  discount: z.coerce.number().min(0, 'Discount cannot be negative').default(0),
+})
+
+export const saleInputSchema = z.object({
+  customerId: z.string().optional(),
+  items: z.array(saleItemSchema).min(1, 'At least one product item is required'),
+  overallDiscount: z.coerce.number().min(0, 'Discount cannot be negative').default(0),
+  taxRate: z.coerce.number().min(0, 'Tax rate cannot be negative').default(13),
+  paidAmount: z.coerce.number().min(0, 'Paid amount cannot be negative').default(0),
+  paymentMethod: z.enum(['cash', 'bank_transfer', 'card', 'other']).default('cash'),
   notes: z.string().optional(),
-  isActive: z.boolean().default(true),
 })
 
 // ==================== Invoice Validations ====================
@@ -154,6 +190,16 @@ export const updateMemberRoleSchema = z.object({
   role: z.enum(['owner', 'admin', 'manager', 'staff', 'viewer']),
 })
 
+// ==================== Expense Validations ====================
+
+export const expenseSchema = z.object({
+  title: z.string().min(2, 'Title must be at least 2 characters'),
+  category: z.enum(['rent', 'utilities', 'salaries', 'supplies', 'transport', 'maintenance', 'other']),
+  amount: z.coerce.number().min(0.01, 'Amount must be greater than 0'),
+  date: z.string().min(1, 'Date is required'),
+  notes: z.string().optional(),
+})
+
 // ==================== Type Inference ====================
 
 export type RegisterInput = z.infer<typeof registerSchema>
@@ -170,3 +216,4 @@ export type InvoiceInput = z.infer<typeof invoiceSchema>
 export type PaymentInput = z.infer<typeof paymentSchema>
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>
+export type ExpenseInput = z.infer<typeof expenseSchema>

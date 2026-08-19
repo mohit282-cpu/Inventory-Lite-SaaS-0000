@@ -153,8 +153,35 @@ export class CustomerService extends BaseService {
     businessId: string
   ): Promise<Customer> {
     const customer = await this.getCustomer(customerId, businessId)
-    const newTotalDue = Math.max(0, customer.totalDue + delta)
+    const newTotalDue = Math.max(0, (customer.totalDue || 0) + delta)
     return await this.update<Customer>(customerId, { totalDue: newTotalDue }, businessId)
+  }
+
+  /**
+   * Get customer summary with sales history and calculated balances
+   */
+  async getCustomerSummary(customerId: string, businessId: string) {
+    const customer = await this.getCustomer(customerId, businessId)
+    let sales: any[] = []
+    try {
+      const { saleService } = await import('./sale.service')
+      sales = await saleService.listSales(businessId, { customerId })
+    } catch {
+      // Fallback if sales query fails
+    }
+
+    const totalPurchases = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+    const totalPaid = sales.reduce((sum, s) => sum + (s.paidAmount || 0), 0)
+    const computedDue = Math.max(0, totalPurchases - totalPaid)
+    const totalDue = sales.length > 0 ? computedDue : (customer.totalDue || 0)
+
+    return {
+      customer,
+      totalPurchases,
+      totalPaid,
+      totalDue,
+      sales,
+    }
   }
 }
 

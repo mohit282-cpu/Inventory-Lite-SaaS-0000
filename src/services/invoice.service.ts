@@ -1,7 +1,19 @@
 import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
-import { Invoice } from '@/types'
+import { Invoice, Sale, SaleItem, Customer, Business } from '@/types'
 import { Query } from 'appwrite'
+import { saleService } from './sale.service'
+import { saleItemService } from './sale-item.service'
+import { customerService } from './customer.service'
+import { businessService } from './business.service'
+
+export interface InvoiceFullDetails {
+  invoice: Invoice
+  sale: Sale
+  saleItems: SaleItem[]
+  customer: Customer | null
+  business: Business
+}
 
 /**
  * Invoice Service
@@ -14,15 +26,26 @@ export class InvoiceService extends BaseService {
   }
 
   /**
-   * Helper to generate a unique invoice number in format INV-YYYYMMDD-XXXX
+   * Helper to generate a unique sequential invoice number per business (INV-000001)
    */
-  private generateInvoiceNumber(): string {
-    const today = new Date()
-    const yyyy = today.getFullYear()
-    const mm = String(today.getMonth() + 1).padStart(2, '0')
-    const dd = String(today.getDate()).padStart(2, '0')
-    const randomHex = Math.floor(1000 + Math.random() * 9000).toString()
-    return `INV-${yyyy}${mm}${dd}-${randomHex}`
+  async generateNextInvoiceNumber(businessId: string): Promise<string> {
+    const invoices = await this.list<Invoice>(businessId, [
+      Query.orderDesc('createdAt'),
+      Query.limit(100),
+    ])
+
+    let maxNumber = 0
+    for (const inv of invoices) {
+      if (inv.invoiceNumber && inv.invoiceNumber.startsWith('INV-')) {
+        const numPart = parseInt(inv.invoiceNumber.replace('INV-', ''), 10)
+        if (!isNaN(numPart) && numPart > maxNumber) {
+          maxNumber = numPart
+        }
+      }
+    }
+
+    const nextNum = maxNumber + 1
+    return `INV-${String(nextNum).padStart(6, '0')}`
   }
 
   /**
@@ -31,19 +54,22 @@ export class InvoiceService extends BaseService {
   async createInvoice(
     data: {
       saleId: string
+      invoiceNumber?: string
       issueDate?: string
+      dueDate?: string
       pdfUrl?: string
     },
     businessId: string,
     userId: string
   ): Promise<Invoice> {
-    const invoiceNumber = this.generateInvoiceNumber()
+    const invoiceNumber = data.invoiceNumber || (await this.generateNextInvoiceNumber(businessId))
     const issueDate = data.issueDate || new Date().toISOString()
 
     const invoiceData = {
       saleId: data.saleId,
       invoiceNumber,
       issueDate,
+      dueDate: data.dueDate || issueDate,
       pdfUrl: data.pdfUrl || '',
     }
 
@@ -58,12 +84,40 @@ export class InvoiceService extends BaseService {
   }
 
   /**
+   * Get full aggregated invoice details (Invoice, Sale, Item Snapshots, Customer, Business)
+   */
+  async getInvoiceFullDetails(invoiceId: string, businessId: string): Promise<InvoiceFullDetails> {
+    const invoice = await this.getById<Invoice>(invoiceId, businessId)
+    const sale = await saleService.getSale(invoice.saleId, businessId)
+    const saleItems = await saleItemService.listSaleItems(invoice.saleId, businessId)
+    
+    let customer: Customer | null = null
+    if (sale.customerId) {
+      try {
+        customer = await customerService.getCustomer(sale.customerId, businessId)
+      } catch (err) {
+        console.warn('Could not load customer for invoice:', err)
+      }
+    }
+
+    const business = await businessService.getBusiness(businessId)
+
+    return {
+      invoice,
+      sale,
+      saleItems,
+      customer,
+      business,
+    }
+  }
+
+  /**
    * Get invoice by sale ID
    */
   async getInvoiceBySaleId(saleId: string, businessId: string): Promise<Invoice | null> {
     const results = await this.query<Invoice>(businessId, [
       Query.equal('saleId', saleId),
-      Query.limit(1)
+      Query.limit(1),
     ])
     return results.length > 0 ? results[0] : null
   }
@@ -72,9 +126,7 @@ export class InvoiceService extends BaseService {
    * List invoices for a business
    */
   async listInvoices(businessId: string): Promise<Invoice[]> {
-    return await this.list<Invoice>(businessId, [
-      Query.orderDesc('createdAt')
-    ])
+    return await this.list<Invoice>(businessId, [Query.orderDesc('createdAt')])
   }
 
   /**

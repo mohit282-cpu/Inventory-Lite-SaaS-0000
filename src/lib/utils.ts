@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { formatNPR } from "./localization"
 
 /**
  * Utility function to merge Tailwind CSS classes
@@ -13,6 +14,9 @@ export function cn(...inputs: ClassValue[]) {
  * Format currency based on locale and currency code
  */
 export function formatCurrency(amount: number, currency: string = 'NPR', locale: string = 'en-NP'): string {
+  if (currency === 'NPR' || currency === 'रु.') {
+    return formatNPR(amount, true)
+  }
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,

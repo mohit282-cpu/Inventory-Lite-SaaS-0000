@@ -62,6 +62,13 @@ export class SaleItemService extends BaseService {
   }
 
   /**
+   * List all sale items for a specific sale (alias)
+   */
+  async listSaleItems(saleId: string, businessId: string): Promise<SaleItem[]> {
+    return await this.getSaleItemsBySaleId(saleId, businessId)
+  }
+
+  /**
    * List sale items for a product (history tracking)
    */
   async getSaleItemsByProductId(productId: string, businessId: string): Promise<SaleItem[]> {

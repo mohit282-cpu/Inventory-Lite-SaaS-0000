@@ -1,5 +1,5 @@
 import { databases, DATABASE_ID } from '@/config/appwrite'
-import { ID, Query, Models } from 'appwrite'
+import { ID, Query, Models, Permission, Role } from 'appwrite'
 
 /**
  * Base Service Class
@@ -64,12 +64,18 @@ export abstract class BaseService {
       documentData.businessId = businessId
     }
 
+    const docPermissions = permissions || [
+      Permission.read(Role.any()),
+      Permission.update(Role.any()),
+      Permission.delete(Role.any()),
+    ]
+
     const doc = await databases.createDocument(
       DATABASE_ID,
       this.collectionId,
       customId || ID.unique(),
       documentData,
-      permissions
+      docPermissions
     )
 
     return this.mapDocument<T>(doc)

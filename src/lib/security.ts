@@ -46,11 +46,27 @@ export function validateTenantAccess(userBusinessId: string, requestedBusinessId
   return userBusinessId === requestedBusinessId
 }
 
+export class ForbiddenError extends Error {
+  constructor(actionName: string, userRole: string) {
+    super(`Forbidden: Access denied for action '${actionName}' with role '${userRole}'`)
+    this.name = 'ForbiddenError'
+  }
+}
+
 /**
  * Check if user has required role
  */
 export function hasRequiredRole(userRole: string, requiredRoles: string[]): boolean {
   return requiredRoles.includes(userRole)
+}
+
+/**
+ * Enforce role requirement at service/data-access layer
+ */
+export function requireRole(userRole: string, allowedRoles: string[], actionName: string = 'this operation'): void {
+  if (!allowedRoles.includes(userRole)) {
+    throw new ForbiddenError(actionName, userRole)
+  }
 }
 
 /**

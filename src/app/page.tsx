@@ -17,7 +17,7 @@ export default function HomePage() {
       return
     }
 
-    const hasBusiness = activeBusiness !== null || memberships.length > 0
+    const hasBusiness = activeBusiness !== null || (memberships?.length ?? 0) > 0
     if (!hasBusiness) {
       router.push("/onboarding")
       return

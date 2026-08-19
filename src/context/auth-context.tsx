@@ -64,18 +64,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(currentUser)
 
-      // Fetch user profile from 'users' collection
-      let profile = await userService.getUserProfile(currentUser.$id)
-      if (!profile) {
-        profile = await userService.createUserProfile(currentUser.$id, {
-          name: currentUser.name,
-          email: currentUser.email,
-        })
+      // Fetch user profile from 'users' collection with safety fallback
+      let profile: AppUser | null = null
+      try {
+        profile = await userService.getUserProfile(currentUser.$id)
+        if (!profile) {
+          profile = await userService.createUserProfile(currentUser.$id, {
+            name: currentUser.name,
+            email: currentUser.email,
+          })
+        }
+      } catch (profileErr) {
+        console.warn('User profile fetch warning:', profileErr)
       }
       setUserProfile(profile)
 
-      // Fetch memberships for this user
-      const userMemberships = await businessMemberService.getUserMemberships(currentUser.$id)
+      // Fetch memberships for this user with safety fallback
+      let userMemberships: BusinessMember[] = []
+      try {
+        userMemberships = await businessMemberService.getUserMemberships(currentUser.$id)
+      } catch (membershipErr) {
+        console.warn('Memberships fetch warning:', membershipErr)
+      }
       setMemberships(userMemberships)
 
       // Determine active business

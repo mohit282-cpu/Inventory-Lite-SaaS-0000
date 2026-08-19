@@ -6,6 +6,28 @@
  * using the Appwrite REST API.
  */
 
+import fs from 'fs'
+import path from 'path'
+
+try {
+  const envPath = path.resolve(process.cwd(), '.env.local')
+  if (fs.existsSync(envPath)) {
+    const envFile = fs.readFileSync(envPath, 'utf8')
+    envFile.split('\n').forEach((line) => {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/)
+      if (match) {
+        const key = match[1]
+        let value = match[2] || ''
+        if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1)
+        if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1)
+        if (!process.env[key]) process.env[key] = value.trim()
+      }
+    })
+  }
+} catch {
+  // Ignore env loading errors
+}
+
 const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1'
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || ''
 const API_KEY = process.env.APPWRITE_API_KEY || ''
@@ -27,6 +49,7 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'phone', type: 'string', size: 50, required: false },
       { key: 'avatar', type: 'string', size: 1000, required: false },
       { key: 'preferences', type: 'string', size: 2000, required: false },
+      { key: 'createdBy', type: 'string', size: 100, required: false },
       { key: 'createdAt', type: 'string', size: 100, required: true },
       { key: 'updatedAt', type: 'string', size: 100, required: true },
     ],
@@ -48,6 +71,7 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'logoUrl', type: 'string', size: 1000, required: false },
       { key: 'currency', type: 'string', size: 10, required: true, default: 'NPR' },
       { key: 'timezone', type: 'string', size: 100, required: true, default: 'Asia/Kathmandu' },
+      { key: 'createdBy', type: 'string', size: 100, required: false },
       { key: 'createdAt', type: 'string', size: 100, required: true },
       { key: 'updatedAt', type: 'string', size: 100, required: true },
     ],
@@ -64,7 +88,9 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'businessId', type: 'string', size: 100, required: true },
       { key: 'userId', type: 'string', size: 100, required: true },
       { key: 'role', type: 'string', size: 50, required: true },
+      { key: 'createdBy', type: 'string', size: 100, required: false },
       { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: false },
     ],
     indexes: [
       { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
@@ -79,6 +105,7 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'businessId', type: 'string', size: 100, required: true },
       { key: 'name', type: 'string', size: 255, required: true },
       { key: 'description', type: 'string', size: 1000, required: false },
+      { key: 'createdBy', type: 'string', size: 100, required: false },
       { key: 'createdAt', type: 'string', size: 100, required: true },
       { key: 'updatedAt', type: 'string', size: 100, required: true },
     ],
@@ -103,6 +130,7 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'lowStockThreshold', type: 'double', required: false, default: 5 },
       { key: 'imageUrl', type: 'string', size: 1000, required: false },
       { key: 'isActive', type: 'boolean', required: true, default: true },
+      { key: 'createdBy', type: 'string', size: 100, required: false },
       { key: 'createdAt', type: 'string', size: 100, required: true },
       { key: 'updatedAt', type: 'string', size: 100, required: true },
     ],
@@ -145,7 +173,9 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'phone', type: 'string', size: 50, required: false },
       { key: 'email', type: 'string', size: 255, required: false },
       { key: 'address', type: 'string', size: 500, required: false },
+      { key: 'panNumber', type: 'string', size: 50, required: false },
       { key: 'totalDue', type: 'double', required: true, default: 0 },
+      { key: 'createdBy', type: 'string', size: 100, required: false },
       { key: 'createdAt', type: 'string', size: 100, required: true },
       { key: 'updatedAt', type: 'string', size: 100, required: true },
     ],
@@ -162,6 +192,7 @@ export const COLLECTIONS_SCHEMA = [
     name: 'Sales',
     attributes: [
       { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'saleNumber', type: 'string', size: 100, required: false },
       { key: 'customerId', type: 'string', size: 100, required: false },
       { key: 'invoiceId', type: 'string', size: 100, required: false },
       { key: 'subtotal', type: 'double', required: true },
@@ -194,6 +225,8 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'unitPrice', type: 'double', required: true },
       { key: 'discount', type: 'double', required: true },
       { key: 'total', type: 'double', required: true },
+      { key: 'createdBy', type: 'string', size: 100, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: false },
     ],
     indexes: [
       { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
@@ -207,15 +240,17 @@ export const COLLECTIONS_SCHEMA = [
     attributes: [
       { key: 'businessId', type: 'string', size: 100, required: true },
       { key: 'saleId', type: 'string', size: 100, required: true },
-      { key: 'invoiceNumber', type: 'string', size: 100, required: true },
+      { key: 'invoiceNumber', type: 'string', size: 100, required: false },
       { key: 'issueDate', type: 'string', size: 100, required: true },
+      { key: 'dueDate', type: 'string', size: 100, required: false },
       { key: 'pdfUrl', type: 'string', size: 1000, required: false },
+      { key: 'createdBy', type: 'string', size: 100, required: false },
       { key: 'createdAt', type: 'string', size: 100, required: true },
     ],
     indexes: [
       { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
-      { key: 'idx_business_invoiceNumber', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'invoiceNumber'] },
-      { key: 'idx_business_saleId', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'saleId'] },
+      { key: 'idx_business_invoiceNumber', type: INDEX_TYPES.KEY, attributes: ['businessId', 'invoiceNumber'] },
+      { key: 'idx_business_saleId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'saleId'] },
       { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
     ],
   },
@@ -228,8 +263,10 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'description', type: 'string', size: 1000, required: true },
       { key: 'amount', type: 'double', required: true },
       { key: 'date', type: 'string', size: 100, required: true },
+      { key: 'notes', type: 'string', size: 1000, required: false },
       { key: 'createdBy', type: 'string', size: 100, required: true },
       { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
     ],
     indexes: [
       { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
@@ -278,37 +315,62 @@ export async function setupDatabase() {
   }
 
   for (const schema of COLLECTIONS_SCHEMA) {
-    console.log(`Provisioning collection '${schema.name}' (${schema.id})...`)
     const colCheck = await apiRequest(`/databases/${DATABASE_ID}/collections/${schema.id}`)
+    const defaultPermissions = [
+      'read("any")',
+      'create("users")',
+      'update("users")',
+      'delete("users")',
+    ]
+
     if (colCheck.status === 404) {
       await apiRequest(`/databases/${DATABASE_ID}/collections`, 'POST', {
         collectionId: schema.id,
         name: schema.name,
-        permissions: [],
+        permissions: defaultPermissions,
+        documentSecurity: true,
+      })
+    } else {
+      await apiRequest(`/databases/${DATABASE_ID}/collections/${schema.id}`, 'PUT', {
+        name: schema.name,
+        permissions: defaultPermissions,
         documentSecurity: true,
       })
     }
 
+    // Get existing collection attribute keys
+    const colInfo = await apiRequest(`/databases/${DATABASE_ID}/collections/${schema.id}`)
+    const existingAttrKeys = (colInfo.data.attributes || []).map((a: any) => a.key)
+
     for (const attr of schema.attributes) {
+      if (existingAttrKeys.includes(attr.key)) continue
+
+      const attrPayload: any = {
+        key: attr.key,
+        required: (attr as any).default !== undefined ? false : attr.required,
+      }
+
+      if ((attr as any).default !== undefined) {
+        attrPayload.default = (attr as any).default
+      }
+
+      let path = ''
       if (attr.type === 'string') {
-        await apiRequest(`/databases/${DATABASE_ID}/collections/${schema.id}/attributes/string`, 'POST', {
-          key: attr.key,
-          size: attr.size || 255,
-          required: attr.required,
-          default: (attr as any).default,
-        })
+        path = `/databases/${DATABASE_ID}/collections/${schema.id}/attributes/string`
+        attrPayload.size = attr.size || 255
       } else if (attr.type === 'double') {
-        await apiRequest(`/databases/${DATABASE_ID}/collections/${schema.id}/attributes/float`, 'POST', {
-          key: attr.key,
-          required: attr.required,
-          default: (attr as any).default,
-        })
+        path = `/databases/${DATABASE_ID}/collections/${schema.id}/attributes/float`
       } else if (attr.type === 'boolean') {
-        await apiRequest(`/databases/${DATABASE_ID}/collections/${schema.id}/attributes/boolean`, 'POST', {
-          key: attr.key,
-          required: attr.required,
-          default: (attr as any).default,
-        })
+        path = `/databases/${DATABASE_ID}/collections/${schema.id}/attributes/boolean`
+      }
+
+      if (path) {
+        const res = await apiRequest(path, 'POST', attrPayload)
+        if (res.status >= 400 && res.status !== 409) {
+          console.error(`  ✖ Failed to create attribute '${attr.key}' on '${schema.id}':`, res.data)
+        } else {
+          console.log(`  - Created attribute '${attr.key}' on '${schema.id}'`)
+        }
       }
     }
 
