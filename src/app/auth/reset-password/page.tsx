@@ -11,9 +11,9 @@ import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { Store, Lock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { AuthLayout } from '@/components/auth/auth-layout'
+import { Lock, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
 type ResetPasswordValues = z.infer<typeof resetPasswordSchema>
 
@@ -25,6 +25,7 @@ export default function ResetPasswordPage() {
   const secret = searchParams.get('secret') || ''
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -68,97 +69,87 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-4">
-      <div className="w-full max-w-md">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-            <Store className="h-6 w-6" />
+    <AuthLayout
+      title="Set a new password"
+      subtitle="Choose a new password for your Inventory Lite account."
+    >
+      {isSuccess ? (
+        <div className="space-y-4 text-center py-4 animate-fade-in">
+          <div className="mx-auto h-12 w-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center border border-emerald-200">
+            <CheckCircle2 className="h-6 w-6" />
           </div>
-          <span className="text-2xl font-extrabold tracking-tight text-white">
-            Inventory <span className="text-indigo-400">Lite</span>
-          </span>
+          <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+            Your password has been reset successfully. You can now sign in with your new password.
+          </p>
+          <Button
+            asChild
+            className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-sm mt-4"
+          >
+            <Link href="/auth/login">Proceed to Sign In</Link>
+          </Button>
         </div>
-
-        <Card className="border-slate-800 bg-slate-900/80 backdrop-blur-xl text-slate-100 shadow-2xl">
-          <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-2xl font-bold tracking-tight text-white">Reset Password</CardTitle>
-            <CardDescription className="text-slate-400">
-              Enter your new password below
-            </CardDescription>
-          </CardHeader>
-
-          {isSuccess ? (
-            <CardContent className="space-y-4 pt-4 text-center">
-              <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <p className="text-sm text-slate-300">
-                Your password has been reset successfully.
-              </p>
-              <Link href="/auth/login">
-                <Button className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white">
-                  Proceed to Sign In
-                </Button>
-              </Link>
-            </CardContent>
-          ) : (
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <CardContent className="space-y-4 pt-2">
-                {errorMsg && (
-                  <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/15 text-destructive text-sm border border-destructive/20">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{errorMsg}</span>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-slate-200">New Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="At least 8 characters"
-                      className="pl-9 bg-slate-950/50 border-slate-800 text-white placeholder:text-slate-500 focus:border-indigo-500"
-                      {...register('password')}
-                    />
-                  </div>
-                  {errors.password && (
-                    <p className="text-xs text-red-400 font-medium">{errors.password.message}</p>
-                  )}
-                </div>
-              </CardContent>
-
-              <CardFooter className="flex flex-col space-y-4 pt-2">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/30 transition-all duration-200"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating Password...
-                    </>
-                  ) : (
-                    'Reset Password'
-                  )}
-                </Button>
-
-                <div className="text-center text-sm text-slate-400">
-                  Remember your password?{' '}
-                  <Link
-                    href="/auth/login"
-                    className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
-                  >
-                    Sign In
-                  </Link>
-                </div>
-              </CardFooter>
-            </form>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left">
+          {errorMsg && (
+            <div className="flex items-center gap-2 p-3.5 rounded-lg bg-red-50 text-red-700 text-xs font-semibold border border-red-200">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
           )}
-        </Card>
-      </div>
-    </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs font-bold text-slate-700">
+              New Password
+            </Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="At least 8 characters"
+                className="pl-9 pr-10 h-11 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 text-sm focus:border-indigo-600 focus:ring-indigo-600"
+                {...register('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="text-xs text-red-600 font-medium">{errors.password.message}</p>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-sm transition-all mt-2"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Resetting password...
+              </>
+            ) : (
+              'Reset Password'
+            )}
+          </Button>
+
+          <div className="pt-4 text-center text-xs text-slate-600 border-t border-slate-200">
+            Remember your password?{' '}
+            <Link
+              href="/auth/login"
+              className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+            >
+              Sign In
+            </Link>
+          </div>
+        </form>
+      )}
+    </AuthLayout>
   )
 }

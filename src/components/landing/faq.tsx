@@ -3,30 +3,34 @@
 import React, { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 
-const FAQS = [
+const FAQ_ITEMS = [
   {
     q: 'What is Inventory Lite?',
-    a: 'Inventory Lite is a simple, web-based inventory and billing management system built specifically for micro and small retail/wholesale businesses in Nepal.',
+    a: 'Inventory Lite is a simple web-based inventory, sales POS billing, customer credit (Udharo), and invoice management application built specifically for small retail and wholesale businesses.',
   },
   {
-    q: 'Do I need to install any software?',
-    a: 'No. Inventory Lite works directly through your standard web browser on desktop computers, laptops, tablets, or smartphones without downloading complex software.',
+    q: 'Is it really free?',
+    a: 'Yes. Inventory Lite is 100% free to use for small businesses with no hidden charges, trial expirations, or credit card requirements.',
   },
   {
-    q: 'Can I use it from my mobile phone?',
-    a: 'Yes! The user interface is fully responsive and designed for easy navigation on mobile touchscreens.',
+    q: 'Do I need to install anything?',
+    a: 'No. Inventory Lite runs directly in your web browser on mobile phones, tablets, laptops, and desktop computers.',
   },
   {
-    q: 'Is there a free plan?',
-    a: 'Yes. You can register for a Free account to manage basic stock and record store sales without entering credit card details.',
+    q: 'Can I use it on my phone?',
+    a: 'Yes. The entire application interface is fully responsive and designed to work smoothly on Android, iOS, and desktop browsers.',
   },
   {
-    q: 'Can I manage customer credit dues (Udharo)?',
-    a: 'Yes. You can track customer profiles, record sales on credit, log partial payments, and see total outstanding balances anytime.',
+    q: 'Can I manage customer dues (Udharo)?',
+    a: 'Yes. You can record customer profiles, log credit sales, record partial repayments, and track remaining due balances in real time.',
   },
   {
-    q: 'Is my business data isolated securely from other businesses?',
-    a: 'Yes. Inventory Lite enforces multi-tenant database isolation. All queries and document reads are strictly filtered by your unique business ID so only authorized members of your business can access your data.',
+    q: 'Can I print invoices?',
+    a: 'Yes. You can generate printable A4 tax invoices and 80mm thermal receipts with your shop’s PAN/VAT details directly from your web browser.',
+  },
+  {
+    q: 'Is my business data separated from other businesses?',
+    a: 'Yes. Every registered business operates in complete multi-tenant isolation. Your store’s products, sales, and customer ledgers are strictly accessible only by authorized members of your business account.',
   },
 ]
 
@@ -38,44 +42,40 @@ export function LandingFAQ() {
   }
 
   return (
-    <section id="faq" className="py-16 sm:py-24 border-b border-slate-800/60 bg-slate-900/30">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-14">
-          <span className="text-xs font-semibold text-indigo-400 uppercase tracking-widest">
-            Got Questions?
+    <section id="faq" className="py-16 sm:py-24 bg-slate-50 border-b border-slate-200 text-slate-900">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-12 text-left">
+          <span className="text-xs font-semibold uppercase tracking-wider text-indigo-700">
+            Clear Answers
           </span>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight mt-2">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-2">
             Frequently Asked Questions
           </h2>
-          <p className="mt-3 text-sm text-slate-400">
-            Everything you need to know about getting started with Inventory Lite.
-          </p>
         </div>
 
-        <div className="space-y-3">
-          {FAQS.map((item, idx) => {
+        {/* Clean Accordion List */}
+        <div className="divide-y divide-slate-200 border-t border-b border-slate-200">
+          {FAQ_ITEMS.map((item, idx) => {
             const isOpen = openIndex === idx
             return (
-              <div
-                key={idx}
-                className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden transition-colors"
-              >
+              <div key={idx} className="py-4">
                 <button
                   type="button"
                   onClick={() => toggle(idx)}
-                  className="w-full flex items-center justify-between p-4 sm:p-5 text-left text-sm font-bold text-white focus:outline-none"
+                  className="w-full flex items-center justify-between text-left text-base font-bold text-slate-900 focus:outline-none"
                 >
                   <span>{item.q}</span>
                   <ChevronDown
-                    className={`h-4 w-4 text-indigo-400 transition-transform duration-200 shrink-0 ml-3 ${
-                      isOpen ? 'rotate-180' : ''
+                    className={`h-5 w-5 text-slate-500 transition-transform duration-200 shrink-0 ${
+                      isOpen ? 'rotate-180 text-indigo-600' : ''
                     }`}
                   />
                 </button>
+
                 {isOpen && (
-                  <div className="px-4 sm:px-5 pb-5 pt-0 text-xs text-slate-400 leading-relaxed border-t border-slate-800/50 mt-1">
-                    <p className="pt-3">{item.a}</p>
-                  </div>
+                  <p className="mt-3 text-sm text-slate-600 leading-relaxed animate-fade-in">
+                    {item.a}
+                  </p>
                 )}
               </div>
             )

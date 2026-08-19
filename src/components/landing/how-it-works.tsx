@@ -2,51 +2,62 @@
 
 import React from 'react'
 
-const STEPS = [
+const WORKFLOW_STEPS = [
   {
     step: '01',
-    title: 'Create Your Business',
-    desc: 'Register in seconds and enter your store name, address, PAN/VAT, and currency preference.',
+    title: 'Add your products',
+    desc: 'Catalog items with SKUs, selling prices, categories, and initial stock quantities.',
   },
   {
     step: '02',
-    title: 'Add Your Products',
-    desc: 'Catalog your inventory with product names, SKUs, selling prices, categories, and initial stock.',
+    title: 'Track your stock',
+    desc: 'Monitor exact inventory quantities and receive automated low-stock notifications.',
   },
   {
     step: '03',
-    title: 'Start Selling & Billing',
-    desc: 'Record sales, manage customer credit balances (Udharo), and print clean tax invoices.',
+    title: 'Record a sale',
+    desc: 'Select items or scan barcodes at the POS billing counter during customer checkout.',
+  },
+  {
+    step: '04',
+    title: 'Generate an invoice',
+    desc: 'Print clean A4 tax invoices or 80mm thermal receipts with PAN/VAT headers.',
+  },
+  {
+    step: '05',
+    title: "Know what's left",
+    desc: 'Review updated stock levels and outstanding customer dues (Udharo) in real time.',
   },
 ]
 
 export function LandingHowItWorks() {
   return (
-    <section id="how-it-works" className="py-16 sm:py-24 border-b border-slate-800/60 bg-slate-900/30">
+    <section id="workflow" className="py-16 sm:py-24 bg-slate-50 border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-xs font-semibold text-indigo-400 uppercase tracking-widest">
-            Simple Workflow
+        <div className="max-w-3xl mb-14 text-left">
+          <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600">
+            Simple Daily Journey
           </span>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight mt-2">
-            Get started in 3 simple steps
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-2">
+            From stock to sale in a few clicks.
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-slate-400">
-            No complex setup or technical skills needed. Be operational in under 5 minutes.
+          <p className="mt-3 text-base text-slate-600">
+            A linear workflow built around how shop owners actually run their counter day to day.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-          {STEPS.map((item, idx) => (
+        {/* 5-Step Journey Flow */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
+          {WORKFLOW_STEPS.map((item, idx) => (
             <div
               key={idx}
-              className="p-6 rounded-2xl bg-slate-900 border border-slate-800 relative space-y-4"
+              className="p-5 rounded-lg bg-white border border-slate-200 space-y-3 shadow-sm hover:border-indigo-300 transition-colors"
             >
-              <div className="text-3xl font-black font-mono text-indigo-500/40">
+              <div className="text-2xl font-extrabold font-mono text-indigo-600">
                 {item.step}
               </div>
-              <h3 className="text-lg font-bold text-white">{item.title}</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+              <h3 className="text-sm font-bold text-slate-900">{item.title}</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">{item.desc}</p>
             </div>
           ))}
         </div>
