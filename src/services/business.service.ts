@@ -1,12 +1,13 @@
 import { BaseService } from './base.service'
-import { COLLECTIONS, DATABASE_ID, databases } from '@/config/appwrite'
-import { ID, Models } from 'appwrite'
+import { COLLECTIONS } from '@/config/appwrite'
+import { Business, Currency } from '@/types'
+import { Query } from 'appwrite'
 
 /**
  * Business Service
  * 
- * Handles business-related operations with tenant isolation.
- * Businesses are the top-level entities in our multi-tenant architecture.
+ * Handles business entity operations.
+ * Business entities are top-level tenant roots in Inventory Lite.
  */
 export class BusinessService extends BaseService {
   constructor() {
@@ -14,87 +15,73 @@ export class BusinessService extends BaseService {
   }
 
   /**
-   * Create a new business
-   * Businesses are top-level entities, so they don't have businessId
-   * @param data - Business data
-   * @param userId - Owner user ID
+   * Create a new business entity
    */
-  async createBusiness(data: {
-    name: string
-    type: string
-    address?: string
-    phone?: string
-    email?: string
-    taxId?: string
-  }, userId: string): Promise<Models.Document> {
+  async createBusiness(
+    data: {
+      name: string
+      phone?: string
+      email?: string
+      address?: string
+      panNumber?: string
+      vatNumber?: string
+      logoUrl?: string
+      currency?: Currency
+      timezone?: string
+    },
+    userId: string
+  ): Promise<Business> {
     const businessData = {
-      ...data,
+      name: data.name,
       ownerId: userId,
-      status: 'active',
-      settings: {
-        currency: 'NPR',
-        timezone: 'Asia/Kathmandu',
-        dateFormat: 'DD/MM/YYYY',
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      phone: data.phone || '',
+      email: data.email || '',
+      address: data.address || '',
+      panNumber: data.panNumber || '',
+      vatNumber: data.vatNumber || '',
+      logoUrl: data.logoUrl || '',
+      currency: data.currency || 'NPR',
+      timezone: data.timezone || 'Asia/Kathmandu',
     }
 
-    return await databases.createDocument(
-      DATABASE_ID,
-      this.collectionId,
-      ID.unique(),
-      businessData
-    )
+    return await this.create<Business>(businessData, 'system', userId)
   }
 
   /**
    * Get business by ID
-   * Businesses are top-level entities, accessed directly
-   * @param businessId - Business ID
    */
-  async getBusiness(businessId: string): Promise<Models.Document> {
-    return await databases.getDocument(
-      DATABASE_ID,
-      this.collectionId,
-      businessId
-    )
+  async getBusiness(businessId: string): Promise<Business> {
+    return await this.getById<Business>(businessId, 'system')
   }
 
   /**
-   * Update business
-   * @param businessId - Business ID
-   * @param data - Business data to update
+   * Update business details
    */
-  async updateBusiness(businessId: string, data: Partial<{
-    name: string
-    address: string
-    phone: string
-    email: string
-    taxId: string
-    settings: any
-  }>): Promise<Models.Document> {
-    const updateData = {
-      ...data,
-      updatedAt: new Date().toISOString(),
-    }
-
-    return await databases.updateDocument(
-      DATABASE_ID,
-      this.collectionId,
-      businessId,
-      updateData
-    )
+  async updateBusiness(
+    businessId: string,
+    data: Partial<{
+      name: string
+      phone: string
+      email: string
+      address: string
+      panNumber: string
+      vatNumber: string
+      logoUrl: string
+      currency: Currency
+      timezone: string
+    }>
+  ): Promise<Business> {
+    return await this.update<Business>(businessId, data, 'system')
   }
 
   /**
-   * Get user's businesses
-   * @param userId - User ID
+   * Get businesses owned by a specific user
    */
-  async getUserBusinesses(_userId: string) {
-    // This will query the business_members collection
-    // Implementation to be added when membership system is built
-    return []
+  async getOwnedBusinesses(ownerId: string): Promise<Business[]> {
+    return await this.query<Business>('system', [
+      Query.equal('ownerId', ownerId),
+      Query.orderDesc('createdAt')
+    ])
   }
 }
 

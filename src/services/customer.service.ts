@@ -6,8 +6,7 @@ import { Query } from 'appwrite'
 /**
  * Customer Service
  * 
- * Handles customer operations with tenant isolation.
- * Customers are business-specific entities for sales and billing.
+ * Handles customer relationship management and due tracking under strict tenant isolation.
  */
 export class CustomerService extends BaseService {
   constructor() {
@@ -15,10 +14,7 @@ export class CustomerService extends BaseService {
   }
 
   /**
-   * Create a new customer
-   * @param data - Customer data
-   * @param businessId - Business ID for tenant isolation
-   * @param userId - User ID creating the customer
+   * Create a new customer record
    */
   async createCustomer(
     data: {
@@ -26,108 +22,139 @@ export class CustomerService extends BaseService {
       phone?: string
       email?: string
       address?: string
+      totalDue?: number
     },
     businessId: string,
     userId: string
   ): Promise<Customer> {
-    const customerData = {
-      ...data,
-      totalDue: 0,
+    // Prevent duplicate phone per business if provided
+    if (data.phone && data.phone.trim() !== '') {
+      const existingPhone = await this.getCustomerByPhone(businessId, data.phone)
+      if (existingPhone) {
+        throw new Error(`Customer with phone number "${data.phone}" already exists for this business`)
+      }
     }
-    return await this.create(customerData, businessId, userId) as Customer
+
+    // Prevent duplicate email per business if provided
+    if (data.email && data.email.trim() !== '') {
+      const existingEmail = await this.getCustomerByEmail(businessId, data.email)
+      if (existingEmail) {
+        throw new Error(`Customer with email "${data.email}" already exists for this business`)
+      }
+    }
+
+    const customerData = {
+      name: data.name,
+      phone: data.phone || '',
+      email: data.email || '',
+      address: data.address || '',
+      totalDue: data.totalDue ?? 0,
+    }
+
+    return await this.create<Customer>(customerData, businessId, userId)
   }
 
   /**
    * Get customer by ID
-   * @param customerId - Customer ID
-   * @param businessId - Business ID for tenant isolation
    */
   async getCustomer(customerId: string, businessId: string): Promise<Customer> {
-    return await this.getById(customerId, businessId) as Customer
+    return await this.getById<Customer>(customerId, businessId)
   }
 
   /**
-   * List all customers for a business
-   * @param businessId - Business ID for tenant isolation
+   * List customers for a business
    */
-  async listCustomers(businessId: string): Promise<Customer[]> {
-    const result = await this.list(businessId, [
-      Query.orderDesc('createdAt')
-    ])
-    return result.documents as Customer[]
+  async listCustomers(
+    businessId: string,
+    filters?: {
+      searchTerm?: string
+      hasDueOnly?: boolean
+    }
+  ): Promise<Customer[]> {
+    const queries: any[] = [Query.orderDesc('createdAt')]
+
+    if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+      queries.push(Query.search('name', filters.searchTerm.trim()))
+    }
+
+    if (filters?.hasDueOnly) {
+      queries.push(Query.greaterThan('totalDue', 0))
+    }
+
+    return await this.list<Customer>(businessId, queries)
   }
 
   /**
-   * Update customer
-   * @param customerId - Customer ID
-   * @param data - Customer data to update
-   * @param businessId - Business ID for tenant isolation
+   * Update customer record
    */
   async updateCustomer(
     customerId: string,
     data: Partial<{
-      name?: string
-      phone?: string
-      email?: string
-      address?: string
-      totalDue?: number
+      name: string
+      phone: string
+      email: string
+      address: string
+      totalDue: number
     }>,
     businessId: string
   ): Promise<Customer> {
-    return await this.update(customerId, data, businessId) as Customer
+    if (data.phone && data.phone.trim() !== '') {
+      const existing = await this.getCustomerByPhone(businessId, data.phone)
+      if (existing && existing.$id !== customerId) {
+        throw new Error(`Customer with phone number "${data.phone}" already exists for this business`)
+      }
+    }
+
+    if (data.email && data.email.trim() !== '') {
+      const existing = await this.getCustomerByEmail(businessId, data.email)
+      if (existing && existing.$id !== customerId) {
+        throw new Error(`Customer with email "${data.email}" already exists for this business`)
+      }
+    }
+
+    return await this.update<Customer>(customerId, data, businessId)
   }
 
   /**
-   * Delete customer
-   * @param customerId - Customer ID
-   * @param businessId - Business ID for tenant isolation
+   * Delete customer record
    */
   async deleteCustomer(customerId: string, businessId: string): Promise<void> {
     await this.delete(customerId, businessId)
   }
 
   /**
-   * Search customers by name or phone
-   * @param businessId - Business ID for tenant isolation
-   * @param searchTerm - Search term
+   * Get customer by phone number within business
    */
-  async searchCustomers(businessId: string, searchTerm: string): Promise<Customer[]> {
-    const result = await this.query(businessId, [
-      Query.search('name', searchTerm),
-      Query.search('phone', searchTerm)
+  async getCustomerByPhone(businessId: string, phone: string): Promise<Customer | null> {
+    const results = await this.query<Customer>(businessId, [
+      Query.equal('phone', phone),
+      Query.limit(1)
     ])
-    return result.documents as Customer[]
+    return results.length > 0 ? results[0] : null
   }
 
   /**
-   * Update customer due amount
-   * @param customerId - Customer ID
-   * @param amount - Amount to add (positive) or subtract (negative)
-   * @param businessId - Business ID for tenant isolation
+   * Get customer by email address within business
+   */
+  async getCustomerByEmail(businessId: string, email: string): Promise<Customer | null> {
+    const results = await this.query<Customer>(businessId, [
+      Query.equal('email', email),
+      Query.limit(1)
+    ])
+    return results.length > 0 ? results[0] : null
+  }
+
+  /**
+   * Update customer due amount (adds or subtracts delta)
    */
   async updateDueAmount(
     customerId: string,
-    amount: number,
+    delta: number,
     businessId: string
   ): Promise<Customer> {
     const customer = await this.getCustomer(customerId, businessId)
-    const newTotalDue = Math.max(0, customer.totalDue + amount)
-    
-    return await this.updateCustomer(customerId, { totalDue: newTotalDue }, businessId)
-  }
-
-  /**
-   * Get customers with outstanding balance
-   * @param businessId - Business ID for tenant isolation
-   */
-  async getCustomersWithDue(businessId: string): Promise<Customer[]> {
-    const result = await this.list(businessId, [
-      Query.orderDesc('createdAt')
-    ])
-    
-    // Filter in application logic since Appwrite doesn't support complex comparisons
-    const customers = result.documents as Customer[]
-    return customers.filter(customer => customer.totalDue > 0)
+    const newTotalDue = Math.max(0, customer.totalDue + delta)
+    return await this.update<Customer>(customerId, { totalDue: newTotalDue }, businessId)
   }
 }
 

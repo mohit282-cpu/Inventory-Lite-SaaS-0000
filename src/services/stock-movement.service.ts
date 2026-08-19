@@ -7,9 +7,8 @@ import { productService } from './product.service'
 /**
  * Stock Movement Service
  * 
- * Handles stock movement operations with tenant isolation.
- * Tracks all inventory changes with proper audit trail.
- * Ensures data integrity with transaction-like operations.
+ * Manages inventory change tracking and audit trail.
+ * Records are immutable audit logs created during stock transactions.
  */
 export class StockMovementService extends BaseService {
   constructor() {
@@ -17,48 +16,151 @@ export class StockMovementService extends BaseService {
   }
 
   /**
-   * Create a stock movement record
-   * @param data - Stock movement data
-   * @param businessId - Business ID for tenant isolation
-   * @param userId - User ID creating the movement
+   * Create a new stock movement record and update the product stock quantity
    */
-  async createStockMovement(
+  async createMovement(
     data: {
       productId: string
       type: StockMovementType
       quantity: number
-      previousQuantity: number
-      newQuantity: number
       reason?: string
       referenceId?: string
     },
     businessId: string,
     userId: string
   ): Promise<StockMovement> {
-    return await this.create(data, businessId, userId) as StockMovement
+    if (data.quantity <= 0) {
+      throw new Error('Stock movement quantity must be greater than zero')
+    }
+
+    const product = await productService.getProduct(data.productId, businessId)
+    const previousQuantity = product.stockQuantity
+    let newQuantity = previousQuantity
+
+    if (data.type === 'stock_in') {
+      newQuantity = previousQuantity + data.quantity
+    } else if (data.type === 'stock_out') {
+      if (previousQuantity < data.quantity) {
+        throw new Error(`Insufficient stock for product "${product.name}". Available: ${previousQuantity}, Requested: ${data.quantity}`)
+      }
+      newQuantity = previousQuantity - data.quantity
+    } else if (data.type === 'adjustment') {
+      newQuantity = data.quantity // For adjustment, quantity argument is the target absolute stock
+      if (newQuantity < 0) {
+        throw new Error('Target stock quantity for adjustment cannot be negative')
+      }
+    }
+
+    // 1. Create movement record
+    const movementData = {
+      productId: data.productId,
+      type: data.type,
+      quantity: data.type === 'adjustment' ? Math.abs(newQuantity - previousQuantity) : data.quantity,
+      previousQuantity,
+      newQuantity,
+      reason: data.reason || '',
+      referenceId: data.referenceId || '',
+      createdBy: userId,
+    }
+
+    const movement = await this.create<StockMovement>(movementData, businessId, userId)
+
+    // 2. Update product stock quantity
+    await productService.updateStockQuantity(data.productId, newQuantity, businessId)
+
+    return movement
   }
 
   /**
-   * Get stock movement by ID
-   * @param movementId - Stock movement ID
-   * @param businessId - Business ID for tenant isolation
+   * Process stock in
    */
-  async getStockMovement(movementId: string, businessId: string): Promise<StockMovement> {
-    return await this.getById(movementId, businessId) as StockMovement
+  async processStockIn(
+    productId: string,
+    quantity: number,
+    businessId: string,
+    userId: string,
+    reason?: string,
+    referenceId?: string
+  ): Promise<StockMovement> {
+    return await this.createMovement(
+      {
+        productId,
+        type: 'stock_in',
+        quantity,
+        reason,
+        referenceId,
+      },
+      businessId,
+      userId
+    )
+  }
+
+  /**
+   * Process stock out
+   */
+  async processStockOut(
+    productId: string,
+    quantity: number,
+    businessId: string,
+    userId: string,
+    reason?: string,
+    referenceId?: string
+  ): Promise<StockMovement> {
+    return await this.createMovement(
+      {
+        productId,
+        type: 'stock_out',
+        quantity,
+        reason,
+        referenceId,
+      },
+      businessId,
+      userId
+    )
+  }
+
+  /**
+   * Process stock adjustment
+   */
+  async processAdjustment(
+    productId: string,
+    newQuantity: number,
+    businessId: string,
+    userId: string,
+    reason?: string,
+    referenceId?: string
+  ): Promise<StockMovement> {
+    return await this.createMovement(
+      {
+        productId,
+        type: 'adjustment',
+        quantity: newQuantity,
+        reason,
+        referenceId,
+      },
+      businessId,
+      userId
+    )
+  }
+
+  /**
+   * List movement history for a product within a business
+   */
+  async getProductHistory(productId: string, businessId: string): Promise<StockMovement[]> {
+    return await this.list<StockMovement>(businessId, [
+      Query.equal('productId', productId),
+      Query.orderDesc('createdAt')
+    ])
   }
 
   /**
    * List stock movements for a business
-   * @param businessId - Business ID for tenant isolation
-   * @param filters - Optional filters
    */
-  async listStockMovements(
+  async listMovements(
     businessId: string,
     filters?: {
       productId?: string
       type?: StockMovementType
-      startDate?: string
-      endDate?: string
     }
   ): Promise<StockMovement[]> {
     const queries: any[] = [Query.orderDesc('createdAt')]
@@ -71,182 +173,7 @@ export class StockMovementService extends BaseService {
       queries.push(Query.equal('type', filters.type))
     }
 
-    if (filters?.startDate) {
-      queries.push(Query.greaterThanEqual('createdAt', filters.startDate))
-    }
-
-    if (filters?.endDate) {
-      queries.push(Query.lessThanEqual('createdAt', filters.endDate))
-    }
-
-    const result = await this.list(businessId, queries)
-    return result.documents as StockMovement[]
-  }
-
-  /**
-   * Process stock in (add stock)
-   * @param productId - Product ID
-   * @param quantity - Quantity to add
-   * @param businessId - Business ID for tenant isolation
-   * @param userId - User ID processing the movement
-   * @param reason - Reason for stock in
-   * @param referenceId - Optional reference ID (e.g., purchase order)
-   */
-  async processStockIn(
-    productId: string,
-    quantity: number,
-    businessId: string,
-    userId: string,
-    reason?: string,
-    referenceId?: string
-  ): Promise<{ movement: StockMovement; product: any }> {
-    if (quantity <= 0) {
-      throw new Error('Quantity must be positive for stock in')
-    }
-
-    // Get current product
-    const product = await productService.getProduct(productId, businessId)
-    const previousQuantity = product.stockQuantity
-    const newQuantity = previousQuantity + quantity
-
-    // Update product stock
-    await productService.updateProduct(productId, { stockQuantity: newQuantity }, businessId)
-
-    // Create stock movement record
-    const movement = await this.createStockMovement(
-      {
-        productId,
-        type: 'stock_in',
-        quantity,
-        previousQuantity,
-        newQuantity,
-        reason,
-        referenceId,
-      },
-      businessId,
-      userId
-    )
-
-    return { movement, product: await productService.getProduct(productId, businessId) }
-  }
-
-  /**
-   * Process stock out (remove stock)
-   * @param productId - Product ID
-   * @param quantity - Quantity to remove
-   * @param businessId - Business ID for tenant isolation
-   * @param userId - User ID processing the movement
-   * @param reason - Reason for stock out
-   * @param referenceId - Optional reference ID (e.g., sale ID)
-   */
-  async processStockOut(
-    productId: string,
-    quantity: number,
-    businessId: string,
-    userId: string,
-    reason?: string,
-    referenceId?: string
-  ): Promise<{ movement: StockMovement; product: any }> {
-    if (quantity <= 0) {
-      throw new Error('Quantity must be positive for stock out')
-    }
-
-    // Get current product
-    const product = await productService.getProduct(productId, businessId)
-    const previousQuantity = product.stockQuantity
-
-    if (previousQuantity < quantity) {
-      throw new Error(`Insufficient stock. Available: ${previousQuantity}, Requested: ${quantity}`)
-    }
-
-    const newQuantity = previousQuantity - quantity
-
-    // Update product stock
-    await productService.updateProduct(productId, { stockQuantity: newQuantity }, businessId)
-
-    // Create stock movement record
-    const movement = await this.createStockMovement(
-      {
-        productId,
-        type: 'stock_out',
-        quantity,
-        previousQuantity,
-        newQuantity,
-        reason,
-        referenceId,
-      },
-      businessId,
-      userId
-    )
-
-    return { movement, product: await productService.getProduct(productId, businessId) }
-  }
-
-  /**
-   * Process stock adjustment (manual correction)
-   * @param productId - Product ID
-   * @param newQuantity - New quantity to set
-   * @param businessId - Business ID for tenant isolation
-   * @param userId - User ID processing the movement
-   * @param reason - Reason for adjustment
-   */
-  async processStockAdjustment(
-    productId: string,
-    newQuantity: number,
-    businessId: string,
-    userId: string,
-    reason?: string
-  ): Promise<{ movement: StockMovement; product: any }> {
-    if (newQuantity < 0) {
-      throw new Error('Quantity cannot be negative')
-    }
-
-    // Get current product
-    const product = await productService.getProduct(productId, businessId)
-    const previousQuantity = product.stockQuantity
-    const quantity = Math.abs(newQuantity - previousQuantity)
-    const type = newQuantity > previousQuantity ? 'stock_in' : 'stock_out'
-
-    // Update product stock
-    await productService.updateProduct(productId, { stockQuantity: newQuantity }, businessId)
-
-    // Create stock movement record
-    const movement = await this.createStockMovement(
-      {
-        productId,
-        type: 'adjustment',
-        quantity,
-        previousQuantity,
-        newQuantity,
-        reason,
-      },
-      businessId,
-      userId
-    )
-
-    return { movement, product: await productService.getProduct(productId, businessId) }
-  }
-
-  /**
-   * Get stock movements for a specific product
-   * @param productId - Product ID
-   * @param businessId - Business ID for tenant isolation
-   */
-  async getProductStockMovements(productId: string, businessId: string): Promise<StockMovement[]> {
-    return await this.listStockMovements(businessId, { productId })
-  }
-
-  /**
-   * Get recent stock movements
-   * @param businessId - Business ID for tenant isolation
-   * @param limit - Number of movements to return
-   */
-  async getRecentStockMovements(businessId: string, limit: number = 50): Promise<StockMovement[]> {
-    const result = await this.list(businessId, [
-      Query.limit(limit),
-      Query.orderDesc('createdAt')
-    ])
-    return result.documents as StockMovement[]
+    return await this.list<StockMovement>(businessId, queries)
   }
 }
 

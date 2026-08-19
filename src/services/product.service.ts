@@ -6,8 +6,7 @@ import { Query } from 'appwrite'
 /**
  * Product Service
  * 
- * Handles product operations with tenant isolation.
- * Products are business-specific inventory items.
+ * Handles product inventory operations with strict tenant isolation.
  */
 export class ProductService extends BaseService {
   constructor() {
@@ -16,9 +15,6 @@ export class ProductService extends BaseService {
 
   /**
    * Create a new product
-   * @param data - Product data
-   * @param businessId - Business ID for tenant isolation
-   * @param userId - User ID creating the product
    */
   async createProduct(
     data: {
@@ -37,29 +33,53 @@ export class ProductService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Product> {
-    return await this.create(data, businessId, userId) as Product
+    // Prevent duplicate SKU within the business
+    const existingSku = await this.getProductBySku(businessId, data.sku)
+    if (existingSku) {
+      throw new Error(`Product with SKU "${data.sku}" already exists for this business`)
+    }
+
+    // Prevent duplicate barcode if provided
+    if (data.barcode && data.barcode.trim() !== '') {
+      const existingBarcode = await this.getProductByBarcode(businessId, data.barcode)
+      if (existingBarcode) {
+        throw new Error(`Product with Barcode "${data.barcode}" already exists for this business`)
+      }
+    }
+
+    const productData = {
+      categoryId: data.categoryId || '',
+      name: data.name,
+      sku: data.sku,
+      barcode: data.barcode || '',
+      unit: data.unit,
+      purchasePrice: data.purchasePrice,
+      sellingPrice: data.sellingPrice,
+      stockQuantity: data.stockQuantity,
+      lowStockThreshold: data.lowStockThreshold ?? 5,
+      imageUrl: data.imageUrl || '',
+      isActive: data.isActive ?? true,
+    }
+
+    return await this.create<Product>(productData, businessId, userId)
   }
 
   /**
    * Get product by ID
-   * @param productId - Product ID
-   * @param businessId - Business ID for tenant isolation
    */
   async getProduct(productId: string, businessId: string): Promise<Product> {
-    return await this.getById(productId, businessId) as Product
+    return await this.getById<Product>(productId, businessId)
   }
 
   /**
-   * List all products for a business
-   * @param businessId - Business ID for tenant isolation
-   * @param filters - Optional filters
+   * List all products for a business with optional filters
    */
   async listProducts(
     businessId: string,
     filters?: {
       categoryId?: string
       isActive?: boolean
-      lowStock?: boolean
+      searchTerm?: string
     }
   ): Promise<Product[]> {
     const queries: any[] = [Query.orderDesc('createdAt')]
@@ -72,105 +92,93 @@ export class ProductService extends BaseService {
       queries.push(Query.equal('isActive', filters.isActive))
     }
 
-    if (filters?.lowStock) {
-      // Note: This requires complex query - might need to be done in application logic
-      // as Appwrite doesn't support complex comparisons
+    if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+      queries.push(Query.search('name', filters.searchTerm.trim()))
     }
 
-    const result = await this.list(businessId, queries)
-    return result.documents as Product[]
+    return await this.list<Product>(businessId, queries)
   }
 
   /**
    * Update product
-   * @param productId - Product ID
-   * @param data - Product data to update
-   * @param businessId - Business ID for tenant isolation
    */
   async updateProduct(
     productId: string,
     data: Partial<{
-      categoryId?: string
-      name?: string
-      sku?: string
-      barcode?: string
-      unit?: string
-      purchasePrice?: number
-      sellingPrice?: number
-      stockQuantity?: number
-      lowStockThreshold?: number
-      imageUrl?: string
-      isActive?: boolean
+      categoryId: string
+      name: string
+      sku: string
+      barcode: string
+      unit: string
+      purchasePrice: number
+      sellingPrice: number
+      stockQuantity: number
+      lowStockThreshold: number
+      imageUrl: string
+      isActive: boolean
     }>,
     businessId: string
   ): Promise<Product> {
-    return await this.update(productId, data, businessId) as Product
+    // Check SKU duplicate if changing SKU
+    if (data.sku) {
+      const existingSku = await this.getProductBySku(businessId, data.sku)
+      if (existingSku && existingSku.$id !== productId) {
+        throw new Error(`Product with SKU "${data.sku}" already exists for this business`)
+      }
+    }
+
+    // Check Barcode duplicate if changing Barcode
+    if (data.barcode && data.barcode.trim() !== '') {
+      const existingBarcode = await this.getProductByBarcode(businessId, data.barcode)
+      if (existingBarcode && existingBarcode.$id !== productId) {
+        throw new Error(`Product with Barcode "${data.barcode}" already exists for this business`)
+      }
+    }
+
+    return await this.update<Product>(productId, data, businessId)
   }
 
   /**
    * Delete product
-   * @param productId - Product ID
-   * @param businessId - Business ID for tenant isolation
    */
   async deleteProduct(productId: string, businessId: string): Promise<void> {
     await this.delete(productId, businessId)
   }
 
   /**
-   * Search products by name or SKU
-   * @param businessId - Business ID for tenant isolation
-   * @param searchTerm - Search term
-   */
-  async searchProducts(businessId: string, searchTerm: string): Promise<Product[]> {
-    const result = await this.query(businessId, [
-      Query.search('name', searchTerm),
-      Query.search('sku', searchTerm)
-    ])
-    return result.documents as Product[]
-  }
-
-  /**
-   * Get product by SKU
-   * @param businessId - Business ID for tenant isolation
-   * @param sku - Product SKU
+   * Get product by SKU within business
    */
   async getProductBySku(businessId: string, sku: string): Promise<Product | null> {
-    const result = await this.query(businessId, [
+    const results = await this.query<Product>(businessId, [
       Query.equal('sku', sku),
       Query.limit(1)
     ])
-    return result.documents.length > 0 ? result.documents[0] as Product : null
+    return results.length > 0 ? results[0] : null
   }
 
   /**
-   * Get product by barcode
-   * @param businessId - Business ID for tenant isolation
-   * @param barcode - Product barcode
+   * Get product by barcode within business
    */
   async getProductByBarcode(businessId: string, barcode: string): Promise<Product | null> {
-    const result = await this.query(businessId, [
+    const results = await this.query<Product>(businessId, [
       Query.equal('barcode', barcode),
       Query.limit(1)
     ])
-    return result.documents.length > 0 ? result.documents[0] as Product : null
+    return results.length > 0 ? results[0] : null
   }
 
   /**
-   * Get low stock products
-   * @param businessId - Business ID for tenant isolation
+   * Adjust stock quantity directly
    */
-  async getLowStockProducts(businessId: string): Promise<Product[]> {
-    const result = await this.list(businessId, [
-      Query.equal('isActive', true),
-      Query.orderDesc('createdAt')
-    ])
-    
-    // Filter in application logic since Appwrite doesn't support complex comparisons
-    const products = result.documents as Product[]
-    return products.filter(product => 
-      product.lowStockThreshold !== undefined && 
-      product.stockQuantity <= product.lowStockThreshold
-    )
+  async updateStockQuantity(
+    productId: string,
+    newQuantity: number,
+    businessId: string
+  ): Promise<Product> {
+    if (newQuantity < 0) {
+      throw new Error('Stock quantity cannot be negative')
+    }
+    return await this.update<Product>(productId, { stockQuantity: newQuantity }, businessId)
   }
 }
 

@@ -1,22 +1,12 @@
+import { Models } from 'appwrite'
+
 /**
- * Type Definitions
+ * Type Definitions for Inventory Lite Multi-Tenant SaaS
  * 
- * Centralized type definitions for the entire application.
- * All business entities and their relationships are defined here.
+ * Centralized type definitions corresponding to Appwrite database entities.
  */
 
-// ==================== Core Types ====================
-
-export type BusinessType = 
-  | 'retail' 
-  | 'hardware' 
-  | 'electronics' 
-  | 'clothing' 
-  | 'stationery' 
-  | 'cosmetics' 
-  | 'other'
-
-export type BusinessStatus = 'active' | 'suspended' | 'inactive'
+// ==================== Core Enum Types ====================
 
 export type UserRole = 'owner' | 'admin' | 'staff'
 
@@ -28,18 +18,18 @@ export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'refunded'
 
 export type StockMovementType = 'stock_in' | 'stock_out' | 'adjustment'
 
-// ==================== User Entity ====================
+// ==================== Appwrite Document Base ====================
 
-export interface AppUser {
+export interface AppwriteDocument extends Models.Document {
   $id: string
-  name: string
-  email: string
-  phone?: string
-  avatar?: string
-  preferences: UserPreferences
-  createdAt: string
-  updatedAt: string
+  $createdAt: string
+  $updatedAt: string
+  $collectionId: string
+  $databaseId: string
+  $permissions: string[]
 }
+
+// ==================== 1. User Entity ====================
 
 export interface UserPreferences {
   activeBusinessId?: string
@@ -51,9 +41,20 @@ export interface UserPreferences {
   }
 }
 
-// ==================== Business Entity ====================
+export interface AppUser extends Models.Document {
+  $id: string
+  name: string
+  email: string
+  phone?: string
+  avatar?: string
+  preferences: UserPreferences
+  createdAt: string
+  updatedAt: string
+}
 
-export interface Business {
+// ==================== 2. Business Entity ====================
+
+export interface Business extends Models.Document {
   $id: string
   name: string
   ownerId: string
@@ -69,9 +70,9 @@ export interface Business {
   updatedAt: string
 }
 
-// ==================== Business Member Entity ====================
+// ==================== 3. Business Member Entity ====================
 
-export interface BusinessMember {
+export interface BusinessMember extends Models.Document {
   $id: string
   businessId: string
   userId: string
@@ -79,9 +80,9 @@ export interface BusinessMember {
   createdAt: string
 }
 
-// ==================== Category Entity ====================
+// ==================== 4. Category Entity ====================
 
-export interface Category {
+export interface Category extends Models.Document {
   $id: string
   businessId: string
   name: string
@@ -90,9 +91,9 @@ export interface Category {
   updatedAt: string
 }
 
-// ==================== Product Entity ====================
+// ==================== 5. Product Entity ====================
 
-export interface Product {
+export interface Product extends Models.Document {
   $id: string
   businessId: string
   categoryId?: string
@@ -110,9 +111,9 @@ export interface Product {
   updatedAt: string
 }
 
-// ==================== Stock Movement Entity ====================
+// ==================== 6. Stock Movement Entity ====================
 
-export interface StockMovement {
+export interface StockMovement extends Models.Document {
   $id: string
   businessId: string
   productId: string
@@ -126,9 +127,9 @@ export interface StockMovement {
   createdAt: string
 }
 
-// ==================== Customer Entity ====================
+// ==================== 7. Customer Entity ====================
 
-export interface Customer {
+export interface Customer extends Models.Document {
   $id: string
   businessId: string
   name: string
@@ -140,9 +141,9 @@ export interface Customer {
   updatedAt: string
 }
 
-// ==================== Sale Entity ====================
+// ==================== 8. Sale Entity ====================
 
-export interface Sale {
+export interface Sale extends Models.Document {
   $id: string
   businessId: string
   customerId?: string
@@ -159,9 +160,9 @@ export interface Sale {
   createdAt: string
 }
 
-// ==================== Sale Item Entity ====================
+// ==================== 9. Sale Item Entity ====================
 
-export interface SaleItem {
+export interface SaleItem extends Models.Document {
   $id: string
   businessId: string
   saleId: string
@@ -173,9 +174,9 @@ export interface SaleItem {
   total: number
 }
 
-// ==================== Invoice Entity ====================
+// ==================== 10. Invoice Entity ====================
 
-export interface Invoice {
+export interface Invoice extends Models.Document {
   $id: string
   businessId: string
   saleId: string
@@ -185,9 +186,9 @@ export interface Invoice {
   createdAt: string
 }
 
-// ==================== Expense Entity ====================
+// ==================== 11. Expense Entity ====================
 
-export interface Expense {
+export interface Expense extends Models.Document {
   $id: string
   businessId: string
   category: string
@@ -198,7 +199,7 @@ export interface Expense {
   createdAt: string
 }
 
-// ==================== UI State Types ====================
+// ==================== UI State & API Types ====================
 
 export interface ApiError {
   message: string

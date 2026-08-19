@@ -1,30 +1,23 @@
-import { Client, Account, Databases, Storage, Functions } from 'appwrite'
+import { Storage, Functions } from 'appwrite'
+import { client, account, databases } from '@/lib/appwrite'
 
 /**
  * Appwrite Configuration
  * 
  * Centralized Appwrite client configuration with proper tenant isolation support.
- * All Appwrite SDK instances are initialized here to ensure consistency.
+ * All Appwrite SDK instances are exported from here for application-wide consistency.
  */
 
-const client = new Client()
+export { client, account, databases }
 
-if (typeof window !== 'undefined') {
-  client
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!)
-}
-
-// Initialize Appwrite services
-export const account = new Account(client)
-export const databases = new Databases(client)
+// Initialize additional Appwrite services
 export const storage = new Storage(client)
 export const functions = new Functions(client)
 
-// Database IDs (These should be configured in Appwrite console)
+// Database IDs
 export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'inventory_lite_db'
 
-// Collection IDs (to be configured in Appwrite)
+// Collection IDs
 export const COLLECTIONS = {
   USERS: 'users',
   BUSINESSES: 'businesses',
@@ -39,7 +32,7 @@ export const COLLECTIONS = {
   EXPENSES: 'expenses',
 } as const
 
-// Storage Bucket IDs (to be configured in Appwrite)
+// Storage Bucket IDs
 export const BUCKETS = {
   PRODUCTS: 'product_images',
   LOGOS: 'business_logos',
@@ -48,7 +41,6 @@ export const BUCKETS = {
 
 /**
  * Get current session user
- * Returns the currently authenticated user account
  */
 export async function getCurrentUser() {
   try {
@@ -60,7 +52,6 @@ export async function getCurrentUser() {
 
 /**
  * Get active business context for the current session
- * This is crucial for multi-tenant isolation
  */
 export async function getActiveBusinessContext() {
   try {
@@ -68,9 +59,6 @@ export async function getActiveBusinessContext() {
     if (!user) {
       return null
     }
-    
-    // Get user's active business from session or preferences
-    // This will be implemented when we build the membership system
     return null
   } catch (error) {
     return null

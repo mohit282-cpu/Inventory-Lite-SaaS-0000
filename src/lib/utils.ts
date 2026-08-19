@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format currency based on locale and currency code
  */
-export function formatCurrency(amount: number, currency: string = 'NPR', locale: string = 'ne-NP'): string {
+export function formatCurrency(amount: number, currency: string = 'NPR', locale: string = 'en-NP'): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
