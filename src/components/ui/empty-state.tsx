@@ -46,20 +46,20 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
       <div
         ref={ref}
         className={cn(
-          "flex flex-col items-center justify-center text-center",
+          "flex flex-col items-center justify-center text-center rounded-lg border border-slate-800 bg-slate-900/40 p-8 sm:p-12 my-2",
           sizeClasses[size],
           className
         )}
         {...props}
       >
         {icon && (
-          <div className="mb-4 text-muted-foreground flex items-center justify-center">
+          <div className="mb-3 h-12 w-12 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-400 flex items-center justify-center">
             {renderIcon()}
           </div>
         )}
-        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <h3 className="text-base font-semibold text-white mb-1">{title}</h3>
         {description && (
-          <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+          <p className="text-xs text-slate-400 mb-5 max-w-xs leading-relaxed">
             {description}
           </p>
         )}
@@ -70,6 +70,8 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
             <Button
               onClick={(action as any).onClick}
               variant={(action as any).variant || "default"}
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
             >
               {(action as any).label}
             </Button>

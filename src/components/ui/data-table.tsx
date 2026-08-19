@@ -80,17 +80,17 @@ export function DataTable<T extends Record<string, any>>({
   const paginatedData = sortedData.slice(startIndex, startIndex + pageSize)
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-3">
       {/* Responsive Table Wrapper */}
-      <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-md shadow-xl">
+      <div className="overflow-x-auto scrollbar-thin rounded-lg border border-slate-800 bg-slate-900/60 shadow-sm">
         <table className="w-full text-left text-sm text-slate-200">
-          <thead className="bg-slate-950/80 text-xs font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+          <thead className="bg-slate-950/70 text-[11px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800">
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
                   style={{ width: col.width }}
-                  className="px-4 py-3.5"
+                  className="px-4 py-3"
                 >
                   {col.sortable ? (
                     <button
@@ -99,7 +99,7 @@ export function DataTable<T extends Record<string, any>>({
                       className="inline-flex items-center gap-1.5 hover:text-white transition-colors focus:outline-none"
                     >
                       {col.header}
-                      <ArrowUpDown className="h-3.5 w-3.5 opacity-60" />
+                      <ArrowUpDown className="h-3 w-3 opacity-60" />
                     </button>
                   ) : (
                     col.header
@@ -112,10 +112,10 @@ export function DataTable<T extends Record<string, any>>({
             {paginatedData.map((item, rowIdx) => (
               <tr
                 key={item.$id || item.id || rowIdx}
-                className="hover:bg-slate-800/40 transition-colors"
+                className="hover:bg-slate-800/30 transition-colors"
               >
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3.5 whitespace-nowrap">
+                  <td key={col.key} className="px-4 py-3 whitespace-nowrap text-xs sm:text-sm">
                     {col.render ? col.render(item) : item[col.key]}
                   </td>
                 ))}

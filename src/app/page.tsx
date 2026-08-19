@@ -1,30 +1,31 @@
-"use client"
+import type { Metadata } from 'next'
+import { LandingPageView } from '@/components/landing/landing-page'
 
-import { useAuth } from "@/hooks/use-auth"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-import { LoadingPage } from "@/components/ui/loading"
+export const metadata: Metadata = {
+  title: 'Inventory Lite — Simple Inventory & Billing for Small Businesses',
+  description:
+    'Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal.',
+  keywords: [
+    'Inventory Management Nepal',
+    'Billing Software Nepal',
+    'POS Nepal',
+    'Small Business Inventory',
+    'Tax Invoice Nepal',
+    'PAN VAT Invoicing',
+    'Udharo Tracking',
+    'Inventory Lite',
+  ],
+  openGraph: {
+    title: 'Inventory Lite — Simple Inventory & Billing for Small Businesses',
+    description:
+      'Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal.',
+    url: 'https://inventorylite.app',
+    siteName: 'Inventory Lite',
+    locale: 'en_US',
+    type: 'website',
+  },
+}
 
 export default function HomePage() {
-  const { user, activeBusiness, memberships, isLoading } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (isLoading) return
-
-    if (!user) {
-      router.push("/auth/login")
-      return
-    }
-
-    const hasBusiness = activeBusiness !== null || (memberships?.length ?? 0) > 0
-    if (!hasBusiness) {
-      router.push("/onboarding")
-      return
-    }
-
-    router.push("/app/dashboard")
-  }, [user, activeBusiness, memberships, isLoading, router])
-
-  return <LoadingPage message="Navigating to your portal..." />
+  return <LandingPageView />
 }

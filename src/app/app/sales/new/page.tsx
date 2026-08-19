@@ -502,9 +502,9 @@ export default function CreateSalePage() {
                 </div>
               </div>
 
-              <div className="flex justify-between text-slate-300 font-bold py-1 border-t border-slate-800">
-                <span>Grand Total</span>
-                <span className="font-mono text-base text-emerald-400">
+              <div className="flex justify-between items-center text-slate-200 font-bold py-2.5 px-3 border border-slate-800 bg-slate-950/60 rounded-lg my-2">
+                <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Grand Total</span>
+                <span className="font-mono text-xl text-emerald-400 font-extrabold">
                   Rs. {grandTotal.toFixed(2)}
                 </span>
               </div>

@@ -4,7 +4,6 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
-import { StatusBadge } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ProductFormDialog } from '@/components/features/products/product-form-dialog'
@@ -240,9 +239,28 @@ export default function ProductsPage() {
     {
       key: 'status',
       header: 'Stock Status',
-      render: (item) => (
-        <StatusBadge status={getStockStatus(item.stockQuantity, item.lowStockThreshold)} />
-      ),
+      render: (item) => {
+        const status = getStockStatus(item.stockQuantity, item.lowStockThreshold)
+        if (status === 'Out of Stock') {
+          return (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-400 bg-red-500/15 px-2 py-0.5 rounded border border-red-500/30">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-400" /> Out of Stock
+            </span>
+          )
+        }
+        if (status === 'Low Stock') {
+          return (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Low Stock
+            </span>
+          )
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded border border-emerald-500/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> In Stock
+          </span>
+        )
+      },
     },
     {
       key: 'actions',
