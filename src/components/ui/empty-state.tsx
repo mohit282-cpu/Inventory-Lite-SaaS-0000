@@ -10,10 +10,10 @@ import { Button } from "./button"
  */
 
 interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
-  icon?: React.ReactNode
+  icon?: React.ReactNode | React.ComponentType<{ className?: string }>
   title: string
   description?: string
-  action?: {
+  action?: React.ReactNode | {
     label: string
     onClick: () => void
     variant?: "default" | "outline" | "secondary" | "ghost" | "link"
@@ -35,6 +35,13 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
       lg: "h-16 w-16",
     }
 
+    const renderIcon = () => {
+      if (!icon) return null
+      if (React.isValidElement(icon)) return icon
+      const IconComponent = icon as React.ComponentType<{ className?: string }>
+      return <IconComponent className={iconSizes[size]} />
+    }
+
     return (
       <div
         ref={ref}
@@ -46,8 +53,8 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
         {...props}
       >
         {icon && (
-          <div className={cn("mb-4 text-muted-foreground", iconSizes[size])}>
-            {icon}
+          <div className="mb-4 text-muted-foreground flex items-center justify-center">
+            {renderIcon()}
           </div>
         )}
         <h3 className="text-lg font-semibold mb-2">{title}</h3>
@@ -57,12 +64,16 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
           </p>
         )}
         {action && (
-          <Button
-            onClick={action.onClick}
-            variant={action.variant || "default"}
-          >
-            {action.label}
-          </Button>
+          React.isValidElement(action) ? (
+            action
+          ) : (
+            <Button
+              onClick={(action as any).onClick}
+              variant={(action as any).variant || "default"}
+            >
+              {(action as any).label}
+            </Button>
+          )
         )}
       </div>
     )

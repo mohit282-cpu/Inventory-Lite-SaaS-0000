@@ -7,9 +7,10 @@ import { LoadingPage } from '@/components/ui/loading'
 
 interface RouteGuardProps {
   children: React.ReactNode
+  requireBusiness?: boolean
 }
 
-export function RouteGuard({ children }: RouteGuardProps) {
+export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps) {
   const { user, activeBusiness, memberships, isLoading } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
@@ -29,9 +30,9 @@ export function RouteGuard({ children }: RouteGuardProps) {
       return
     }
 
-    // 2. Authenticated user has NO business membership -> redirect to /onboarding
+    // 2. Authenticated user has NO business membership & route requires business -> redirect to /onboarding
     const hasBusiness = activeBusiness !== null || memberships.length > 0
-    if (!hasBusiness) {
+    if (requireBusiness && !hasBusiness) {
       if (isAppRoute || isAuthRoute) {
         router.push('/onboarding')
       }
