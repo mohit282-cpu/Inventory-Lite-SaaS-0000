@@ -29,6 +29,7 @@ export const COLLECTIONS = {
   SALES: 'sales',
   SALE_ITEMS: 'sale_items',
   INVOICES: 'invoices',
+  PAYMENTS: 'payments',
   EXPENSES: 'expenses',
 } as const
 

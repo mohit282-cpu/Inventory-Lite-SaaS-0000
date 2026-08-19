@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
@@ -170,9 +171,13 @@ export default function CustomersPage() {
         const due = item.totalDue || 0
         if (due > 0) {
           return (
-            <span className="font-mono font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-xs sm:text-sm inline-block">
+            <Link
+              href={`/app/credit?customerId=${item.$id}`}
+              className="font-mono font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-xs sm:text-sm inline-block hover:bg-amber-100 transition-colors"
+              title="Click to manage credit ledger for this customer"
+            >
               Rs. {due.toFixed(2)}
-            </span>
+            </Link>
           )
         }
         return (

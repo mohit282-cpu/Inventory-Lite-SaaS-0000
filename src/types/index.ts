@@ -12,9 +12,11 @@ export type UserRole = 'owner' | 'admin' | 'staff'
 
 export type Currency = 'NPR' | 'USD' | 'EUR' | 'INR'
 
-export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'digital_wallet' | 'credit'
+export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'digital_wallet' | 'credit' | 'eSewa' | 'Khalti' | 'other'
 
 export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'refunded'
+
+export type CreditStatus = 'UNPAID' | 'PARTIAL' | 'PAID' | 'OVERDUE'
 
 export type StockMovementType = 'stock_in' | 'stock_out' | 'adjustment'
 
@@ -156,6 +158,7 @@ export interface Sale extends Models.Document {
   dueAmount: number
   paymentMethod: PaymentMethod
   status: SaleStatus
+  dueDate?: string
   createdBy: string
   createdAt: string
 }
@@ -182,11 +185,30 @@ export interface Invoice extends Models.Document {
   saleId: string
   invoiceNumber: string
   issueDate: string
+  dueDate?: string
   pdfUrl?: string
   createdAt: string
 }
 
-// ==================== 11. Expense Entity ====================
+// ==================== 11. Payment Entity ====================
+
+export interface Payment extends Models.Document {
+  $id: string
+  businessId: string
+  customerId?: string
+  saleId: string
+  invoiceId?: string
+  amount: number
+  paymentMethod: PaymentMethod
+  paymentDate: string
+  referenceNumber?: string
+  notes?: string
+  createdBy?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+// ==================== 12. Expense Entity ====================
 
 export interface Expense extends Models.Document {
   $id: string
