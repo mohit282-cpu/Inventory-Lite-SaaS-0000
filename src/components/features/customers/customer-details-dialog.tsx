@@ -72,7 +72,7 @@ export function CustomerDetailsDialog({
     return () => {
       isMounted = false
     }
-  }, [customer, activeBusiness?.$id, isOpen])
+  }, [customer, activeBusiness, isOpen])
 
   if (!customer) return null
 

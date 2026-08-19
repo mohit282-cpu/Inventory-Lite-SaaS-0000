@@ -40,7 +40,6 @@ export default function CreateSalePage() {
 
   const [products, setProducts] = useState<Product[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [barcodeInput, setBarcodeInput] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -63,7 +62,6 @@ export default function CreateSalePage() {
         customerService.listCustomers(activeBusiness.$id),
       ])
       setProducts(prods)
-      setFilteredProducts(prods)
       setCustomers(custs)
     } catch (err: any) {
       toast({
@@ -80,22 +78,40 @@ export default function CreateSalePage() {
     fetchData()
   }, [fetchData])
 
-  // Search Filter
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredProducts(products)
-    } else {
-      const q = searchQuery.toLowerCase()
-      setFilteredProducts(
-        products.filter(
-          (p) =>
-            p.name.toLowerCase().includes(q) ||
-            p.sku.toLowerCase().includes(q) ||
-            (p.barcode && p.barcode.toLowerCase().includes(q))
-        )
-      )
-    }
+  // Memoized Search Filter
+  const filteredProducts = React.useMemo(() => {
+    if (!searchQuery.trim()) return products
+    const q = searchQuery.toLowerCase()
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        (p.barcode && p.barcode.toLowerCase().includes(q))
+    )
   }, [searchQuery, products])
+
+  // Memoized Calculations
+  const { subtotal, grandTotal, dueAmount, effectivePaidAmount } =
+    React.useMemo(() => {
+      const sub = cart.reduce(
+        (sum, item) => sum + item.quantity * item.unitPrice - item.discount,
+        0
+      )
+      const taxable = Math.max(0, sub - overallDiscount)
+      const tax = (taxable * taxRate) / 100
+      const total = taxable + tax
+      const paid = paidAmountInput !== '' ? parseFloat(paidAmountInput) || 0 : total
+      const due = Math.max(0, total - paid)
+
+      return {
+        subtotal: sub,
+        taxableSubtotal: taxable,
+        taxAmount: tax,
+        grandTotal: total,
+        dueAmount: due,
+        effectivePaidAmount: paid,
+      }
+    }, [cart, overallDiscount, taxRate, paidAmountInput])
 
   // Handle Barcode Scan / Fast Input
   const handleBarcodeSubmit = (e: React.FormEvent) => {
@@ -195,19 +211,6 @@ export default function CreateSalePage() {
   const removeFromCart = (productId: string) => {
     setCart((prev) => prev.filter((i) => i.product.$id !== productId))
   }
-
-  // Calculations
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice - item.discount,
-    0
-  )
-  const taxableSubtotal = Math.max(0, subtotal - overallDiscount)
-  const taxAmount = (taxableSubtotal * taxRate) / 100
-  const grandTotal = taxableSubtotal + taxAmount
-
-  const effectivePaidAmount =
-    paidAmountInput !== '' ? parseFloat(paidAmountInput) || 0 : grandTotal
-  const dueAmount = Math.max(0, grandTotal - effectivePaidAmount)
 
   // Submit Complete Sale
   const handleCompleteSale = async () => {

@@ -54,7 +54,7 @@ export function DataTable<T extends Record<string, any>>({
   }
 
   // Handle Sorting
-  let sortedData = [...data]
+  const sortedData = [...data]
   if (sortKey) {
     sortedData.sort((a, b) => {
       const valA = a[sortKey]

@@ -43,7 +43,7 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
     if (isAuthRoute || isOnboardingRoute) {
       router.push('/app/dashboard')
     }
-  }, [user, activeBusiness, memberships, isLoading, pathname, router])
+  }, [user, activeBusiness, memberships, isLoading, pathname, router, requireBusiness])
 
   if (isLoading) {
     return <LoadingPage message="Authenticating session..." />
