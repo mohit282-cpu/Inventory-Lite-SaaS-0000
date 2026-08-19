@@ -71,9 +71,8 @@ export const businessSettingsSchema = z.object({
 // ==================== Product Validations ====================
 
 export const categorySchema = z.object({
-  name: nameSchema,
+  name: z.string().min(2, 'Category name must be at least 2 characters'),
   description: z.string().optional(),
-  parentId: z.string().optional(),
 })
 
 export const productSchema = z.object({
@@ -89,6 +88,20 @@ export const productSchema = z.object({
   unit: z.string().min(1, 'Unit is required'),
   barcode: z.string().optional(),
   isActive: z.boolean().default(true),
+})
+
+export const productFormSchema = z.object({
+  name: z.string().min(2, 'Product name must be at least 2 characters'),
+  sku: z.string().optional(),
+  barcode: z.string().optional(),
+  categoryId: z.string().optional(),
+  unit: z.string().min(1, 'Unit is required'),
+  purchasePrice: z.coerce.number().min(0, 'Purchase price cannot be negative'),
+  sellingPrice: z.coerce.number().min(0, 'Selling price cannot be negative'),
+  openingStock: z.coerce.number().min(0, 'Opening stock cannot be negative'),
+  minStockAlert: z.coerce.number().min(0, 'Low-stock threshold cannot be negative'),
+  imageUrl: z.string().optional(),
+  isActive: z.boolean(),
 })
 
 // ==================== Customer Validations ====================

@@ -66,9 +66,28 @@ export class StockMovementService extends BaseService {
     const movement = await this.create<StockMovement>(movementData, businessId, userId)
 
     // 2. Update product stock quantity
-    await productService.updateStockQuantity(data.productId, newQuantity, businessId)
+    await productService.updateProduct(data.productId, { stockQuantity: newQuantity }, businessId)
 
     return movement
+  }
+
+  /**
+   * Log an explicit stock movement record without mutating product stock
+   */
+  async createRawMovement(
+    data: {
+      productId: string
+      type: StockMovementType
+      quantity: number
+      previousQuantity: number
+      newQuantity: number
+      reason?: string
+      referenceId?: string
+    },
+    businessId: string,
+    userId: string
+  ): Promise<StockMovement> {
+    return await this.create<StockMovement>(data, businessId, userId)
   }
 
   /**

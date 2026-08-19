@@ -20,7 +20,7 @@ export class ProductService extends BaseService {
     data: {
       categoryId?: string
       name: string
-      sku: string
+      sku?: string
       barcode?: string
       unit: string
       purchasePrice: number
@@ -33,10 +33,14 @@ export class ProductService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Product> {
+    const finalSku = data.sku && data.sku.trim() !== ''
+      ? data.sku.trim()
+      : `SKU-${Date.now().toString(36).toUpperCase()}`
+
     // Prevent duplicate SKU within the business
-    const existingSku = await this.getProductBySku(businessId, data.sku)
+    const existingSku = await this.getProductBySku(businessId, finalSku)
     if (existingSku) {
-      throw new Error(`Product with SKU "${data.sku}" already exists for this business`)
+      throw new Error(`Product with SKU "${finalSku}" already exists for this business`)
     }
 
     // Prevent duplicate barcode if provided
@@ -50,7 +54,7 @@ export class ProductService extends BaseService {
     const productData = {
       categoryId: data.categoryId || '',
       name: data.name,
-      sku: data.sku,
+      sku: finalSku,
       barcode: data.barcode || '',
       unit: data.unit,
       purchasePrice: data.purchasePrice,
@@ -61,7 +65,30 @@ export class ProductService extends BaseService {
       isActive: data.isActive ?? true,
     }
 
-    return await this.create<Product>(productData, businessId, userId)
+    const createdProduct = await this.create<Product>(productData, businessId, userId)
+
+    // Record initial stock movement for opening stock
+    if (data.stockQuantity > 0) {
+      try {
+        const { stockMovementService } = await import('./stock-movement.service')
+        await stockMovementService.createRawMovement(
+          {
+            productId: createdProduct.$id,
+            type: 'stock_in',
+            quantity: data.stockQuantity,
+            previousQuantity: 0,
+            newQuantity: data.stockQuantity,
+            reason: 'Opening stock initialization',
+          },
+          businessId,
+          userId
+        )
+      } catch (stockErr) {
+        console.warn('Initial stock movement log notice:', stockErr)
+      }
+    }
+
+    return createdProduct
   }
 
   /**
