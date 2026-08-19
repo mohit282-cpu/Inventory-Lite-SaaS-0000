@@ -24,8 +24,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <TopNav onOpenMobileNav={() => setMobileNavOpen(true)} />
 
           {/* Responsive Page Viewport */}
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto space-y-6">
+          <main className="flex-1 overflow-y-auto scrollbar-thin p-4 sm:p-6">
+            <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
               {children}
             </div>
           </main>

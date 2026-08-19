@@ -109,3 +109,25 @@ npx ts-node scripts/setup-appwrite.ts
 ```
 
 This will automatically create any missing collections, attributes, constraints, and indexes.
+
+---
+
+## 7. Web Platforms & CORS Configuration (Vercel & Web Domains)
+
+If you encounter `Authentication Failed: Failed to fetch` when accessing your deployed web app on Vercel (e.g. `https://inventory-lite-saa-s-0000.vercel.app`), Appwrite is blocking CORS requests from unauthorized web origins.
+
+To authorize your Vercel deployment:
+
+1. Open your **Appwrite Console** (Cloud or Self-Hosted) and select project `Inventory Lite SaaS`.
+2. Navigate to **Overview** -> Scroll down to the **Platforms** section.
+3. Click **Add Platform** and choose **Web App**.
+4. Set Name: `Vercel Production`.
+5. Set Hostname: `inventory-lite-saa-s-0000.vercel.app` (or your custom domain / `localhost`).
+6. Save the platform configuration.
+
+> [!IMPORTANT]
+> Also ensure the Vercel Project Settings -> **Environment Variables** contains:
+> - `NEXT_PUBLIC_APPWRITE_PROJECT_ID` = `6a85664100023f1deffb`
+> - `NEXT_PUBLIC_APPWRITE_ENDPOINT` = `https://fra.cloud.appwrite.io/v1`
+> - `NEXT_PUBLIC_APPWRITE_DATABASE_ID` = `inventory_lite_db`
+

@@ -86,6 +86,10 @@ export function handleApiError(error: any): AppError {
   const message = error?.message || error?.response?.data?.message || 'An unexpected error occurred'
   const type = error?.type || error?.response?.data?.type
 
+  if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+    return new NetworkError('Unable to connect to backend server. Please verify Web Platform domain configuration (CORS) in Appwrite Console.')
+  }
+
   if (type === 'user_already_exists' || (code === 409 && message.includes('already exists'))) {
     return new ConflictError('An account with this email address already exists. Please sign in instead.')
   }

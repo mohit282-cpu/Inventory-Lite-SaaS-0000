@@ -24,7 +24,7 @@ const LoadingSpinner = React.forwardRef<HTMLDivElement, LoadingSpinnerProps>(
       <div
         ref={ref}
         className={cn(
-          "animate-spin rounded-full border-primary border-t-transparent",
+          "animate-spin rounded-full border-indigo-500 border-t-transparent",
           sizeClasses[size],
           className
         )}
