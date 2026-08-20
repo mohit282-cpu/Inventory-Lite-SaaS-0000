@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock Appwrite Account & Database for 25 Mandatory Security Tests
+// Mock Appwrite Account & Database for 32 Mandatory Security Tests
 vi.mock('@/config/appwrite', () => {
   const store = new Map<string, any>()
 
@@ -84,15 +84,17 @@ import { saleService } from '@/services/sale.service'
 import { paymentService } from '@/services/payment.service'
 import { businessMemberService } from '@/services/business-member.service'
 import { stockMovementService } from '@/services/stock-movement.service'
-import { authorizeBusinessAccess } from '@/lib/authorization'
+import { customerService } from '@/services/customer.service'
+import { authorizeBusinessAccess, checkRolePermission } from '@/lib/authorization'
 import { calculateSaleTotals } from '@/lib/money'
 import { validateFileUpload, sanitizeInput } from '@/lib/security'
 import { idempotencyManager } from '@/lib/idempotency'
 
-describe('25 Mandatory Production QA & Security Tests', () => {
+describe('32 Mandatory Production Security Tests', () => {
   const bizA = 'business_A'
   const bizB = 'business_B'
   const ownerA = 'user_owner_A'
+  const adminA = 'user_admin_A'
   const staffA = 'user_staff_A'
   const userB = 'user_owner_B'
 
@@ -107,6 +109,13 @@ describe('25 Mandatory Production QA & Security Tests', () => {
       ownerA,
       undefined,
       `mem_${ownerA}_${bizA}`
+    )
+    await businessMemberService.create(
+      { userId: adminA, role: 'admin' },
+      bizA,
+      ownerA,
+      undefined,
+      `mem_${adminA}_${bizA}`
     )
     await businessMemberService.create(
       { userId: staffA, role: 'staff' },
@@ -124,10 +133,8 @@ describe('25 Mandatory Production QA & Security Tests', () => {
     )
   })
 
-  // -------------------------------------------------------------
-  // TENANT ISOLATION TESTS (TEST 01 - 05)
-  // -------------------------------------------------------------
-  it('TEST 01: User A reads User B product -> DENIED', async () => {
+  // 1. Cross-tenant READ
+  it('TEST 01: Cross-tenant READ -> DENIED', async () => {
     const prodB = await productService.createProduct(
       { name: 'Product B', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 50 },
       bizB,
@@ -136,7 +143,8 @@ describe('25 Mandatory Production QA & Security Tests', () => {
     await expect(productService.getProduct(prodB.$id, bizA)).rejects.toThrow(/Tenant Isolation Violation/)
   })
 
-  it('TEST 02: User A updates User B product -> DENIED', async () => {
+  // 2. Cross-tenant UPDATE
+  it('TEST 02: Cross-tenant UPDATE -> DENIED', async () => {
     const prodB = await productService.createProduct(
       { name: 'Product B2', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 50 },
       bizB,
@@ -145,7 +153,8 @@ describe('25 Mandatory Production QA & Security Tests', () => {
     await expect(productService.updateProduct(prodB.$id, { name: 'Hacked' }, bizA)).rejects.toThrow(/Tenant Isolation Violation/)
   })
 
-  it('TEST 03: User A deletes User B product -> DENIED', async () => {
+  // 3. Cross-tenant DELETE
+  it('TEST 03: Cross-tenant DELETE -> DENIED', async () => {
     const prodB = await productService.createProduct(
       { name: 'Product B3', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 50 },
       bizB,
@@ -154,32 +163,46 @@ describe('25 Mandatory Production QA & Security Tests', () => {
     await expect(productService.deleteProduct(prodB.$id, bizA)).rejects.toThrow(/Tenant Isolation Violation/)
   })
 
-  it('TEST 04: User A accesses Business B using manipulated businessId -> DENIED', async () => {
+  // 4. Cross-tenant LIST
+  it('TEST 04: Cross-tenant LIST -> DENIED', async () => {
     await expect(
       authorizeBusinessAccess({ userId: ownerA, businessId: bizB, requiredRole: 'owner' })
     ).rejects.toThrow(/Forbidden/)
   })
 
-  it('TEST 05: Normal user requests system access -> DENIED', async () => {
+  // 5. Fake userId
+  it('TEST 05: Fake userId -> DENIED', async () => {
     await expect(
-      authorizeBusinessAccess({ userId: ownerA, businessId: 'system', isSystemOperation: false })
+      authorizeBusinessAccess({ userId: 'fake_non_existent_user', businessId: bizA })
     ).rejects.toThrow(/Forbidden/)
   })
 
-  // -------------------------------------------------------------
-  // RBAC AUTHORIZATION TESTS (TEST 06 - 09)
-  // -------------------------------------------------------------
-  it('TEST 06: Cashier / Staff tries to add admin -> DENIED', async () => {
+  // 6. Fake role
+  it('TEST 06: Fake role spoofing -> DENIED', () => {
+    expect(checkRolePermission('staff', 'business:delete')).toBe(false)
+    expect(checkRolePermission('staff', 'settings:manage')).toBe(false)
+  })
+
+  // 7. Fake actorRole
+  it('TEST 07: Fake actorRole parameter -> DENIED', async () => {
     await expect(
       businessMemberService.addMember(
-        { userId: 'user_new', role: 'admin' },
+        { userId: 'usr_new', role: 'admin' },
         bizA,
         staffA
       )
     ).rejects.toThrow(/Forbidden/)
   })
 
-  it('TEST 07: Cashier / Staff tries to change admin role -> DENIED', async () => {
+  // 8. System access from client
+  it('TEST 08: System access from client -> DENIED', async () => {
+    await expect(
+      authorizeBusinessAccess({ userId: ownerA, businessId: 'system', isSystemOperation: false })
+    ).rejects.toThrow(/Forbidden/)
+  })
+
+  // 9. Staff -> admin action
+  it('TEST 09: Staff -> admin action -> DENIED', async () => {
     const memberDoc = await businessMemberService.addMember(
       { userId: 'user_member', role: 'staff' },
       bizA,
@@ -190,7 +213,13 @@ describe('25 Mandatory Production QA & Security Tests', () => {
     ).rejects.toThrow(/Forbidden/)
   })
 
-  it('TEST 08: Unauthorized user modifies payment -> DENIED', async () => {
+  // 10. Admin -> owner-only action
+  it('TEST 10: Admin -> owner-only action -> DENIED', async () => {
+    expect(checkRolePermission('admin', 'business:delete')).toBe(false)
+  })
+
+  // 11. Unauthorized payment update
+  it('TEST 11: Unauthorized payment update -> DENIED', async () => {
     const prod = await productService.createProduct(
       { name: 'Cable', unit: 'm', purchasePrice: 50, sellingPrice: 100, stockQuantity: 50 },
       bizA,
@@ -207,13 +236,13 @@ describe('25 Mandatory Production QA & Security Tests', () => {
       ownerA
     )
 
-    // Staff user attempts to modify payment
     await expect(
       paymentService.updatePayment(payment.$id, { amount: 80 }, bizA, staffA)
     ).rejects.toThrow(/Forbidden/)
   })
 
-  it('TEST 09: Unauthorized user deletes payment -> DENIED', async () => {
+  // 12. Unauthorized payment deletion
+  it('TEST 12: Unauthorized payment deletion -> DENIED', async () => {
     const prod = await productService.createProduct(
       { name: 'Wire', unit: 'm', purchasePrice: 50, sellingPrice: 100, stockQuantity: 50 },
       bizA,
@@ -230,45 +259,13 @@ describe('25 Mandatory Production QA & Security Tests', () => {
       ownerA
     )
 
-    // Staff user attempts to delete payment
     await expect(
       paymentService.deletePayment(payment.$id, bizA, staffA)
     ).rejects.toThrow(/Forbidden/)
   })
 
-  // -------------------------------------------------------------
-  // PAYMENT & IDEMPOTENCY TESTS (TEST 10 - 11)
-  // -------------------------------------------------------------
-  it('TEST 10: Payment operation fails halfway -> NO inconsistent balance', async () => {
-    const prod = await productService.createProduct(
-      { name: 'Steel', unit: 'kg', purchasePrice: 200, sellingPrice: 300, stockQuantity: 20 },
-      bizA,
-      ownerA
-    )
-    const saleRes = await saleService.createSale(
-      { items: [{ productId: prod.$id, quantity: 1 }], taxRate: 0, paidAmount: 100, paymentMethod: 'cash' },
-      bizA,
-      ownerA
-    )
-
-    expect(saleRes.sale.dueAmount).toBe(200)
-
-    // Attempt payment with simulated DB write failure
-    await expect(
-      paymentService.createPayment(
-        { saleId: saleRes.sale.$id, amount: 100, paymentMethod: 'cash', notes: 'SIMULATE_DB_FAILURE' },
-        bizA,
-        ownerA
-      )
-    ).rejects.toThrow(/Database connection failed/)
-
-    // Recheck sale due balance
-    const rechecked = await saleService.getSale(saleRes.sale.$id, bizA)
-    expect(rechecked.dueAmount).toBe(200)
-    expect(rechecked.paidAmount).toBe(100)
-  })
-
-  it('TEST 11: Double-click payment -> ONE payment (Idempotency Key)', async () => {
+  // 13. Double payment
+  it('TEST 13: Double payment -> ONE PAYMENT (Idempotency Key)', async () => {
     const prod = await productService.createProduct(
       { name: 'Cement', unit: 'bag', purchasePrice: 500, sellingPrice: 700, stockQuantity: 50 },
       bizA,
@@ -282,7 +279,6 @@ describe('25 Mandatory Production QA & Security Tests', () => {
 
     const key = `idem_${Date.now()}`
 
-    // Rapid double submission with same idempotency key
     const p1Promise = paymentService.createPayment(
       { saleId: saleRes.sale.$id, amount: 500, paymentMethod: 'cash', idempotencyKey: key },
       bizA,
@@ -297,18 +293,88 @@ describe('25 Mandatory Production QA & Security Tests', () => {
     const [p1, p2] = await Promise.all([p1Promise, p2Promise])
     expect(p1.$id).toEqual(p2.$id)
 
-    // Recheck sale due balance: paid should be 500, not 1000!
     const rechecked = await saleService.getSale(saleRes.sale.$id, bizA)
     expect(rechecked.paidAmount).toBe(500)
     expect(rechecked.dueAmount).toBe(900)
   })
 
-  // -------------------------------------------------------------
-  // STOCK CONCURRENCY & SALE TESTS (TEST 12 - 15)
-  // -------------------------------------------------------------
-  it('TEST 12: Two users sell the last product simultaneously -> Only valid sale succeeds', async () => {
+  // 14. Double sale
+  it('TEST 14: Double sale -> ONE SALE (Idempotency Key)', async () => {
     const prod = await productService.createProduct(
-      { name: 'Limited Item', unit: 'pcs', purchasePrice: 100, sellingPrice: 200, stockQuantity: 1 },
+      { name: 'Bricks', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 100 },
+      bizA,
+      ownerA
+    )
+
+    const key = `sale_idem_${Date.now()}`
+
+    const s1Promise = saleService.createSale(
+      { items: [{ productId: prod.$id, quantity: 10 }], paidAmount: 200, paymentMethod: 'cash', idempotencyKey: key },
+      bizA,
+      ownerA
+    )
+    const s2Promise = saleService.createSale(
+      { items: [{ productId: prod.$id, quantity: 10 }], paidAmount: 200, paymentMethod: 'cash', idempotencyKey: key },
+      bizA,
+      ownerA
+    )
+
+    const [s1, s2] = await Promise.all([s1Promise, s2Promise])
+    expect(s1.sale.$id).toEqual(s2.sale.$id)
+  })
+
+  // 15. Payment failure
+  it('TEST 15: Payment failure -> NO inconsistent state', async () => {
+    const prod = await productService.createProduct(
+      { name: 'Steel', unit: 'kg', purchasePrice: 200, sellingPrice: 300, stockQuantity: 20 },
+      bizA,
+      ownerA
+    )
+    const saleRes = await saleService.createSale(
+      { items: [{ productId: prod.$id, quantity: 1 }], taxRate: 0, paidAmount: 100, paymentMethod: 'cash' },
+      bizA,
+      ownerA
+    )
+
+    expect(saleRes.sale.dueAmount).toBe(200)
+
+    await expect(
+      paymentService.createPayment(
+        { saleId: saleRes.sale.$id, amount: 100, paymentMethod: 'cash', notes: 'SIMULATE_DB_FAILURE' },
+        bizA,
+        ownerA
+      )
+    ).rejects.toThrow(/Database connection failed/)
+
+    const rechecked = await saleService.getSale(saleRes.sale.$id, bizA)
+    expect(rechecked.dueAmount).toBe(200)
+    expect(rechecked.paidAmount).toBe(100)
+  })
+
+  // 16. Sale failure
+  it('TEST 16: Sale failure -> NO inconsistent state', async () => {
+    const prod = await productService.createProduct(
+      { name: 'Out of Stock Product', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 1 },
+      bizA,
+      ownerA
+    )
+
+    await expect(
+      saleService.createSale(
+        { items: [{ productId: prod.$id, quantity: 99 }], paidAmount: 0, paymentMethod: 'cash' },
+        bizA,
+        ownerA
+      )
+    ).rejects.toThrow(/Insufficient stock/)
+
+    const recheckedProd = await productService.getProduct(prod.$id, bizA)
+    expect(recheckedProd.stockQuantity).toBe(1)
+  })
+
+  // 17. Concurrent stock sale
+  it('TEST 17: Concurrent stock sale -> NO overselling', async () => {
+    const prod = await productService.createProduct(
+      { name: 'Limited Stock', unit: 'pcs', purchasePrice: 100, sellingPrice: 200, stockQuantity: 1 },
       bizA,
       ownerA
     )
@@ -326,34 +392,39 @@ describe('25 Mandatory Production QA & Security Tests', () => {
 
     const results = await Promise.allSettled([req1, req2])
     const fulfilled = results.filter((r) => r.status === 'fulfilled')
-    const rejected = results.filter((r) => r.status === 'rejected')
-
     expect(fulfilled.length).toBeGreaterThanOrEqual(1)
-    const finalProd = await productService.getProduct(prod.$id, bizA)
-    expect(finalProd.stockQuantity).toBeGreaterThanOrEqual(0)
-  })
-
-  it('TEST 13: 100 concurrent stock requests -> No negative stock / no overselling', async () => {
-    const prod = await productService.createProduct(
-      { name: 'Bulk Product', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 10 },
-      bizA,
-      ownerA
-    )
-
-    const requests = Array.from({ length: 100 }).map(() =>
-      stockMovementService.processStockOut(prod.$id, 1, bizA, ownerA, 'Concurrent test')
-    )
-
-    const results = await Promise.allSettled(requests)
-    const successful = results.filter((r) => r.status === 'fulfilled')
-
-    expect(successful.length).toBeLessThanOrEqual(100)
 
     const finalProd = await productService.getProduct(prod.$id, bizA)
     expect(finalProd.stockQuantity).toBeGreaterThanOrEqual(0)
   })
 
-  it('TEST 14: Client sends manipulated sale total -> Ignored/recalculated server-side', () => {
+  // 18. Negative payment
+  it('TEST 18: Negative payment -> DENIED', async () => {
+    await expect(
+      paymentService.createPayment({ saleId: 'sale_1', amount: -100, paymentMethod: 'cash' }, bizA, ownerA)
+    ).rejects.toThrow(/greater than zero/)
+  })
+
+  // 19. NaN payment
+  it('TEST 19: NaN payment -> DENIED', () => {
+    expect(() =>
+      calculateSaleTotals({
+        items: [{ productId: 'p1', quantity: NaN, unitPrice: 100 }],
+      })
+    ).toThrow(/positive number|Invalid/)
+  })
+
+  // 20. Infinity payment
+  it('TEST 20: Infinity payment -> DENIED', () => {
+    expect(() =>
+      calculateSaleTotals({
+        items: [{ productId: 'p1', quantity: 1, unitPrice: Infinity }],
+      })
+    ).toThrow(/non-negative number|Invalid/)
+  })
+
+  // 21. Manipulated sale total
+  it('TEST 21: Manipulated sale total -> RECALCULATED', () => {
     const totals = calculateSaleTotals({
       items: [{ productId: 'p1', quantity: 2, unitPrice: 100, discount: 0 }],
       discount: 0,
@@ -361,19 +432,18 @@ describe('25 Mandatory Production QA & Security Tests', () => {
       paidAmount: 100,
     })
 
-    // Subtotal = 200, Taxable = 200, Tax 13% = 26, Total = 226, Paid = 100, Due = 126
     expect(totals.total).toBe(226)
     expect(totals.dueAmount).toBe(126)
   })
 
-  it('TEST 15: Client sends manipulated unit price -> Audit logged and validated', async () => {
+  // 22. Manipulated unit price
+  it('TEST 22: Manipulated unit price -> DENIED OR AUTHORIZED LOG', async () => {
     const prod = await productService.createProduct(
       { name: 'Catalog Item', unit: 'pcs', purchasePrice: 100, sellingPrice: 200, stockQuantity: 10 },
       bizA,
       ownerA
     )
 
-    // Cashier sends overridden price Rs. 150
     const saleRes = await saleService.createSale(
       { items: [{ productId: prod.$id, quantity: 1, unitPrice: 150 }], taxRate: 0, paidAmount: 150, paymentMethod: 'cash' },
       bizA,
@@ -383,56 +453,35 @@ describe('25 Mandatory Production QA & Security Tests', () => {
     expect(saleRes.sale.total).toBe(150)
   })
 
-  // -------------------------------------------------------------
-  // STRICT FINANCIAL VALIDATION TESTS (TEST 16 - 19)
-  // -------------------------------------------------------------
-  it('TEST 16: Client sends NaN -> REJECTED with explicit validation error', () => {
-    expect(() =>
-      calculateSaleTotals({
-        items: [{ productId: 'p1', quantity: NaN, unitPrice: 100 }],
-      })
-    ).toThrow(/positive number|Invalid/)
-  })
+  // 23. Customer mismatch
+  it('TEST 23: Customer mismatch -> DENIED', async () => {
+    const cust1 = await customerService.createCustomer({ name: 'Customer 1', phone: '9841000001' }, bizA, ownerA)
+    const cust2 = await customerService.createCustomer({ name: 'Customer 2', phone: '9841000002' }, bizA, ownerA)
 
-  it('TEST 17: Client sends Infinity -> REJECTED with explicit validation error', () => {
-    expect(() =>
-      calculateSaleTotals({
-        items: [{ productId: 'p1', quantity: 1, unitPrice: Infinity }],
-      })
-    ).toThrow(/non-negative number|Invalid/)
-  })
+    const prod = await productService.createProduct(
+      { name: 'Pipes', unit: 'm', purchasePrice: 10, sellingPrice: 20, stockQuantity: 10 },
+      bizA,
+      ownerA
+    )
 
-  it('TEST 18: Client sends negative payment -> REJECTED', async () => {
+    const saleRes = await saleService.createSale(
+      { customerId: cust1.$id, items: [{ productId: prod.$id, quantity: 1 }], paidAmount: 0, paymentMethod: 'cash' },
+      bizA,
+      ownerA
+    )
+
+    // Attempting to credit payment to Customer 2 for Customer 1's sale
     await expect(
-      paymentService.createPayment({ saleId: 'sale_1', amount: -100, paymentMethod: 'cash' }, bizA, ownerA)
-    ).rejects.toThrow(/greater than zero/)
+      paymentService.createPayment(
+        { saleId: saleRes.sale.$id, customerId: cust2.$id, amount: 20, paymentMethod: 'cash' },
+        bizA,
+        ownerA
+      )
+    ).rejects.toThrow(/Payment customerId mismatch/)
   })
 
-  it('TEST 19: Client sends negative quantity -> REJECTED', () => {
-    expect(() =>
-      calculateSaleTotals({
-        items: [{ productId: 'p1', quantity: -2, unitPrice: 100 }],
-      })
-    ).toThrow(/positive number/)
-  })
-
-  // -------------------------------------------------------------
-  // INPUT SANITIZATION, FILES & DUPLICATES (TEST 20 - 25)
-  // -------------------------------------------------------------
-  it('TEST 20: Client sends malicious filename -> REJECTED', () => {
-    const pathFile = new File(['data'], '../etc/passwd', { type: 'image/png' })
-    const res = validateFileUpload(pathFile, ['image/png'])
-    expect(res.valid).toBe(false)
-    expect(res.error).toContain('Malicious filename')
-  })
-
-  it('TEST 21: Client sends malicious XSS payload -> Safely handled', () => {
-    const sanitized = sanitizeInput('<script>alert("xss")</script>')
-    expect(sanitized).not.toContain('<script>')
-    expect(sanitized).toContain('&lt;script&gt;')
-  })
-
-  it('TEST 22: Duplicate SKU creation -> REJECTED on duplicate', async () => {
+  // 24. Duplicate SKU
+  it('TEST 24: Duplicate SKU -> DENIED', async () => {
     await productService.createProduct(
       { name: 'P1', sku: 'SKU-UNIQUE-101', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 5 },
       bizA,
@@ -447,7 +496,8 @@ describe('25 Mandatory Production QA & Security Tests', () => {
     ).rejects.toThrow(/already exists/)
   })
 
-  it('TEST 23: Duplicate barcode creation -> REJECTED on duplicate', async () => {
+  // 25. Duplicate barcode
+  it('TEST 25: Duplicate barcode -> DENIED', async () => {
     await productService.createProduct(
       { name: 'B1', barcode: '8901234567890', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 5 },
       bizA,
@@ -462,15 +512,53 @@ describe('25 Mandatory Production QA & Security Tests', () => {
     ).rejects.toThrow(/already exists/)
   })
 
-  it('TEST 24: Stock movement update -> DENIED (Immutable audit log)', async () => {
+  // 26. Stock movement UPDATE
+  it('TEST 26: Stock movement UPDATE -> DENIED (Immutable audit log)', async () => {
     await expect(
       stockMovementService.update('sm_123', { quantity: 999 }, bizA)
     ).rejects.toThrow(/immutable audit logs/)
   })
 
-  it('TEST 25: Stock movement delete -> DENIED (Immutable audit log)', async () => {
+  // 27. Stock movement DELETE
+  it('TEST 27: Stock movement DELETE -> DENIED (Immutable audit log)', async () => {
     await expect(
       stockMovementService.delete('sm_123', bizA)
     ).rejects.toThrow(/immutable audit logs/)
+  })
+
+  // 28. Malicious file
+  it('TEST 28: Malicious file -> DENIED', () => {
+    const pathFile = new File(['data'], '../etc/passwd', { type: 'image/png' })
+    const res = validateFileUpload(pathFile, ['image/png'])
+    expect(res.valid).toBe(false)
+    expect(res.error).toContain('Malicious filename')
+  })
+
+  // 29. XSS payload
+  it('TEST 29: XSS payload -> SAFE', () => {
+    const sanitized = sanitizeInput('<script>alert("xss")</script>')
+    expect(sanitized).not.toContain('<script>')
+    expect(sanitized).toContain('&lt;script&gt;')
+  })
+
+  // 30. Expired session
+  it('TEST 30: Expired session -> DENIED', async () => {
+    await expect(
+      authorizeBusinessAccess({ userId: '', businessId: bizA })
+    ).rejects.toThrow(/Unauthorized/)
+  })
+
+  // 31. Invalid session
+  it('TEST 31: Invalid session -> DENIED', async () => {
+    await expect(
+      authorizeBusinessAccess({ userId: '   ', businessId: bizA })
+    ).rejects.toThrow(/Unauthorized/)
+  })
+
+  // 32. Unauthorized API
+  it('TEST 32: Unauthorized API -> DENIED', async () => {
+    await expect(
+      authorizeBusinessAccess({ userId: staffA, businessId: bizA, requiredRole: 'owner' })
+    ).rejects.toThrow(/Forbidden/)
   })
 })

@@ -86,6 +86,11 @@ export class PaymentService extends BaseService {
         )
       }
 
+      // Customer integrity verification
+      if (data.customerId && sale.customerId && data.customerId.trim() !== '' && sale.customerId.trim() !== '' && data.customerId !== sale.customerId) {
+        throw new Error(`Payment customerId mismatch: Cannot credit payment to customer '${data.customerId}' for sale belonging to '${sale.customerId}'`)
+      }
+
       const pDate = data.paymentDate || new Date().toISOString()
       const custId = data.customerId || sale.customerId || ''
 

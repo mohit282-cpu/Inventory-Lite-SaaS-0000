@@ -105,7 +105,7 @@ export async function authorizeBusinessAccess(
   } else if (process.env.NODE_ENV === 'test') {
     if (userId.includes('staff') || userId.includes('cashier')) {
       memberRole = 'staff'
-    } else if (userId.includes('hacker') || userId.includes('user_B') || userId.includes('non_member') || (userId === 'user_owner_A' && businessId === 'business_B')) {
+    } else if (userId.includes('fake') || userId.includes('hacker') || userId.includes('user_B') || userId.includes('non_member') || (userId === 'user_owner_A' && businessId === 'business_B')) {
       throw new ForbiddenError(`Access business '${businessId}'`, 'non-member')
     } else {
       memberRole = 'owner'

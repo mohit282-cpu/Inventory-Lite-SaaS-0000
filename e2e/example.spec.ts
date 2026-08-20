@@ -6,14 +6,11 @@ test('homepage loads correctly', async ({ page }) => {
   // Check that the page loads
   await expect(page).toHaveTitle(/Inventory Lite/)
   
-  // Check for main heading
-  await expect(page.locator('h1')).toContainText('Inventory Lite')
+  // Check for main heading or landing tag line
+  await expect(page.locator('h1').first()).toContainText(/Know what you have|Inventory/i)
 })
 
 test('navigation works', async ({ page }) => {
   await page.goto('/')
-  
-  // This is a placeholder test - will be expanded when navigation is implemented
-  // Example: await page.click('text=Login')
-  // await expect(page).toHaveURL(/.*login/)
+  await expect(page).toHaveURL(/http:\/\/localhost:3000/)
 })
