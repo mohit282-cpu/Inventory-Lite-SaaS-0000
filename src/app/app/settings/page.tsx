@@ -208,8 +208,7 @@ export default function SettingsPage() {
       await businessMemberService.addMember(
         { userId: fakeUserId, role: data.role as UserRole },
         activeBusiness.$id,
-        user.$id,
-        currentRole
+        user.$id
       )
       toast({
         title: 'Team Member Added',

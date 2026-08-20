@@ -8,6 +8,10 @@ import { productService } from './product.service'
 import { customerService } from './customer.service'
 import { invoiceService } from './invoice.service'
 import { calculateSaleTotals, validateFinancialInvariants } from '@/lib/money'
+import { generateSecureToken } from '@/lib/security'
+import { authorizeBusinessAccess } from '@/lib/authorization'
+import { auditLogService } from './audit-log.service'
+import { idempotencyManager } from '@/lib/idempotency'
 
 export class SaleService extends BaseService {
   constructor() {
@@ -16,7 +20,8 @@ export class SaleService extends BaseService {
 
   /**
    * Create a complete sale transaction with server-side price validation,
-   * financial invariant checks, and atomic compensating rollbacks.
+   * cashier price override auditing, financial invariant checks, collision-proof sale numbers,
+   * and atomic compensating rollbacks.
    */
   async createSale(
     data: {
@@ -31,178 +36,206 @@ export class SaleService extends BaseService {
       taxRate?: number
       paidAmount: number
       paymentMethod: PaymentMethod
+      idempotencyKey?: string
     },
     businessId: string,
     userId: string
   ): Promise<{ sale: Sale; items: any[]; invoice?: any }> {
-    if (!data.items || data.items.length === 0) {
-      throw new Error('Sale must include at least one item')
-    }
-
-    // 1. Fetch trusted product data & validate available stock
-    const validatedItems: Array<{
-      productId: string;
-      quantity: number;
-      unitPrice: number;
-      discount: number;
-      productName: string;
-    }> = []
-
-    for (const item of data.items) {
-      if (item.quantity <= 0) {
-        throw new Error('Item quantity must be greater than zero')
-      }
-      const product = await productService.getProduct(item.productId, businessId)
-      if (!product) {
-        throw new Error(`Product not found: ${item.productId}`)
-      }
-      if (product.stockQuantity < item.quantity) {
-        throw new Error(
-          `Insufficient stock for "${product.name}". Available: ${product.stockQuantity} ${product.unit}, Requested: ${item.quantity}`
-        )
-      }
-
-      // Server-side price authority (use database sellingPrice unless explicit cashier unitPrice is valid)
-      const trustedUnitPrice = item.unitPrice !== undefined && item.unitPrice >= 0 ? item.unitPrice : product.sellingPrice
-
-      validatedItems.push({
-        productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: trustedUnitPrice,
-        discount: item.discount || 0,
-        productName: product.name,
-      })
-    }
-
-    // 2. Server-Side Totals Recalculation (Prevents client total manipulation)
-    const totals = calculateSaleTotals({
-      items: validatedItems,
-      discount: data.discount || 0,
-      taxRate: data.taxRate ?? 13,
-      paidAmount: data.paidAmount || 0,
+    // 1. Database-verified RBAC check
+    const authCtx = await authorizeBusinessAccess({
+      userId,
+      businessId,
+      requiredRole: ['owner', 'admin', 'staff'],
     })
 
-    validateFinancialInvariants({
-      total: totals.total,
-      paidAmount: totals.paidAmount,
-      dueAmount: totals.dueAmount,
-    })
-
-    const status: SaleStatus = totals.dueAmount > 0 ? 'pending' : 'completed'
-    const saleNumber = `SALE-${Date.now().toString().slice(-6)}`
-
-    // 3. Create Sale document
-    const saleData = {
-      saleNumber,
-      customerId: data.customerId || '',
-      invoiceId: '',
-      subtotal: totals.subtotal,
-      discount: totals.overallDiscount,
-      tax: totals.taxAmount,
-      total: totals.total,
-      paidAmount: totals.paidAmount,
-      dueAmount: totals.dueAmount,
-      paymentMethod: data.paymentMethod,
-      status,
-      createdBy: userId,
-    }
-
-    const sale = await this.create<Sale>(saleData, businessId, userId)
-
-    // Compensating Transaction State Tracking
-    let createdItems: any[] = []
-    const processedDeductions: Array<{ productId: string; quantity: number }> = []
-
-    try {
-      // 4. Persist SaleItem documents
-      const processedItemsPayload = totals.processedItems.map((item, idx) => ({
-        saleId: sale.$id,
-        productId: item.productId,
-        productNameSnapshot: validatedItems[idx].productName,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discount: item.discount,
-        total: item.total,
-      }))
-
-      createdItems = await saleItemService.createSaleItems(processedItemsPayload, businessId, userId)
-
-      // 5. Record stock movement (stock_out) and deduct stock
-      for (const item of validatedItems) {
-        await stockMovementService.processStockOut(
-          item.productId,
-          item.quantity,
-          businessId,
-          userId,
-          `Sale #${sale.saleNumber || sale.$id}`,
-          sale.$id
-        )
-        processedDeductions.push({ productId: item.productId, quantity: item.quantity })
+    return await idempotencyManager.execute(data.idempotencyKey, async () => {
+      if (!data.items || data.items.length === 0) {
+        throw new Error('Sale must include at least one item')
       }
 
-      // 6. Update customer due amount if sale has remaining due balance
-      if (data.customerId && data.customerId.trim() !== '' && totals.dueAmount > 0) {
-        await customerService.updateDueAmount(data.customerId, totals.dueAmount, businessId)
-      }
+      // 2. Fetch trusted product data & validate stock and selling prices
+      const validatedItems: Array<{
+        productId: string
+        quantity: number
+        unitPrice: number
+        discount: number
+        productName: string
+      }> = []
 
-      // 7. Generate invoice for sale
-      let invoice: any = null
-      try {
-        invoice = await invoiceService.createInvoice(
-          {
-            saleId: sale.$id,
-            issueDate: new Date().toISOString(),
-          },
-          businessId,
-          userId
-        )
-        await this.update<Sale>(sale.$id, { invoiceId: invoice.$id }, businessId)
-      } catch (invErr) {
-        console.warn('Invoice creation warning:', invErr)
-      }
+      for (const item of data.items) {
+        if (typeof item.quantity !== 'number' || isNaN(item.quantity) || !isFinite(item.quantity) || item.quantity <= 0) {
+          throw new Error('Item quantity must be a positive number greater than zero')
+        }
 
-      return {
-        sale,
-        items: createdItems,
-        invoice,
-      }
-    } catch (err: any) {
-      // COMPENSATING TRANSACTION ROLLBACK
-      console.error('Sale transaction failed. Executing compensating rollback:', err)
+        const product = await productService.getProduct(item.productId, businessId)
+        if (!product) {
+          throw new Error(`Product not found: ${item.productId}`)
+        }
+        if (product.stockQuantity < item.quantity) {
+          throw new Error(
+            `Insufficient stock for "${product.name}". Available: ${product.stockQuantity} ${product.unit}, Requested: ${item.quantity}`
+          )
+        }
 
-      // Rollback stock deductions
-      for (const deduction of processedDeductions) {
-        try {
-          await stockMovementService.processStockIn(
-            deduction.productId,
-            deduction.quantity,
+        // Cashier price override audit logic (Option B)
+        let effectiveUnitPrice = product.sellingPrice
+        if (item.unitPrice !== undefined && item.unitPrice >= 0 && item.unitPrice !== product.sellingPrice) {
+          // If cashier overrides price, verify role permission or audit log
+          effectiveUnitPrice = item.unitPrice
+          await auditLogService.logEvent(
             businessId,
             userId,
-            `Rollback failed sale ${sale.$id}`
+            'price_override',
+            product.$id,
+            {
+              productName: product.name,
+              catalogPrice: product.sellingPrice,
+              overriddenPrice: item.unitPrice,
+              userRole: authCtx.memberRole,
+            }
           )
-        } catch (rbStockErr) {
-          console.error('Stock rollback error:', rbStockErr)
         }
+
+        validatedItems.push({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: effectiveUnitPrice,
+          discount: item.discount || 0,
+          productName: product.name,
+        })
       }
 
-      // Rollback created sale items
-      for (const createdItem of createdItems) {
-        try {
-          await saleItemService.delete(createdItem.$id, businessId)
-        } catch (rbItemErr) {
-          console.error('Sale item rollback error:', rbItemErr)
-        }
+      // 3. Server-Side Totals Recalculation (Prevents client total manipulation)
+      const totals = calculateSaleTotals({
+        items: validatedItems,
+        discount: data.discount || 0,
+        taxRate: data.taxRate ?? 13,
+        paidAmount: data.paidAmount || 0,
+      })
+
+      validateFinancialInvariants({
+        total: totals.total,
+        paidAmount: totals.paidAmount,
+        dueAmount: totals.dueAmount,
+      })
+
+      const status: SaleStatus = totals.dueAmount > 0 ? 'pending' : 'completed'
+      // Collision-proof sale number generation
+      const saleNumber = `SALE-${Date.now()}-${generateSecureToken(6).toUpperCase()}`
+
+      // 4. Create Sale document
+      const saleData = {
+        saleNumber,
+        customerId: data.customerId || '',
+        invoiceId: '',
+        subtotal: totals.subtotal,
+        discount: totals.overallDiscount,
+        tax: totals.taxAmount,
+        total: totals.total,
+        paidAmount: totals.paidAmount,
+        dueAmount: totals.dueAmount,
+        paymentMethod: data.paymentMethod,
+        status,
+        createdBy: userId,
       }
 
-      // Delete created sale document
+      const sale = await this.create<Sale>(saleData, businessId, userId)
+
+      // Compensating Transaction State Tracking
+      let createdItems: any[] = []
+      const processedDeductions: Array<{ productId: string; quantity: number }> = []
+
       try {
-        await this.delete(sale.$id, businessId)
-      } catch (rbSaleErr) {
-        console.error('Sale document rollback error:', rbSaleErr)
-      }
+        // 5. Persist SaleItem documents
+        const processedItemsPayload = totals.processedItems.map((item, idx) => ({
+          saleId: sale.$id,
+          productId: item.productId,
+          productNameSnapshot: validatedItems[idx].productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discount: item.discount,
+          total: item.total,
+        }))
 
-      throw new Error(`Sale transaction failed and was safely rolled back: ${err.message}`)
-    }
+        createdItems = await saleItemService.createSaleItems(processedItemsPayload, businessId, userId)
+
+        // 6. Record stock movement (stock_out) and deduct stock
+        for (const item of validatedItems) {
+          await stockMovementService.processStockOut(
+            item.productId,
+            item.quantity,
+            businessId,
+            userId,
+            `Sale #${sale.saleNumber || sale.$id}`,
+            sale.$id
+          )
+          processedDeductions.push({ productId: item.productId, quantity: item.quantity })
+        }
+
+        // 7. Update customer due amount if sale has remaining due balance
+        if (data.customerId && data.customerId.trim() !== '' && totals.dueAmount > 0) {
+          await customerService.updateDueAmount(data.customerId, totals.dueAmount, businessId)
+        }
+
+        // 8. Generate invoice for sale
+        let invoice: any = null
+        try {
+          invoice = await invoiceService.createInvoice(
+            {
+              saleId: sale.$id,
+              issueDate: new Date().toISOString(),
+            },
+            businessId,
+            userId
+          )
+          await this.update<Sale>(sale.$id, { invoiceId: invoice.$id }, businessId)
+        } catch (invErr) {
+          console.warn('Invoice creation warning:', invErr)
+        }
+
+        return {
+          sale,
+          items: createdItems,
+          invoice,
+        }
+      } catch (err: any) {
+        // COMPENSATING TRANSACTION ROLLBACK
+        console.error('Sale transaction failed. Executing compensating rollback:', err)
+
+        // Rollback stock deductions
+        for (const deduction of processedDeductions) {
+          try {
+            await stockMovementService.processStockIn(
+              deduction.productId,
+              deduction.quantity,
+              businessId,
+              userId,
+              `Rollback failed sale ${sale.$id}`
+            )
+          } catch (rbStockErr) {
+            console.error('Stock rollback error:', rbStockErr)
+          }
+        }
+
+        // Rollback created sale items
+        for (const createdItem of createdItems) {
+          try {
+            await saleItemService.delete(createdItem.$id, businessId)
+          } catch (rbItemErr) {
+            console.error('Sale item rollback error:', rbItemErr)
+          }
+        }
+
+        // Delete created sale document
+        try {
+          await this.delete(sale.$id, businessId)
+        } catch (rbSaleErr) {
+          console.error('Sale document rollback error:', rbSaleErr)
+        }
+
+        throw new Error(`Sale transaction failed and was safely rolled back: ${err.message}`)
+      }
+    })
   }
 
   /**
@@ -213,7 +246,7 @@ export class SaleService extends BaseService {
   }
 
   /**
-   * List sales for a business
+   * List sales for a business with pagination
    */
   async listSales(
     businessId: string,
@@ -221,9 +254,11 @@ export class SaleService extends BaseService {
       customerId?: string
       status?: SaleStatus
       paymentMethod?: PaymentMethod
+      limit?: number
     }
   ): Promise<Sale[]> {
-    const queries: any[] = [Query.orderDesc('createdAt')]
+    const limit = filters?.limit || 200
+    const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
 
     if (filters?.customerId) {
       queries.push(Query.equal('customerId', filters.customerId))

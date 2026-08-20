@@ -69,9 +69,11 @@ export class CustomerService extends BaseService {
     filters?: {
       searchTerm?: string
       hasDueOnly?: boolean
+      limit?: number
     }
   ): Promise<Customer[]> {
-    const queries: any[] = [Query.orderDesc('createdAt')]
+    const limit = filters?.limit || 200
+    const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
 
     if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
       queries.push(Query.search('name', filters.searchTerm.trim()))

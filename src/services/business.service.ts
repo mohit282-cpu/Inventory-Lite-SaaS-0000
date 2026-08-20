@@ -2,13 +2,12 @@ import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { Business, Currency } from '@/types'
 import { Query } from 'appwrite'
-import { requireRole } from '@/lib/security'
+import { authorizeBusinessAccess } from '@/lib/authorization'
 
 /**
  * Business Service
  * 
- * Handles business entity operations.
- * Business entities are top-level tenant roots in Inventory Lite.
+ * Handles business entity creation, metadata updates, and ownership.
  */
 export class BusinessService extends BaseService {
   constructor() {
@@ -16,7 +15,7 @@ export class BusinessService extends BaseService {
   }
 
   /**
-   * Create a new business entity
+   * Create a new business and register owner
    */
   async createBusiness(
     data: {
@@ -32,6 +31,10 @@ export class BusinessService extends BaseService {
     },
     userId: string
   ): Promise<Business> {
+    if (!data.name || data.name.trim() === '') {
+      throw new Error('Business name is required')
+    }
+
     const businessData = {
       name: data.name,
       ownerId: userId,
@@ -49,14 +52,14 @@ export class BusinessService extends BaseService {
   }
 
   /**
-   * Get business by ID
+   * Get business details by ID
    */
   async getBusiness(businessId: string): Promise<Business> {
     return await this.getById<Business>(businessId, 'system')
   }
 
   /**
-   * Update business details with RBAC check
+   * Update business settings with database-verified RBAC authorization
    */
   async updateBusiness(
     businessId: string,
@@ -71,11 +74,15 @@ export class BusinessService extends BaseService {
       currency: Currency
       timezone: string
     }>,
-    actorRole?: string
+    updatingUserId: string
   ): Promise<Business> {
-    if (actorRole) {
-      requireRole(actorRole, ['owner', 'admin'], 'update business settings')
-    }
+    // Database-verified RBAC check: caller must be owner or admin
+    await authorizeBusinessAccess({
+      userId: updatingUserId,
+      businessId,
+      requiredRole: ['owner', 'admin'],
+    })
+
     return await this.update<Business>(businessId, data, 'system')
   }
 

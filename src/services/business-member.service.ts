@@ -2,13 +2,13 @@ import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { BusinessMember, UserRole } from '@/types'
 import { Query } from 'appwrite'
-
-import { requireRole } from '@/lib/security'
+import { authorizeBusinessAccess } from '@/lib/authorization'
 
 /**
  * Business Member Service
  * 
  * Manages user memberships within businesses and role assignments.
+ * RBAC authorization strictly queries the database rather than trusting client parameter inputs.
  */
 export class BusinessMemberService extends BaseService {
   constructor() {
@@ -16,7 +16,7 @@ export class BusinessMemberService extends BaseService {
   }
 
   /**
-   * Add a user member to a business with RBAC check
+   * Add a user member to a business with database-verified RBAC authorization
    */
   async addMember(
     data: {
@@ -24,14 +24,16 @@ export class BusinessMemberService extends BaseService {
       role: UserRole
     },
     businessId: string,
-    creatorUserId: string,
-    actorRole?: string
+    creatorUserId: string
   ): Promise<BusinessMember> {
-    if (actorRole) {
-      requireRole(actorRole, ['owner', 'admin'], 'invite team members')
-    }
+    // Database-verified RBAC check: caller must be owner or admin
+    await authorizeBusinessAccess({
+      userId: creatorUserId,
+      businessId,
+      requiredRole: ['owner', 'admin'],
+    })
 
-    // Check if membership already exists
+    // Check if target user is already a member
     const existing = await this.getMemberByUserAndBusiness(data.userId, businessId)
     if (existing) {
       throw new Error(`User is already a member of this business`)
@@ -64,31 +66,39 @@ export class BusinessMemberService extends BaseService {
   }
 
   /**
-   * Update a member's role with RBAC check
+   * Update a member's role with database-verified RBAC authorization
    */
   async updateMemberRole(
     memberId: string,
     role: UserRole,
     businessId: string,
-    actorRole?: string
+    updatingUserId: string
   ): Promise<BusinessMember> {
-    if (actorRole) {
-      requireRole(actorRole, ['owner', 'admin'], 'update member roles')
-    }
+    // Database-verified RBAC check: caller must be owner or admin
+    await authorizeBusinessAccess({
+      userId: updatingUserId,
+      businessId,
+      requiredRole: ['owner', 'admin'],
+    })
+
     return await this.update<BusinessMember>(memberId, { role }, businessId)
   }
 
   /**
-   * Remove a member from a business with RBAC check
+   * Remove a member from a business with database-verified RBAC authorization
    */
   async removeMember(
     memberId: string,
     businessId: string,
-    actorRole?: string
+    removingUserId: string
   ): Promise<void> {
-    if (actorRole) {
-      requireRole(actorRole, ['owner', 'admin'], 'remove team members')
-    }
+    // Database-verified RBAC check: caller must be owner or admin
+    await authorizeBusinessAccess({
+      userId: removingUserId,
+      businessId,
+      requiredRole: ['owner', 'admin'],
+    })
+
     await this.delete(memberId, businessId)
   }
 

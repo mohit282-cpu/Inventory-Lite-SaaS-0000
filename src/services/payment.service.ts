@@ -5,6 +5,9 @@ import { Query } from 'appwrite'
 import { saleService } from './sale.service'
 import { customerService } from './customer.service'
 import { toMinorUnits, fromMinorUnits, validateFinancialInvariants } from '@/lib/money'
+import { authorizeBusinessAccess } from '@/lib/authorization'
+import { idempotencyManager } from '@/lib/idempotency'
+import { rateLimiter } from '@/lib/rate-limiter'
 
 export interface CreditLedgerItem {
   id: string
@@ -34,7 +37,7 @@ export class PaymentService extends BaseService {
 
   /**
    * Record a new customer payment against a sale/invoice
-   * Completely removes fake payment fallbacks. Database failure halts all operations.
+   * Includes idempotency protection, rate limiting, and exact DB verification.
    */
   async createPayment(
     data: {
@@ -46,96 +49,111 @@ export class PaymentService extends BaseService {
       paymentDate?: string
       referenceNumber?: string
       notes?: string
+      idempotencyKey?: string
     },
     businessId: string,
     userId: string
   ): Promise<Payment> {
-    const paymentPaisa = toMinorUnits(data.amount)
-    if (paymentPaisa <= 0) {
-      throw new Error('Payment amount must be greater than zero')
-    }
-
-    // 1. Fetch target sale with tenant isolation verification
-    const sale = await saleService.getSale(data.saleId, businessId)
-    if (!sale) {
-      throw new Error('Associated sale transaction not found')
-    }
-
-    const saleDuePaisa = toMinorUnits(sale.dueAmount)
-    if (paymentPaisa > saleDuePaisa + 1) {
-      throw new Error(
-        `Payment amount (Rs. ${data.amount.toFixed(
-          2
-        )}) cannot exceed remaining due balance (Rs. ${sale.dueAmount.toFixed(2)})`
-      )
-    }
-
-    const pDate = data.paymentDate || new Date().toISOString()
-    const custId = data.customerId || sale.customerId || ''
-
-    if (custId && custId.trim() !== '') {
-      // Verify customer exists and belongs to business
-      await customerService.getCustomer(custId, businessId)
-    }
-
-    // 2. Persist Payment document - NO FAKE FALLBACK
-    const paymentDoc = await this.create<Payment>(
-      {
-        saleId: data.saleId,
-        customerId: custId,
-        invoiceId: data.invoiceId || sale.invoiceId || '',
-        amount: fromMinorUnits(paymentPaisa),
-        paymentMethod: data.paymentMethod,
-        paymentDate: pDate,
-        referenceNumber: data.referenceNumber || '',
-        notes: data.notes || '',
-        createdBy: userId,
-      },
+    // 1. Database-verified RBAC check
+    await authorizeBusinessAccess({
+      userId,
       businessId,
-      userId
-    )
+      requiredRole: ['owner', 'admin', 'staff'],
+    })
 
-    // 3. Recalculate Sale paid & due amount using minor units
-    const saleTotalPaisa = toMinorUnits(sale.total)
-    const currentPaidPaisa = toMinorUnits(sale.paidAmount)
-    const newPaidPaisa = Math.min(saleTotalPaisa, currentPaidPaisa + paymentPaisa)
-    const newDuePaisa = Math.max(0, saleTotalPaisa - newPaidPaisa)
-    const newStatus = newDuePaisa === 0 ? 'completed' : sale.status
+    // 2. Rate limiting check
+    rateLimiter.checkLimit(`payment_${userId}`, 30, 60000)
 
-    const newPaid = fromMinorUnits(newPaidPaisa)
-    const newDue = fromMinorUnits(newDuePaisa)
+    // 3. Idempotency check
+    return await idempotencyManager.execute(data.idempotencyKey, async () => {
+      const paymentPaisa = toMinorUnits(data.amount)
+      if (paymentPaisa <= 0) {
+        throw new Error('Payment amount must be greater than zero')
+      }
 
-    validateFinancialInvariants({ total: sale.total, paidAmount: newPaid, dueAmount: newDue })
+      // Fetch target sale with tenant isolation verification
+      const sale = await saleService.getSale(data.saleId, businessId)
+      if (!sale) {
+        throw new Error('Associated sale transaction not found')
+      }
 
-    await saleService.update<Sale>(
-      sale.$id,
-      {
-        paidAmount: newPaid,
-        dueAmount: newDue,
-        status: newStatus,
-      },
-      businessId
-    )
+      const saleDuePaisa = toMinorUnits(sale.dueAmount)
+      if (paymentPaisa > saleDuePaisa) {
+        throw new Error(
+          `Payment amount (Rs. ${data.amount.toFixed(
+            2
+          )}) cannot exceed remaining due balance (Rs. ${sale.dueAmount.toFixed(2)})`
+        )
+      }
 
-    // 4. Update Customer total due balance
-    if (custId && custId.trim() !== '') {
-      await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
-    }
+      const pDate = data.paymentDate || new Date().toISOString()
+      const custId = data.customerId || sale.customerId || ''
 
-    return paymentDoc
+      if (custId && custId.trim() !== '') {
+        await customerService.getCustomer(custId, businessId)
+      }
+
+      // Persist Payment document
+      const paymentDoc = await this.create<Payment>(
+        {
+          saleId: data.saleId,
+          customerId: custId,
+          invoiceId: data.invoiceId || sale.invoiceId || '',
+          amount: fromMinorUnits(paymentPaisa),
+          paymentMethod: data.paymentMethod,
+          paymentDate: pDate,
+          referenceNumber: data.referenceNumber || '',
+          notes: data.notes || '',
+          createdBy: userId,
+        },
+        businessId,
+        userId
+      )
+
+      // Recalculate Sale paid & due amount using minor units
+      const saleTotalPaisa = toMinorUnits(sale.total)
+      const currentPaidPaisa = toMinorUnits(sale.paidAmount)
+      const newPaidPaisa = currentPaidPaisa + paymentPaisa
+      const newDuePaisa = Math.max(0, saleTotalPaisa - newPaidPaisa)
+      const newStatus = newDuePaisa === 0 ? 'completed' : sale.status
+
+      const newPaid = fromMinorUnits(newPaidPaisa)
+      const newDue = fromMinorUnits(newDuePaisa)
+
+      validateFinancialInvariants({ total: sale.total, paidAmount: newPaid, dueAmount: newDue })
+
+      await saleService.update<Sale>(
+        sale.$id,
+        {
+          paidAmount: newPaid,
+          dueAmount: newDue,
+          status: newStatus,
+        },
+        businessId
+      )
+
+      // Update Customer total due balance
+      if (custId && custId.trim() !== '') {
+        await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
+      }
+
+      return paymentDoc
+    })
   }
 
   /**
-   * List all payment records for a business
+   * List all payment records for a business with pagination
    */
   async listPayments(
     businessId: string,
     filters?: {
       saleId?: string
       customerId?: string
+      limit?: number
     }
   ): Promise<Payment[]> {
-    const queries: any[] = [Query.orderDesc('createdAt')]
+    const limit = filters?.limit || 200
+    const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
 
     if (filters?.saleId) {
       queries.push(Query.equal('saleId', filters.saleId))
@@ -152,7 +170,7 @@ export class PaymentService extends BaseService {
   }
 
   /**
-   * Update an existing payment record and recalculate balances
+   * Update an existing payment record with exact difference balance adjustments
    */
   async updatePayment(
     paymentId: string,
@@ -163,8 +181,16 @@ export class PaymentService extends BaseService {
       referenceNumber?: string
       notes?: string
     },
-    businessId: string
+    businessId: string,
+    updatingUserId: string
   ): Promise<Payment | null> {
+    // Database-verified RBAC check: only owner or admin can edit payment records
+    await authorizeBusinessAccess({
+      userId: updatingUserId,
+      businessId,
+      requiredRole: ['owner', 'admin'],
+    })
+
     const existingPayment = await this.getById<Payment>(paymentId, businessId)
     if (!existingPayment) {
       throw new Error('Payment record not found')
@@ -185,7 +211,7 @@ export class PaymentService extends BaseService {
         const salePaidP = toMinorUnits(sale.paidAmount)
         const resultingPaidP = salePaidP + amountDiffPaisa
 
-        if (resultingPaidP > saleTotalP + 1) {
+        if (resultingPaidP > saleTotalP) {
           throw new Error(
             `Updated payment exceeds sale total (Rs. ${sale.total.toFixed(2)})`
           )
@@ -227,7 +253,14 @@ export class PaymentService extends BaseService {
   /**
    * Delete a payment record and restore outstanding balance
    */
-  async deletePayment(paymentId: string, businessId: string): Promise<boolean> {
+  async deletePayment(paymentId: string, businessId: string, deletingUserId: string): Promise<boolean> {
+    // Database-verified RBAC check: only owner or admin can delete payment records
+    await authorizeBusinessAccess({
+      userId: deletingUserId,
+      businessId,
+      requiredRole: ['owner', 'admin'],
+    })
+
     const existingPayment = await this.getById<Payment>(paymentId, businessId)
     if (!existingPayment) {
       throw new Error('Payment record not found')
@@ -266,7 +299,7 @@ export class PaymentService extends BaseService {
   }
 
   /**
-   * Calculate 4 KPI summary cards for the Credit/Udha Dashboard & Module
+   * Calculate KPI summary cards for the Credit/Udha Dashboard
    */
   async getCreditSummary(businessId: string): Promise<{
     totalCreditDue: number
@@ -322,7 +355,7 @@ export class PaymentService extends BaseService {
   }
 
   /**
-   * Get main credit ledger list with customer data & statuses
+   * Get main credit ledger list
    */
   async getCreditLedger(
     businessId: string,

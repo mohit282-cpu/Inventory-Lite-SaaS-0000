@@ -38,7 +38,7 @@ export function CreditDetailsDrawer({
   onClose,
   onRefresh,
 }: CreditDetailsDrawerProps) {
-  const { activeBusiness } = useAuth()
+  const { activeBusiness, user } = useAuth()
   const { toast } = useToast()
 
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false)
@@ -57,29 +57,29 @@ export function CreditDetailsDrawer({
 
   if (!item) return null
 
-  const handleOpenEdit = (payment: any) => {
-    setEditingPayment(payment)
-    setEditAmountInput(payment.amount.toString())
-    setEditMethod(payment.paymentMethod || 'cash')
+  const handleOpenEdit = (p: any) => {
+    setEditingPayment(p)
+    setEditAmountInput(String(p.amount))
+    setEditMethod(p.paymentMethod || 'cash')
     setEditDate(
-      payment.paymentDate
-        ? new Date(payment.paymentDate).toISOString().slice(0, 10)
+      p.paymentDate
+        ? new Date(p.paymentDate).toISOString().slice(0, 10)
         : new Date().toISOString().slice(0, 10)
     )
-    setEditRef(payment.referenceNumber || '')
-    setEditNotes(payment.notes || '')
+    setEditRef(p.referenceNumber || '')
+    setEditNotes(p.notes || '')
     setIsEditModalOpen(true)
   }
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!activeBusiness?.$id || !editingPayment) return
+    if (!activeBusiness?.$id || !user?.$id || !editingPayment) return
 
-    const amount = parseFloat(editAmountInput) || 0
-    if (amount <= 0) {
+    const amount = parseFloat(editAmountInput)
+    if (isNaN(amount) || amount <= 0) {
       toast({
         title: 'Invalid Amount',
-        description: 'Payment amount must be greater than zero.',
+        description: 'Please enter a valid positive payment amount.',
         variant: 'destructive',
       })
       return
@@ -97,7 +97,8 @@ export function CreditDetailsDrawer({
           referenceNumber: editRef,
           notes: editNotes,
         },
-        activeBusiness.$id
+        activeBusiness.$id,
+        user.$id
       )
 
       toast({
@@ -120,11 +121,11 @@ export function CreditDetailsDrawer({
   }
 
   const handleDeletePayment = async () => {
-    if (!activeBusiness?.$id || !deletingPaymentId) return
+    if (!activeBusiness?.$id || !user?.$id || !deletingPaymentId) return
 
     setIsSubmitting(true)
     try {
-      await paymentService.deletePayment(deletingPaymentId, activeBusiness.$id)
+      await paymentService.deletePayment(deletingPaymentId, activeBusiness.$id, user.$id)
       toast({
         title: 'Payment Deleted',
         description: 'Payment record was removed and due balance recalculated.',

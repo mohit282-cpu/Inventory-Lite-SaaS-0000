@@ -205,7 +205,7 @@ describe('Production Hardening & Comprehensive Security Tests', () => {
       calculateSaleTotals({
         items: [{ productId: 'p1', quantity: 2, unitPrice: 100, discount: -10 }],
       })
-    ).toThrow(/cannot be negative/)
+    ).toThrow(/non-negative number|cannot be negative/)
   })
 
   it('TEST 18: Server ignores client-manipulated totals and recalculates server-side', () => {
