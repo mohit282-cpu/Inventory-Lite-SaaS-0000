@@ -1,20 +1,26 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { Models } from 'appwrite'
-import { AppUser, Business, BusinessMember, Currency } from '@/types'
+import { AppUser, Business, BusinessMember, Currency, AuthStatus } from '@/types'
 import { authService } from '@/services/auth.service'
 import { userService } from '@/services/user.service'
 import { businessService } from '@/services/business.service'
 import { businessMemberService } from '@/services/business-member.service'
 import { handleApiError } from '@/lib/error-handler'
+import { withTimeout, TimeoutError } from '@/lib/async-utils'
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null
   userProfile: AppUser | null
   activeBusiness: Business | null
   memberships: BusinessMember[]
+  authStatus: AuthStatus
   isLoading: boolean
+  isAuthLoading: boolean
+  isWorkspaceLoading: boolean
+  authError: string | null
+  workspaceError: string | null
   error: string | null
   signup: (data: { name: string; email: string; password: string }) => Promise<void>
   login: (data: { email: string; password: string }) => Promise<void>
@@ -34,6 +40,7 @@ interface AuthContextType {
   }) => Promise<Business>
   switchActiveBusiness: (businessId: string) => Promise<void>
   refreshAuth: () => Promise<void>
+  retryAuth: () => Promise<void>
   clearError: () => void
 }
 
@@ -44,73 +51,205 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<AppUser | null>(null)
   const [activeBusiness, setActiveBusiness] = useState<Business | null>(null)
   const [memberships, setMemberships] = useState<BusinessMember[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
 
-  const clearError = useCallback(() => setError(null), [])
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('INITIALIZING')
+  const [isWorkspaceLoading, setIsWorkspaceLoading] = useState<boolean>(false)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
 
-  const refreshAuth = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      const currentUser = await authService.getCurrentUser()
-      
-      if (!currentUser) {
+  const isMountedRef = useRef<boolean>(true)
+  const authInFlightRef = useRef<Promise<void> | null>(null)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  const clearError = useCallback(() => {
+    setAuthError(null)
+    setWorkspaceError(null)
+  }, [])
+
+  /**
+   * Primary Authentication Bootstrap
+   * Guaranteed termination path via withTimeout (10s max limit)
+   */
+  const refreshAuthInternal = useCallback(async () => {
+    // 1. Check Offline Status
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && !navigator.onLine) {
+      if (isMountedRef.current) {
         setUser(null)
         setUserProfile(null)
         setActiveBusiness(null)
         setMemberships([])
+        setAuthStatus('OFFLINE')
+        setAuthError('You are currently offline. Check your connection.')
+      }
+      return
+    }
+
+    try {
+      if (isMountedRef.current) {
+        setAuthStatus('INITIALIZING')
+        setAuthError(null)
+      }
+
+      // 2. Wrap account.get() with guaranteed 10s timeout limit
+      const currentUser = await withTimeout(
+        authService.getCurrentUser(),
+        10000,
+        'Authentication request timed out'
+      )
+
+      if (!currentUser) {
+        if (isMountedRef.current) {
+          setUser(null)
+          setUserProfile(null)
+          setActiveBusiness(null)
+          setMemberships([])
+          setAuthStatus('UNAUTHENTICATED')
+        }
         return
       }
 
-      setUser(currentUser)
+      // 3. AUTHENTICATED! Unblock app immediately
+      if (isMountedRef.current) {
+        setUser(currentUser)
+        setAuthStatus('AUTHENTICATED')
+        setAuthError(null)
+        setIsWorkspaceLoading(true)
+        setWorkspaceError(null)
+      }
 
-      // Fetch user profile from 'users' collection with safety fallback
-      let profile: AppUser | null = null
+      // 4. Load Workspace Data (Profile, Memberships, Business) asynchronously
       try {
-        profile = await userService.getUserProfile(currentUser.$id)
-        if (!profile) {
-          profile = await userService.createUserProfile(currentUser.$id, {
-            name: currentUser.name,
-            email: currentUser.email,
-          })
+        const [profileRes, membershipsRes] = await Promise.all([
+          withTimeout(userService.getUserProfile(currentUser.$id), 6000, 'User profile fetch timed out').catch((err) => {
+            console.warn('User profile fetch warning:', err)
+            return null
+          }),
+          withTimeout(businessMemberService.getUserMemberships(currentUser.$id), 6000, 'Memberships fetch timed out').catch((err) => {
+            console.warn('Memberships fetch warning:', err)
+            return []
+          }),
+        ])
+
+        if (!isMountedRef.current) return
+
+        let finalProfile = profileRes
+        if (!finalProfile) {
+          try {
+            finalProfile = await userService.createUserProfile(currentUser.$id, {
+              name: currentUser.name,
+              email: currentUser.email,
+            })
+          } catch {
+            // Non-fatal
+          }
         }
-      } catch (profileErr) {
-        console.warn('User profile fetch warning:', profileErr)
-      }
-      setUserProfile(profile)
+        setUserProfile(finalProfile)
+        setMemberships(membershipsRes)
 
-      // Fetch memberships for this user with safety fallback
-      let userMemberships: BusinessMember[] = []
-      try {
-        userMemberships = await businessMemberService.getUserMemberships(currentUser.$id)
-      } catch (membershipErr) {
-        console.warn('Memberships fetch warning:', membershipErr)
-      }
-      setMemberships(userMemberships)
+        // Determine Active Business
+        if (membershipsRes.length > 0) {
+          const preferredId = finalProfile?.preferences?.activeBusinessId
+          const targetMembership = membershipsRes.find((m) => m.businessId === preferredId) || membershipsRes[0]
 
-      // Determine active business
-      if (userMemberships.length > 0) {
-        const preferredBusinessId = profile?.preferences?.activeBusinessId
-        const targetMembership = userMemberships.find(m => m.businessId === preferredBusinessId) || userMemberships[0]
-        
-        try {
-          const business = await businessService.getBusiness(targetMembership.businessId)
-          setActiveBusiness(business)
-        } catch {
+          try {
+            const biz = await withTimeout(
+              businessService.getBusiness(targetMembership.businessId),
+              5000,
+              'Business fetch timed out'
+            )
+            if (isMountedRef.current) {
+              setActiveBusiness(biz)
+            }
+          } catch (bizErr) {
+            console.warn('Active business fetch warning:', bizErr)
+            if (isMountedRef.current) {
+              setActiveBusiness(null)
+            }
+          }
+        } else if (isMountedRef.current) {
           setActiveBusiness(null)
         }
-      } else {
-        setActiveBusiness(null)
+      } catch (wsErr: any) {
+        if (isMountedRef.current) {
+          setWorkspaceError(wsErr.message || 'Failed to load workspace data')
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setIsWorkspaceLoading(false)
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (!isMountedRef.current) return
+
       setUser(null)
       setUserProfile(null)
       setActiveBusiness(null)
       setMemberships([])
-    } finally {
-      setIsLoading(false)
+      setIsWorkspaceLoading(false)
+
+      if (err instanceof TimeoutError) {
+        setAuthStatus('TIMEOUT')
+        setAuthError('Authentication verification timed out after 10s.')
+      } else if (err?.message?.includes('Network') || err?.message?.includes('Fetch')) {
+        setAuthStatus('OFFLINE')
+        setAuthError('Network error connecting to authentication server.')
+      } else {
+        setAuthStatus('ERROR')
+        setAuthError(err.message || 'An error occurred while verifying your session.')
+      }
     }
   }, [])
+
+  /**
+   * Concurrency Guarded Auth Refresh
+   */
+  const refreshAuth = useCallback(async () => {
+    if (authInFlightRef.current) {
+      return authInFlightRef.current
+    }
+
+    const promise = refreshAuthInternal().finally(() => {
+      authInFlightRef.current = null
+    })
+
+    authInFlightRef.current = promise
+    return promise
+  }, [refreshAuthInternal])
+
+  const retryAuth = useCallback(async () => {
+    clearError()
+    return refreshAuth()
+  }, [clearError, refreshAuth])
+
+  // Attach window online/offline listeners
+  useEffect(() => {
+    const handleOnline = () => {
+      if (authStatus === 'OFFLINE' || authStatus === 'TIMEOUT') {
+        refreshAuth()
+      }
+    }
+
+    const handleOffline = () => {
+      if (isMountedRef.current) {
+        setAuthStatus('OFFLINE')
+        setAuthError('You are currently offline.')
+      }
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [authStatus, refreshAuth])
 
   useEffect(() => {
     refreshAuth()
@@ -118,89 +257,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = async (data: { name: string; email: string; password: string }) => {
     try {
-      setError(null)
-      setIsLoading(true)
-      
-      // 1. Create Appwrite Account
+      clearError()
+      setAuthStatus('INITIALIZING')
+
       const newAcc = await authService.register(data.email, data.password, data.name)
-      
-      // 2. Create Email/Password Session
       await authService.login(data.email, data.password)
-      
-      // 3. Create extended User Profile in 'users' collection
+
       try {
         await userService.createUserProfile(newAcc.$id, {
           name: data.name,
           email: data.email,
         })
-      } catch (profileError) {
-        console.warn('User profile creation warning:', profileError)
+      } catch (pErr) {
+        console.warn('Profile setup warning:', pErr)
       }
 
-      // 4. Refresh auth state
       await refreshAuth()
     } catch (err: any) {
       const appErr = handleApiError(err)
-      setError(appErr.message)
-      setIsLoading(false)
+      setAuthError(appErr.message)
+      setAuthStatus('ERROR')
       throw appErr
     }
   }
 
   const login = async (data: { email: string; password: string }) => {
     try {
-      setError(null)
-      setIsLoading(true)
+      clearError()
+      setAuthStatus('INITIALIZING')
       await authService.login(data.email, data.password)
       await refreshAuth()
     } catch (err: any) {
       const appErr = handleApiError(err)
-      setError(appErr.message)
-      setIsLoading(false)
+      setAuthError(appErr.message)
+      setAuthStatus('ERROR')
       throw appErr
     }
   }
 
   const logout = async () => {
     try {
-      setIsLoading(true)
+      setAuthStatus('INITIALIZING')
       await authService.logout()
     } catch {
       // Ignore logout errors
     } finally {
-      setUser(null)
-      setUserProfile(null)
-      setActiveBusiness(null)
-      setMemberships([])
-      setIsLoading(false)
+      if (isMountedRef.current) {
+        setUser(null)
+        setUserProfile(null)
+        setActiveBusiness(null)
+        setMemberships([])
+        setAuthStatus('UNAUTHENTICATED')
+        setIsWorkspaceLoading(false)
+      }
     }
   }
 
   const forgotPassword = async (email: string) => {
     try {
-      setError(null)
-      setIsLoading(true)
+      clearError()
       await authService.recoverPassword(email)
     } catch (err: any) {
       const appErr = handleApiError(err)
-      setError(appErr.message)
+      setAuthError(appErr.message)
       throw appErr
-    } finally {
-      setIsLoading(false)
     }
   }
 
   const resetPassword = async (password: string, userId: string, secret: string) => {
     try {
-      setError(null)
-      setIsLoading(true)
+      clearError()
       await authService.completePasswordRecovery(userId, secret, password)
     } catch (err: any) {
       const appErr = handleApiError(err)
-      setError(appErr.message)
+      setAuthError(appErr.message)
       throw appErr
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -214,57 +345,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logoUrl?: string
     currency?: Currency
     timezone?: string
-  }) => {
+  }): Promise<Business> => {
     if (!user) {
       throw new Error('User must be authenticated to create a business')
     }
 
     try {
-      setError(null)
-      setIsLoading(true)
+      clearError()
 
-      // 1. Create Business Document
-      const business = await businessService.createBusiness(data, user.$id)
-
-      // 2. Create Membership with role 'owner'
-      await businessMemberService.addMember(
-        { userId: user.$id, role: 'owner' },
-        business.$id,
+      const business = await businessService.createBusiness(
+        {
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          address: data.address,
+          panNumber: data.panNumber,
+          vatNumber: data.vatNumber,
+          logoUrl: data.logoUrl,
+          currency: data.currency || 'NPR',
+          timezone: data.timezone || 'Asia/Kathmandu',
+        },
         user.$id
       )
 
-      // 3. Set Active Business in User Preferences
-      await userService.setActiveBusiness(user.$id, business.$id)
+      const membership = await businessMemberService.addMember({ userId: user.$id, role: 'owner' }, business.$id, user.$id)
 
-      // 4. Refresh Auth Context
-      await refreshAuth()
+      try {
+        await userService.updateUserPreferences(user.$id, {
+          activeBusinessId: business.$id,
+        })
+      } catch {
+        // Preference update warning
+      }
 
+      setActiveBusiness(business)
+      setMemberships((prev) => [...prev, membership])
       return business
     } catch (err: any) {
       const appErr = handleApiError(err)
-      setError(appErr.message)
-      setIsLoading(false)
+      setAuthError(appErr.message)
       throw appErr
     }
   }
 
   const switchActiveBusiness = async (businessId: string) => {
     if (!user) return
+
     try {
-      setIsLoading(true)
-      const hasMember = memberships.some(m => m.businessId === businessId)
-      if (!hasMember) {
-        throw new Error('Access denied: You are not a member of this business')
+      clearError()
+      setIsWorkspaceLoading(true)
+      const business = await businessService.getBusiness(businessId)
+
+      try {
+        await userService.updateUserPreferences(user.$id, {
+          activeBusinessId: businessId,
+        })
+      } catch {
+        // Preference update warning
       }
-      await userService.setActiveBusiness(user.$id, businessId)
-      await refreshAuth()
+
+      setActiveBusiness(business)
     } catch (err: any) {
       const appErr = handleApiError(err)
-      setError(appErr.message)
-      setIsLoading(false)
-      throw appErr
+      setWorkspaceError(appErr.message)
+    } finally {
+      setIsWorkspaceLoading(false)
     }
   }
+
+  const isAuthLoading = authStatus === 'INITIALIZING'
 
   return (
     <AuthContext.Provider
@@ -273,8 +422,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userProfile,
         activeBusiness,
         memberships,
-        isLoading,
-        error,
+        authStatus,
+        isLoading: isAuthLoading,
+        isAuthLoading,
+        isWorkspaceLoading,
+        authError,
+        workspaceError,
+        error: authError || workspaceError,
         signup,
         login,
         logout,
@@ -283,6 +437,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         createBusinessOnboarding,
         switchActiveBusiness,
         refreshAuth,
+        retryAuth,
         clearError,
       }}
     >
@@ -291,9 +446,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context

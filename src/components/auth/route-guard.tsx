@@ -1,9 +1,10 @@
 "use client"
 
+import React, { useEffect } from 'react'
 import { useAuth } from '@/context/auth-context'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
-import { LoadingPage } from '@/components/ui/loading'
+import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
+import { AuthErrorScreen } from '@/components/auth/auth-error-screen'
 
 interface RouteGuardProps {
   children: React.ReactNode
@@ -11,19 +12,20 @@ interface RouteGuardProps {
 }
 
 export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps) {
-  const { user, activeBusiness, memberships, isLoading } = useAuth()
+  const { user, activeBusiness, memberships, authStatus, isAuthLoading, authError, retryAuth } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
 
   useEffect(() => {
-    if (isLoading) return
+    // Wait until initial session verification finishes
+    if (isAuthLoading || authStatus === 'INITIALIZING') return
 
     const isAuthRoute = pathname.startsWith('/auth')
     const isAppRoute = pathname.startsWith('/app')
     const isOnboardingRoute = pathname === '/onboarding'
 
     // 1. Unauthenticated users cannot access /app or /onboarding
-    if (!user) {
+    if (authStatus === 'UNAUTHENTICATED' || !user) {
       if (isAppRoute || isOnboardingRoute) {
         router.push('/auth/login')
       }
@@ -31,23 +33,32 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
     }
 
     // 2. Authenticated user has NO business membership & route requires business -> redirect to /onboarding
-    const hasBusiness = activeBusiness !== null || (memberships?.length ?? 0) > 0
-    if (requireBusiness && !hasBusiness) {
-      if (isAppRoute || isAuthRoute) {
-        router.push('/onboarding')
+    if (authStatus === 'AUTHENTICATED') {
+      const hasBusiness = activeBusiness !== null || (memberships?.length ?? 0) > 0
+      if (requireBusiness && !hasBusiness) {
+        if (isAppRoute || isAuthRoute) {
+          router.push('/onboarding')
+        }
+        return
       }
-      return
-    }
 
-    // 3. Authenticated user WITH a business accessing /auth or /onboarding -> redirect to /app/dashboard
-    if (isAuthRoute || isOnboardingRoute) {
-      router.push('/app/dashboard')
+      // 3. Authenticated user WITH a business accessing /auth or /onboarding -> redirect to /app/dashboard
+      if (isAuthRoute || isOnboardingRoute) {
+        router.push('/app/dashboard')
+      }
     }
-  }, [user, activeBusiness, memberships, isLoading, pathname, router, requireBusiness])
+  }, [user, activeBusiness, memberships, authStatus, isAuthLoading, pathname, router, requireBusiness])
 
-  if (isLoading) {
-    return <LoadingPage message="Authenticating session..." />
+  // 1. Loading State
+  if (isAuthLoading || authStatus === 'INITIALIZING') {
+    return <AuthLoadingScreen message="Authenticating session..." />
   }
 
+  // 2. Error / Timeout / Offline State
+  if (authStatus === 'TIMEOUT' || authStatus === 'ERROR' || authStatus === 'OFFLINE') {
+    return <AuthErrorScreen status={authStatus} error={authError} onRetry={retryAuth} />
+  }
+
+  // 3. Render Protected Route
   return <>{children}</>
 }
