@@ -15,6 +15,8 @@ import { AuthLayout } from '@/components/auth/auth-layout'
 import { ArrowRight, Lock, Mail, User, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
+import { PasswordStrengthMeter } from '@/components/auth/password-strength-meter'
+
 type SignupFormValues = z.infer<typeof registerSchema>
 
 export default function SignupPage() {
@@ -23,11 +25,13 @@ export default function SignupPage() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<SignupFormValues>({
     resolver: zodResolver(registerSchema),
@@ -35,8 +39,11 @@ export default function SignupPage() {
       name: '',
       email: '',
       password: '',
+      confirmPassword: '',
     },
   })
+
+  const passwordValue = watch('password')
 
   const onSubmit = async (data: SignupFormValues) => {
     try {
@@ -124,21 +131,63 @@ export default function SignupPage() {
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="At least 8 characters"
+              placeholder="Min 8 chars (upper, lower, num, symbol)"
               className="pl-9 pr-10 h-11 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 text-sm focus:border-indigo-600 focus:ring-indigo-600"
               {...register('password')}
             />
             <button
               type="button"
+              tabIndex={0}
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setShowPassword(!showPassword)
+                }
+              }}
+              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
+          <PasswordStrengthMeter password={passwordValue} />
           {errors.password && (
-            <p className="text-xs text-red-600 font-medium">{errors.password.message}</p>
+            <p className="text-xs text-red-600 font-medium mt-1">{errors.password.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="confirmPassword" className="text-xs font-bold text-slate-700">
+            Confirm Password
+          </Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Input
+              id="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="Re-enter your password"
+              className="pl-9 pr-10 h-11 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 text-sm focus:border-indigo-600 focus:ring-indigo-600"
+              {...register('confirmPassword')}
+            />
+            <button
+              type="button"
+              tabIndex={0}
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setShowConfirmPassword(!showConfirmPassword)
+                }
+              }}
+              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
+              aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+            >
+              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <p className="text-xs text-red-600 font-medium">{errors.confirmPassword.message}</p>
           )}
         </div>
 

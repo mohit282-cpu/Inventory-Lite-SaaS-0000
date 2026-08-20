@@ -19,6 +19,14 @@ export class ExpenseService extends BaseService {
     super(COLLECTIONS.EXPENSES)
   }
 
+  private mapExpense(exp: any): Expense {
+    if (!exp) return exp
+    return {
+      ...exp,
+      title: exp.title || exp.description || 'Business Expense',
+    }
+  }
+
   /**
    * Log a new business expense
    */
@@ -38,25 +46,26 @@ export class ExpenseService extends BaseService {
       throw new Error('Expense amount must be greater than zero')
     }
 
-    const titleStr = data.title || data.description || 'Business Expense'
-    const expenseData = {
-      title: titleStr,
+    const descStr = data.description || data.title || 'Business Expense'
+    const expenseData: Record<string, any> = {
       category: data.category,
-      description: data.description || titleStr,
+      description: descStr,
       amount: data.amount,
       date: data.date || new Date().toISOString().slice(0, 10),
       notes: data.notes || '',
       createdBy: userId,
     }
 
-    return await this.create<Expense>(expenseData, businessId, userId)
+    const doc = await this.create<Expense>(expenseData, businessId, userId)
+    return this.mapExpense(doc)
   }
 
   /**
    * Get expense by ID
    */
   async getExpense(expenseId: string, businessId: string): Promise<Expense> {
-    return await this.getById<Expense>(expenseId, businessId)
+    const doc = await this.getById<Expense>(expenseId, businessId)
+    return this.mapExpense(doc)
   }
 
   /**
@@ -74,7 +83,8 @@ export class ExpenseService extends BaseService {
       queries.push(Query.equal('category', filters.category))
     }
 
-    return await this.list<Expense>(businessId, queries)
+    const list = await this.list<Expense>(businessId, queries)
+    return list.map((exp) => this.mapExpense(exp))
   }
 
   /**
@@ -127,7 +137,14 @@ export class ExpenseService extends BaseService {
       throw new Error('Expense amount must be greater than zero')
     }
 
-    return await this.update<Expense>(expenseId, data, businessId)
+    const updatePayload: Record<string, any> = { ...data }
+    if (updatePayload.title && !updatePayload.description) {
+      updatePayload.description = updatePayload.title
+    }
+    delete updatePayload.title
+
+    const doc = await this.update<Expense>(expenseId, updatePayload, businessId)
+    return this.mapExpense(doc)
   }
 
   /**

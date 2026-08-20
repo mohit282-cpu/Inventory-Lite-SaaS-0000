@@ -29,8 +29,11 @@ import {
   Trash2,
 } from 'lucide-react'
 
+import { accountDeletionService } from '@/services/account-deletion.service'
+import { DeleteBusinessModal } from '@/components/features/settings/delete-business-modal'
+
 export default function SettingsPage() {
-  const { activeBusiness, user, userProfile, memberships, refreshAuth } = useAuth()
+  const { activeBusiness, user, userProfile, memberships, refreshAuth, logout } = useAuth()
   const { toast } = useToast()
 
   const [activeTab, setActiveTab] = useState<'business' | 'account' | 'team'>('business')
@@ -55,6 +58,9 @@ export default function SettingsPage() {
   const [savingAccount, setSavingAccount] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
 
+  // Delete Business & Account Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+
   // Team Management State
   const [members, setMembers] = useState<BusinessMember[]>([])
   const [loadingMembers, setLoadingMembers] = useState(false)
@@ -66,6 +72,24 @@ export default function SettingsPage() {
 
   const currentRole: UserRole =
     (memberships.find((m) => m.businessId === activeBusiness?.$id)?.role as UserRole) || 'owner'
+
+  const handleDeleteBusinessAndAccount = async (password: string) => {
+    if (!activeBusiness?.$id || !user?.$id || !userProfile?.email) {
+      throw new Error('Business and user identity verification failed')
+    }
+    await accountDeletionService.deleteBusinessAndAccount(
+      activeBusiness.$id,
+      user.$id,
+      password,
+      userProfile.email
+    )
+    toast({
+      title: 'Account & Business Deleted',
+      description: 'Your Inventory Lite account and business data have been permanently deleted.',
+    })
+    await logout()
+    window.location.href = '/auth/login'
+  }
 
   // Initialize Business Form Data
   useEffect(() => {
@@ -569,6 +593,42 @@ export default function SettingsPage() {
               </Button>
             </form>
           </Card>
+
+          {/* DANGER ZONE SECTION */}
+          <div className="md:col-span-2 border-2 border-red-200 bg-red-50/40 shadow-sm p-6 rounded-xl space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-red-200/60">
+              <div>
+                <h3 className="text-base font-extrabold text-red-900 flex items-center gap-2">
+                  <Trash2 className="h-5 w-5 text-red-600" /> Danger Zone
+                </h3>
+                <p className="text-xs text-red-700 mt-1 font-medium">
+                  Permanently delete your Inventory Lite account and all data belonging to this business.
+                </p>
+              </div>
+
+              {currentRole === 'owner' ? (
+                <Button
+                  type="button"
+                  onClick={() => setDeleteModalOpen(true)}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-4 shadow-sm shrink-0"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Business & Account
+                </Button>
+              ) : (
+                <div className="text-xs font-semibold text-red-700 bg-red-100/80 px-3 py-1.5 rounded-lg border border-red-200">
+                  Only the business owner can delete this business & account
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DeleteBusinessModal
+            isOpen={deleteModalOpen}
+            onClose={() => setDeleteModalOpen(false)}
+            onConfirmDelete={handleDeleteBusinessAndAccount}
+            businessName={activeBusiness?.name || 'Your Business'}
+            userEmail={userProfile?.email || ''}
+          />
         </div>
       )}
 

@@ -65,6 +65,13 @@ export abstract class BaseService {
       ...cleanData,
     }
 
+    if (this.collectionId === 'expenses') {
+      if (documentData.title && !documentData.description) {
+        documentData.description = documentData.title
+      }
+      delete documentData.title
+    }
+
     if (collectionsWithCreatedAt.has(this.collectionId) || cleanData.createdAt !== undefined) {
       documentData.createdAt = cleanData.createdAt || new Date().toISOString()
     }
@@ -165,6 +172,13 @@ export abstract class BaseService {
 
     // Prevent changing businessId to prevent tenant movement
     delete updatePayload.businessId
+
+    if (this.collectionId === 'expenses') {
+      if (updatePayload.title && !updatePayload.description) {
+        updatePayload.description = updatePayload.title
+      }
+      delete updatePayload.title
+    }
 
     if (collectionsWithUpdatedAt.has(this.collectionId)) {
       updatePayload.updatedAt = new Date().toISOString()

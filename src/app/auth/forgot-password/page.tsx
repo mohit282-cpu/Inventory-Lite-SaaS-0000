@@ -37,19 +37,15 @@ export default function ForgotPasswordPage() {
     try {
       setIsSubmitting(true)
       await forgotPassword(data.email)
-      setIsSuccess(true)
-      toast({
-        title: 'Recovery email sent',
-        description: 'Check your inbox for password reset instructions.',
-      })
-    } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Request Failed',
-        description: err.message || 'Unable to send recovery email',
-      })
+    } catch {
+      // Ignore errors silently to avoid exposing whether an email exists
     } finally {
+      setIsSuccess(true)
       setIsSubmitting(false)
+      toast({
+        title: 'Recovery Request Received',
+        description: 'If an account exists for this email, you will receive password reset instructions.',
+      })
     }
   }
 

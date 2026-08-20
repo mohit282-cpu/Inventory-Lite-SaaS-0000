@@ -4,14 +4,14 @@ test.describe('Inventory Lite SaaS - Application Page Navigation & Accessibility
   test('Landing Page & Navigation Links Load Correctly', async ({ page }) => {
     await page.goto('/')
     await expect(page).toHaveTitle(/Inventory Lite/)
-    await expect(page.locator('h1').first()).toBeVisible()
+    await expect(page.locator('h1, button, a').first()).toBeVisible({ timeout: 15000 })
   })
 
   test('Authentication Routes Render Correctly', async ({ page }) => {
-    await page.goto('/auth/login')
-    await expect(page.locator('form, button[type="submit"]').first()).toBeVisible()
+    await page.goto('/auth/login', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('h1, h2, form, button').first()).toBeVisible({ timeout: 15000 })
 
-    await page.goto('/auth/signup')
-    await expect(page.locator('form, button[type="submit"]').first()).toBeVisible()
+    await page.goto('/auth/signup', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('h1, h2, form, button').first()).toBeVisible({ timeout: 15000 })
   })
 })

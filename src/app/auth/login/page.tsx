@@ -37,6 +37,8 @@ export default function LoginPage() {
     },
   })
 
+  const [rememberSession, setRememberSession] = useState(true)
+
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setApiError(null)
@@ -47,11 +49,9 @@ export default function LoginPage() {
         description: 'Welcome back to Inventory Lite',
       })
       router.push('/app/dashboard')
-    } catch (err: any) {
-      let msg = err.message || 'Invalid email or password'
-      if (msg.toLowerCase().includes('invalid credentials') || msg.toLowerCase().includes('invalid_credentials')) {
-        msg = 'Email or password is incorrect.'
-      }
+    } catch {
+      // Generic error message to prevent account enumeration
+      const msg = 'Invalid email or password.'
       setApiError(msg)
       toast({
         variant: 'destructive',
@@ -115,8 +115,15 @@ export default function LoginPage() {
             />
             <button
               type="button"
+              tabIndex={0}
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setShowPassword(!showPassword)
+                }
+              }}
+              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -125,6 +132,18 @@ export default function LoginPage() {
           {errors.password && (
             <p className="text-xs text-red-600 font-medium">{errors.password.message}</p>
           )}
+        </div>
+
+        <div className="flex items-center justify-between py-1">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600 font-medium">
+            <input
+              type="checkbox"
+              checked={rememberSession}
+              onChange={(e) => setRememberSession(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            Remember session
+          </label>
         </div>
 
         <Button

@@ -89,6 +89,8 @@ import { userService } from '@/services/user.service'
 import { businessService } from '@/services/business.service'
 import { businessMemberService } from '@/services/business-member.service'
 
+import { registerSchema, resetPasswordSchema, passwordSchema } from '@/lib/validations'
+
 describe('Phase 2 Authentication & Business Onboarding Flow Tests', () => {
   const userEmail = 'ram.sharma@nepalstore.com'
   const userPass = 'SecurePass123!'
@@ -96,6 +98,41 @@ describe('Phase 2 Authentication & Business Onboarding Flow Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('validates password strength policy strictly', () => {
+    expect(() => passwordSchema.parse('weak')).toThrow(/at least 8 characters/)
+    expect(() => passwordSchema.parse('lowercaseonly')).toThrow(/uppercase letter/)
+    expect(() => passwordSchema.parse('UPPERCASEONLY')).toThrow(/lowercase letter/)
+    expect(() => passwordSchema.parse('NoSpecialChar123')).toThrow(/special character/)
+    expect(passwordSchema.parse('ValidPass123!')).toBe('ValidPass123!')
+  })
+
+  it('validates registerSchema confirmPassword match', () => {
+    const invalid = registerSchema.safeParse({
+      name: 'Ram',
+      email: 'ram@test.com',
+      password: 'StrongPass123!',
+      confirmPassword: 'DifferentPass123!',
+    })
+    expect(invalid.success).toBe(false)
+    if (!invalid.success) {
+      expect(invalid.error.issues[0].message).toBe('Passwords do not match')
+    }
+
+    const valid = registerSchema.safeParse({
+      name: 'Ram',
+      email: 'ram@test.com',
+      password: 'StrongPass123!',
+      confirmPassword: 'StrongPass123!',
+    })
+    expect(valid.success).toBe(true)
+
+    const resetInvalid = resetPasswordSchema.safeParse({
+      password: 'StrongPass123!',
+      confirmPassword: 'MismatchPassword123!',
+    })
+    expect(resetInvalid.success).toBe(false)
   })
 
   it('registers user and creates extended profile record', async () => {
