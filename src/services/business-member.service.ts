@@ -96,7 +96,7 @@ export class BusinessMemberService extends BaseService {
    * Get all business memberships for a user
    */
   async getUserMemberships(userId: string): Promise<BusinessMember[]> {
-    return await this.query<BusinessMember>('system', [
+    return await this.list<BusinessMember>('system', [
       Query.equal('userId', userId)
     ])
   }
@@ -105,7 +105,7 @@ export class BusinessMemberService extends BaseService {
    * Get member record by user ID and business ID
    */
   async getMemberByUserAndBusiness(userId: string, businessId: string): Promise<BusinessMember | null> {
-    const members = await this.query<BusinessMember>(businessId, [
+    const members = await this.list<BusinessMember>(businessId, [
       Query.equal('userId', userId),
       Query.limit(1)
     ])

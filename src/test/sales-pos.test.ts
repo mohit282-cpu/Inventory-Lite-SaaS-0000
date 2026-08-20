@@ -116,7 +116,7 @@ describe('Sales & POS Billing Module Tests', () => {
           },
         ],
         discount: 0,
-        tax: 260,
+        taxRate: 13,
         paidAmount: 2000,
         paymentMethod: 'cash',
       },

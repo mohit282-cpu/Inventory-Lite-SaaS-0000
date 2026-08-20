@@ -83,7 +83,7 @@ export class BusinessService extends BaseService {
    * Get businesses owned by a specific user
    */
   async getOwnedBusinesses(ownerId: string): Promise<Business[]> {
-    return await this.query<Business>('system', [
+    return await this.list<Business>('system', [
       Query.equal('ownerId', ownerId),
       Query.orderDesc('createdAt')
     ])

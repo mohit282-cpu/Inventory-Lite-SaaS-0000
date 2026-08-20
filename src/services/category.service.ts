@@ -6,7 +6,7 @@ import { Query } from 'appwrite'
 /**
  * Category Service
  * 
- * Manages product categories under strict tenant isolation.
+ * Handles product categories with strict tenant isolation.
  */
 export class CategoryService extends BaseService {
   constructor() {
@@ -24,9 +24,13 @@ export class CategoryService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Category> {
+    if (!data.name || data.name.trim() === '') {
+      throw new Error('Category name is required')
+    }
+
     // Check for duplicate category name within business
-    const existing = await this.query<Category>(businessId, [
-      Query.equal('name', data.name),
+    const existing = await this.list<Category>(businessId, [
+      Query.equal('name', data.name.trim()),
       Query.limit(1)
     ])
     if (existing.length > 0) {
@@ -64,11 +68,11 @@ export class CategoryService extends BaseService {
     businessId: string
   ): Promise<Category> {
     if (data.name) {
-      const existing = await this.query<Category>(businessId, [
-        Query.equal('name', data.name),
+      const existing = await this.list<Category>(businessId, [
+        Query.equal('name', data.name.trim()),
         Query.limit(2)
       ])
-      const duplicate = existing.find(c => c.$id !== categoryId)
+      const duplicate = existing.find((c: Category) => c.$id !== categoryId)
       if (duplicate) {
         throw new Error(`Category "${data.name}" already exists for this business`)
       }

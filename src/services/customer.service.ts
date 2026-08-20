@@ -126,7 +126,7 @@ export class CustomerService extends BaseService {
    * Get customer by phone number within business
    */
   async getCustomerByPhone(businessId: string, phone: string): Promise<Customer | null> {
-    const results = await this.query<Customer>(businessId, [
+    const results = await this.list<Customer>(businessId, [
       Query.equal('phone', phone),
       Query.limit(1)
     ])
@@ -137,7 +137,7 @@ export class CustomerService extends BaseService {
    * Get customer by email address within business
    */
   async getCustomerByEmail(businessId: string, email: string): Promise<Customer | null> {
-    const results = await this.query<Customer>(businessId, [
+    const results = await this.list<Customer>(businessId, [
       Query.equal('email', email),
       Query.limit(1)
     ])

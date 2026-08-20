@@ -115,7 +115,7 @@ export class InvoiceService extends BaseService {
    * Get invoice by sale ID
    */
   async getInvoiceBySaleId(saleId: string, businessId: string): Promise<Invoice | null> {
-    const results = await this.query<Invoice>(businessId, [
+    const results = await this.list<Invoice>(businessId, [
       Query.equal('saleId', saleId),
       Query.limit(1),
     ])

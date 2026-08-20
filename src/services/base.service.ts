@@ -4,15 +4,13 @@ import { ID, Query, Models, Permission, Role } from 'appwrite'
 /**
  * Base Service Class
  * 
- * Provides common database operations with built-in tenant isolation.
- * All business-specific services should extend this class.
+ * Provides common database operations with built-in tenant isolation and secure permissions.
+ * All business-specific services extend this class.
  * 
- * Tenant isolation is enforced through multiple mechanisms:
+ * Tenant isolation is enforced through multiple boundary mechanisms:
  * 1. Automatic businessId filtering in list/query operations
  * 2. BusinessId verification in getById/update/delete operations
- * 3. BusinessId assignment in create operations
- * 
- * This ensures strict multi-tenant data isolation at the service layer.
+ * 3. Secure Appwrite role permissions per document (No public Role.any() access)
  */
 export abstract class BaseService {
   protected collectionId: string
@@ -21,26 +19,16 @@ export abstract class BaseService {
     this.collectionId = collectionId
   }
 
-  /**
-   * Helper to safely map document output to generic entity type
-   */
   protected mapDocument<T>(doc: Models.Document): T {
     return doc as unknown as T
   }
 
-  /**
-   * Helper to safely map document array to generic entity array
-   */
   protected mapDocuments<T>(docs: Models.Document[]): T[] {
     return docs as unknown as T[]
   }
 
   /**
-   * Create a new document
-   * @param data - Document data
-   * @param businessId - Business ID for tenant isolation (use 'system' for top-level entities)
-   * @param userId - Optional user ID for ownership tracking
-   * @param permissions - Optional custom Appwrite permissions
+   * Create a new document with secure Appwrite permissions
    */
   async create<T>(
     data: any,
@@ -94,10 +82,12 @@ export abstract class BaseService {
       documentData.businessId = businessId
     }
 
+    // Secure Appwrite permissions: NEVER use public Role.any() for business data
+    const secureUserTarget = userId ? Role.user(userId) : Role.users()
     const docPermissions = permissions || [
-      Permission.read(Role.any()),
-      Permission.update(Role.any()),
-      Permission.delete(Role.any()),
+      Permission.read(secureUserTarget),
+      Permission.update(secureUserTarget),
+      Permission.delete(secureUserTarget),
     ]
 
     const doc = await databases.createDocument(
@@ -113,8 +103,6 @@ export abstract class BaseService {
 
   /**
    * Get a document by ID with tenant isolation verification
-   * @param id - Document ID
-   * @param businessId - Business ID for tenant isolation (use 'system' for top-level entities)
    */
   async getById<T>(id: string, businessId: string): Promise<T> {
     const document = await databases.getDocument(
@@ -132,9 +120,7 @@ export abstract class BaseService {
   }
 
   /**
-   * List all documents for a business with optional filters
-   * @param businessId - Business ID for tenant isolation (use 'system' for top-level entities)
-   * @param queries - Additional Appwrite queries
+   * List all documents for a business with tenant isolation query injection
    */
   async list<T>(businessId: string, queries: any[] = []): Promise<T[]> {
     if (businessId === 'system') {
@@ -157,9 +143,6 @@ export abstract class BaseService {
 
   /**
    * Update a document with tenant isolation verification
-   * @param id - Document ID
-   * @param data - Updated data
-   * @param businessId - Business ID for tenant isolation (use 'system' for top-level entities)
    */
   async update<T>(id: string, data: any, businessId: string): Promise<T> {
     // Verify tenant isolation before update (getById will throw if businessId doesn't match)
@@ -178,63 +161,40 @@ export abstract class BaseService {
       'expenses',
     ])
 
-    const updateData: any = {
-      ...cleanData,
+    const updatePayload = { ...cleanData }
+
+    // Prevent changing businessId to prevent tenant movement
+    delete updatePayload.businessId
+
+    if (collectionsWithUpdatedAt.has(this.collectionId)) {
+      updatePayload.updatedAt = new Date().toISOString()
     }
 
-    if (collectionsWithUpdatedAt.has(this.collectionId) || cleanData.updatedAt !== undefined) {
-      updateData.updatedAt = cleanData.updatedAt || new Date().toISOString()
-    }
-
-    const doc = await databases.updateDocument(
+    const updatedDoc = await databases.updateDocument(
       DATABASE_ID,
       this.collectionId,
       id,
-      updateData
+      updatePayload
     )
 
-    return this.mapDocument<T>(doc)
+    return this.mapDocument<T>(updatedDoc)
   }
 
   /**
    * Delete a document with tenant isolation verification
-   * @param id - Document ID
-   * @param businessId - Business ID for tenant isolation (use 'system' for top-level entities)
    */
-  async delete(id: string, businessId: string): Promise<{}> {
-    // Verify tenant isolation before delete (getById will throw if businessId doesn't match)
+  async delete(id: string, businessId: string): Promise<boolean> {
+    // Verify tenant isolation before delete
     if (businessId !== 'system') {
       await this.getById(id, businessId)
     }
 
-    return await databases.deleteDocument(
+    await databases.deleteDocument(
       DATABASE_ID,
       this.collectionId,
       id
     )
-  }
 
-  /**
-   * Query documents with custom filters and tenant isolation
-   * @param businessId - Business ID for tenant isolation (use 'system' for top-level entities)
-   * @param queries - Appwrite queries
-   */
-  async query<T>(businessId: string, queries: any[]): Promise<T[]> {
-    if (businessId === 'system') {
-      const result = await databases.listDocuments(
-        DATABASE_ID,
-        this.collectionId,
-        queries
-      )
-      return this.mapDocuments<T>(result.documents)
-    }
-
-    const tenantQueries = [Query.equal('businessId', businessId), ...queries]
-    const result = await databases.listDocuments(
-      DATABASE_ID,
-      this.collectionId,
-      tenantQueries
-    )
-    return this.mapDocuments<T>(result.documents)
+    return true
   }
 }

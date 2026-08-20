@@ -4,6 +4,7 @@ import { Payment, PaymentMethod, CreditStatus, Customer, Sale } from '@/types'
 import { Query } from 'appwrite'
 import { saleService } from './sale.service'
 import { customerService } from './customer.service'
+import { toMinorUnits, fromMinorUnits, validateFinancialInvariants } from '@/lib/money'
 
 export interface CreditLedgerItem {
   id: string
@@ -33,6 +34,7 @@ export class PaymentService extends BaseService {
 
   /**
    * Record a new customer payment against a sale/invoice
+   * Completely removes fake payment fallbacks. Database failure halts all operations.
    */
   async createPayment(
     data: {
@@ -48,67 +50,62 @@ export class PaymentService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Payment> {
-    if (data.amount <= 0) {
-      throw new Error('Payment amount must be greater than zero.')
+    const paymentPaisa = toMinorUnits(data.amount)
+    if (paymentPaisa <= 0) {
+      throw new Error('Payment amount must be greater than zero')
     }
 
-    // 1. Fetch target sale
+    // 1. Fetch target sale with tenant isolation verification
     const sale = await saleService.getSale(data.saleId, businessId)
     if (!sale) {
-      throw new Error('Associated sale transaction not found.')
+      throw new Error('Associated sale transaction not found')
     }
 
-    if (data.amount > sale.dueAmount + 0.01) {
+    const saleDuePaisa = toMinorUnits(sale.dueAmount)
+    if (paymentPaisa > saleDuePaisa + 1) {
       throw new Error(
         `Payment amount (Rs. ${data.amount.toFixed(
           2
-        )}) cannot exceed remaining due balance (Rs. ${sale.dueAmount.toFixed(2)}).`
+        )}) cannot exceed remaining due balance (Rs. ${sale.dueAmount.toFixed(2)})`
       )
     }
 
     const pDate = data.paymentDate || new Date().toISOString()
     const custId = data.customerId || sale.customerId || ''
 
-    // 2. Persist Payment document
-    let paymentDoc: Payment
-    try {
-      paymentDoc = await this.create<Payment>(
-        {
-          saleId: data.saleId,
-          customerId: custId,
-          invoiceId: data.invoiceId || sale.invoiceId || '',
-          amount: data.amount,
-          paymentMethod: data.paymentMethod,
-          paymentDate: pDate,
-          referenceNumber: data.referenceNumber || '',
-          notes: data.notes || '',
-          createdBy: userId,
-        },
-        businessId,
-        userId
-      )
-    } catch {
-      // Fallback object representation if remote payments collection is initializing
-      paymentDoc = {
-        $id: `pay_${Date.now()}`,
-        businessId,
-        customerId: custId,
+    if (custId && custId.trim() !== '') {
+      // Verify customer exists and belongs to business
+      await customerService.getCustomer(custId, businessId)
+    }
+
+    // 2. Persist Payment document - NO FAKE FALLBACK
+    const paymentDoc = await this.create<Payment>(
+      {
         saleId: data.saleId,
+        customerId: custId,
         invoiceId: data.invoiceId || sale.invoiceId || '',
-        amount: data.amount,
+        amount: fromMinorUnits(paymentPaisa),
         paymentMethod: data.paymentMethod,
         paymentDate: pDate,
         referenceNumber: data.referenceNumber || '',
         notes: data.notes || '',
         createdBy: userId,
-        createdAt: pDate,
-      } as Payment
-    }
+      },
+      businessId,
+      userId
+    )
 
-    // 3. Recalculate and update Sale paid amount & due amount
-    const newPaid = Math.min(sale.total, sale.paidAmount + data.amount)
-    const newDue = Math.max(0, sale.total - newPaid)
-    const newStatus = newDue === 0 ? 'completed' : sale.status
+    // 3. Recalculate Sale paid & due amount using minor units
+    const saleTotalPaisa = toMinorUnits(sale.total)
+    const currentPaidPaisa = toMinorUnits(sale.paidAmount)
+    const newPaidPaisa = Math.min(saleTotalPaisa, currentPaidPaisa + paymentPaisa)
+    const newDuePaisa = Math.max(0, saleTotalPaisa - newPaidPaisa)
+    const newStatus = newDuePaisa === 0 ? 'completed' : sale.status
+
+    const newPaid = fromMinorUnits(newPaidPaisa)
+    const newDue = fromMinorUnits(newDuePaisa)
+
+    validateFinancialInvariants({ total: sale.total, paidAmount: newPaid, dueAmount: newDue })
 
     await saleService.update<Sale>(
       sale.$id,
@@ -122,7 +119,7 @@ export class PaymentService extends BaseService {
 
     // 4. Update Customer total due balance
     if (custId && custId.trim() !== '') {
-      await customerService.updateDueAmount(custId, -data.amount, businessId)
+      await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
     }
 
     return paymentDoc
@@ -168,43 +165,59 @@ export class PaymentService extends BaseService {
     },
     businessId: string
   ): Promise<Payment | null> {
-    let existingPayment: Payment | null = null
-    try {
-      existingPayment = await this.getById<Payment>(paymentId, businessId)
-    } catch {
-      return null
+    const existingPayment = await this.getById<Payment>(paymentId, businessId)
+    if (!existingPayment) {
+      throw new Error('Payment record not found')
     }
 
-    const amountDiff = (data.amount !== undefined ? data.amount : existingPayment.amount) - existingPayment.amount
+    const oldAmountPaisa = toMinorUnits(existingPayment.amount)
+    const newAmountPaisa = data.amount !== undefined ? toMinorUnits(data.amount) : oldAmountPaisa
+    const amountDiffPaisa = newAmountPaisa - oldAmountPaisa
 
-    if (data.amount !== undefined && data.amount <= 0) {
-      throw new Error('Payment amount must be greater than zero.')
+    if (data.amount !== undefined && newAmountPaisa <= 0) {
+      throw new Error('Payment amount must be greater than zero')
+    }
+
+    if (amountDiffPaisa !== 0 && existingPayment.saleId) {
+      const sale = await saleService.getSale(existingPayment.saleId, businessId)
+      if (sale) {
+        const saleTotalP = toMinorUnits(sale.total)
+        const salePaidP = toMinorUnits(sale.paidAmount)
+        const resultingPaidP = salePaidP + amountDiffPaisa
+
+        if (resultingPaidP > saleTotalP + 1) {
+          throw new Error(
+            `Updated payment exceeds sale total (Rs. ${sale.total.toFixed(2)})`
+          )
+        }
+      }
     }
 
     // 1. Update Payment doc
     const updated = await this.update<Payment>(paymentId, data, businessId)
 
     // 2. Adjust Sale paid & due amount if amount changed
-    if (amountDiff !== 0 && existingPayment.saleId) {
-      try {
-        const sale = await saleService.getSale(existingPayment.saleId, businessId)
-        if (sale) {
-          const newPaid = Math.max(0, Math.min(sale.total, sale.paidAmount + amountDiff))
-          const newDue = Math.max(0, sale.total - newPaid)
-          const newStatus = newDue === 0 ? 'completed' : sale.status
-          await saleService.update<Sale>(
-            sale.$id,
-            { paidAmount: newPaid, dueAmount: newDue, status: newStatus },
-            businessId
-          )
-        }
-      } catch {
-        // Continue if sale update handles errors
+    if (amountDiffPaisa !== 0 && existingPayment.saleId) {
+      const sale = await saleService.getSale(existingPayment.saleId, businessId)
+      if (sale) {
+        const saleTotalP = toMinorUnits(sale.total)
+        const newPaidP = Math.max(0, Math.min(saleTotalP, toMinorUnits(sale.paidAmount) + amountDiffPaisa))
+        const newDueP = Math.max(0, saleTotalP - newPaidP)
+        const newStatus = newDueP === 0 ? 'completed' : sale.status
+        await saleService.update<Sale>(
+          sale.$id,
+          { paidAmount: fromMinorUnits(newPaidP), dueAmount: fromMinorUnits(newDueP), status: newStatus },
+          businessId
+        )
       }
 
       // 3. Adjust Customer total due balance
       if (existingPayment.customerId) {
-        await customerService.updateDueAmount(existingPayment.customerId, -amountDiff, businessId)
+        await customerService.updateDueAmount(
+          existingPayment.customerId,
+          -fromMinorUnits(amountDiffPaisa),
+          businessId
+        )
       }
     }
 
@@ -215,34 +228,35 @@ export class PaymentService extends BaseService {
    * Delete a payment record and restore outstanding balance
    */
   async deletePayment(paymentId: string, businessId: string): Promise<boolean> {
-    let existingPayment: Payment | null = null
-    try {
-      existingPayment = await this.getById<Payment>(paymentId, businessId)
-    } catch {
-      return false
+    const existingPayment = await this.getById<Payment>(paymentId, businessId)
+    if (!existingPayment) {
+      throw new Error('Payment record not found')
     }
+
+    const amountPaisa = toMinorUnits(existingPayment.amount)
 
     // 1. Revert sale paid amount
     if (existingPayment.saleId) {
-      try {
-        const sale = await saleService.getSale(existingPayment.saleId, businessId)
-        if (sale) {
-          const newPaid = Math.max(0, sale.paidAmount - existingPayment.amount)
-          const newDue = Math.max(0, sale.total - newPaid)
-          const newStatus = newDue > 0 ? 'pending' : sale.status
-          await saleService.update<Sale>(
-            sale.$id,
-            { paidAmount: newPaid, dueAmount: newDue, status: newStatus },
-            businessId
-          )
-        }
-      } catch {
-        // Continue
+      const sale = await saleService.getSale(existingPayment.saleId, businessId)
+      if (sale) {
+        const saleTotalP = toMinorUnits(sale.total)
+        const newPaidP = Math.max(0, toMinorUnits(sale.paidAmount) - amountPaisa)
+        const newDueP = Math.max(0, saleTotalP - newPaidP)
+        const newStatus = newDueP > 0 ? 'pending' : sale.status
+        await saleService.update<Sale>(
+          sale.$id,
+          { paidAmount: fromMinorUnits(newPaidP), dueAmount: fromMinorUnits(newDueP), status: newStatus },
+          businessId
+        )
       }
 
       // 2. Revert customer due balance
       if (existingPayment.customerId) {
-        await customerService.updateDueAmount(existingPayment.customerId, existingPayment.amount, businessId)
+        await customerService.updateDueAmount(
+          existingPayment.customerId,
+          fromMinorUnits(amountPaisa),
+          businessId
+        )
       }
     }
 
@@ -270,40 +284,40 @@ export class PaymentService extends BaseService {
     const currentMonth = now.getMonth()
     const currentYear = now.getFullYear()
 
-    let totalCreditDue = 0
-    let overdueAmount = 0
+    let totalCreditDuePaisa = 0
+    let overdueAmountPaisa = 0
 
     sales.forEach((s) => {
       if (s.dueAmount > 0) {
-        totalCreditDue += s.dueAmount
+        const dueP = toMinorUnits(s.dueAmount)
+        totalCreditDuePaisa += dueP
 
-        // Check if overdue: dueDate < today OR sale created > 30 days ago
         const isOverdue =
           s.dueDate
             ? new Date(s.dueDate) < now
             : (now.getTime() - new Date(s.createdAt).getTime()) / (1000 * 3600 * 24) > 30
 
         if (isOverdue) {
-          overdueAmount += s.dueAmount
+          overdueAmountPaisa += dueP
         }
       }
     })
 
     const customersWithCredit = customers.filter((c) => (c.totalDue || 0) > 0).length
 
-    let paymentsThisMonth = 0
+    let paymentsThisMonthPaisa = 0
     payments.forEach((p) => {
       const pDate = new Date(p.paymentDate || p.createdAt)
       if (pDate.getMonth() === currentMonth && pDate.getFullYear() === currentYear) {
-        paymentsThisMonth += p.amount
+        paymentsThisMonthPaisa += toMinorUnits(p.amount)
       }
     })
 
     return {
-      totalCreditDue,
+      totalCreditDue: fromMinorUnits(totalCreditDuePaisa),
       customersWithCredit,
-      overdueAmount,
-      paymentsThisMonth,
+      overdueAmount: fromMinorUnits(overdueAmountPaisa),
+      paymentsThisMonth: fromMinorUnits(paymentsThisMonthPaisa),
     }
   }
 
@@ -340,7 +354,6 @@ export class PaymentService extends BaseService {
       const cust = sale.customerId ? customerMap.get(sale.customerId) : null
       const salePayments = paymentsBySale.get(sale.$id) || []
 
-      // Determine last payment date
       let lastPaymentDate: string | undefined = undefined
       if (salePayments.length > 0) {
         const sorted = [...salePayments].sort(
@@ -349,7 +362,6 @@ export class PaymentService extends BaseService {
         lastPaymentDate = sorted[0].paymentDate || sorted[0].createdAt
       }
 
-      // Determine Credit Status
       let status: CreditStatus = 'UNPAID'
       const due = sale.dueAmount || 0
       const paid = sale.paidAmount || 0
@@ -362,7 +374,6 @@ export class PaymentService extends BaseService {
         status = 'UNPAID'
       }
 
-      // Check overdue status for unpaid/partial sales
       if (due > 0) {
         const isOverdue =
           sale.dueDate
@@ -396,14 +407,11 @@ export class PaymentService extends BaseService {
       }
     })
 
-    // Filter by Search & Status
     return items.filter((item) => {
-      // 1. Status Filter (Default hides fully PAID unless explicitly selected ALL or PAID)
       if (!filters?.status || filters.status === 'UNPAID') {
         if (filters?.status === 'UNPAID') {
           if (item.status !== 'UNPAID') return false
         } else {
-          // Default view: Show unpaid, partial, overdue (hide completed paid)
           if (item.status === 'PAID') return false
         }
       } else if (filters.status === 'PARTIAL') {
@@ -414,12 +422,10 @@ export class PaymentService extends BaseService {
         if (item.status !== 'PAID') return false
       }
 
-      // 2. Customer ID Filter
       if (filters?.customerId && item.customerId !== filters.customerId) {
         return false
       }
 
-      // 3. Search Query Filter
       if (filters?.searchQuery && filters.searchQuery.trim() !== '') {
         const q = filters.searchQuery.toLowerCase()
         const matchName = item.customerName.toLowerCase().includes(q)

@@ -33,6 +33,16 @@ export class ProductService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Product> {
+    if (!data.name || data.name.trim() === '') {
+      throw new Error('Product name is required')
+    }
+    if (data.purchasePrice < 0 || data.sellingPrice < 0) {
+      throw new Error('Prices cannot be negative')
+    }
+    if (data.stockQuantity < 0) {
+      throw new Error('Stock quantity cannot be negative')
+    }
+
     const finalSku = data.sku && data.sku.trim() !== ''
       ? data.sku.trim()
       : `SKU-${Date.now().toString(36).toUpperCase()}`
@@ -146,6 +156,16 @@ export class ProductService extends BaseService {
     }>,
     businessId: string
   ): Promise<Product> {
+    if (data.purchasePrice !== undefined && data.purchasePrice < 0) {
+      throw new Error('Purchase price cannot be negative')
+    }
+    if (data.sellingPrice !== undefined && data.sellingPrice < 0) {
+      throw new Error('Selling price cannot be negative')
+    }
+    if (data.stockQuantity !== undefined && data.stockQuantity < 0) {
+      throw new Error('Stock quantity cannot be negative')
+    }
+
     // Check SKU duplicate if changing SKU
     if (data.sku) {
       const existingSku = await this.getProductBySku(businessId, data.sku)
@@ -176,7 +196,7 @@ export class ProductService extends BaseService {
    * Get product by SKU within business
    */
   async getProductBySku(businessId: string, sku: string): Promise<Product | null> {
-    const results = await this.query<Product>(businessId, [
+    const results = await this.list<Product>(businessId, [
       Query.equal('sku', sku),
       Query.limit(1)
     ])
@@ -187,7 +207,7 @@ export class ProductService extends BaseService {
    * Get product by barcode within business
    */
   async getProductByBarcode(businessId: string, barcode: string): Promise<Product | null> {
-    const results = await this.query<Product>(businessId, [
+    const results = await this.list<Product>(businessId, [
       Query.equal('barcode', barcode),
       Query.limit(1)
     ])
@@ -207,6 +227,7 @@ export class ProductService extends BaseService {
     }
     return await this.update<Product>(productId, { stockQuantity: newQuantity }, businessId)
   }
+
   /**
    * Get products with low stock or out of stock status for a business
    */
