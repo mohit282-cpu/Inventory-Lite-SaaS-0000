@@ -26,17 +26,22 @@ export class BusinessMemberService extends BaseService {
     businessId: string,
     creatorUserId: string
   ): Promise<BusinessMember> {
-    // Database-verified RBAC check: caller must be owner or admin
-    await authorizeBusinessAccess({
-      userId: creatorUserId,
-      businessId,
-      requiredRole: ['owner', 'admin'],
-    })
+    // If creating initial owner membership during business onboarding setup, bypass pre-membership RBAC query
+    const isInitialOwner = data.role === 'owner' && data.userId === creatorUserId
+
+    if (!isInitialOwner) {
+      // Database-verified RBAC check: caller must be owner or admin
+      await authorizeBusinessAccess({
+        userId: creatorUserId,
+        businessId,
+        requiredRole: ['owner', 'admin'],
+      })
+    }
 
     // Check if target user is already a member
     const existing = await this.getMemberByUserAndBusiness(data.userId, businessId)
     if (existing) {
-      throw new Error(`User is already a member of this business`)
+      return existing
     }
 
     return await this.create<BusinessMember>(
@@ -47,6 +52,13 @@ export class BusinessMemberService extends BaseService {
       businessId,
       creatorUserId
     )
+  }
+
+  /**
+   * Create initial owner membership record during business onboarding
+   */
+  async createInitialOwnerMember(userId: string, businessId: string): Promise<BusinessMember> {
+    return await this.addMember({ userId, role: 'owner' }, businessId, userId)
   }
 
   /**

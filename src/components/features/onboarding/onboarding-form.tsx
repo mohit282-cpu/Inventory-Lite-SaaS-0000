@@ -10,10 +10,19 @@ import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
-import { Building2, Receipt, Globe, ArrowRight, ArrowLeft, Loader2, CheckCircle } from 'lucide-react'
+import {
+  Building2,
+  Receipt,
+  Sliders,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  Check,
+  CheckCircle2,
+  Sparkles,
+} from 'lucide-react'
 
 type OnboardingFormValues = z.infer<typeof onboardingSchema>
 
@@ -23,6 +32,14 @@ export function OnboardingForm() {
   const router = useRouter()
   const [step, setStep] = useState<number>(1)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [isCompleted, setIsCompleted] = useState<boolean>(false)
+  const [createdSummary, setCreatedSummary] = useState<{
+    name: string
+    ownerName: string
+    currency: string
+    timezone: string
+    vatRate: number
+  } | null>(null)
 
   const {
     register,
@@ -37,45 +54,76 @@ export function OnboardingForm() {
       name: '',
       ownerName: userProfile?.name || '',
       phone: userProfile?.phone || '',
-      email: userProfile?.email || '',
+      email: '',
       address: '',
+      city: '',
+      province: 'Bagmati',
       panNumber: '',
       vatNumber: '',
       logoUrl: '',
       currency: 'NPR',
       timezone: 'Asia/Kathmandu',
+      defaultVatRate: 13,
+      invoicePrefix: 'INV-',
+      lowStockThreshold: 10,
+      dateFormat: 'YYYY-MM-DD',
     },
   })
 
   const currentCurrency = watch('currency')
   const currentTimezone = watch('timezone')
+  const currentProvince = watch('province')
+  const currentDateFormat = watch('dateFormat')
 
   const nextStep = async () => {
     let isValid = false
     if (step === 1) {
       isValid = await trigger(['name', 'ownerName', 'phone', 'email'])
     } else if (step === 2) {
-      isValid = await trigger(['address', 'panNumber', 'vatNumber', 'logoUrl'])
+      isValid = await trigger(['address', 'city', 'province', 'panNumber', 'vatNumber', 'logoUrl'])
     }
 
     if (isValid) {
       setStep((prev) => Math.min(3, prev + 1))
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
   const prevStep = () => {
     setStep((prev) => Math.max(1, prev - 1))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const onSubmit = async (data: OnboardingFormValues) => {
+    if (isSubmitting) return
+
     try {
       setIsSubmitting(true)
-      await createBusinessOnboarding(data)
+      await createBusinessOnboarding({
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        address: data.address ? `${data.address}${data.city ? `, ${data.city}` : ''}${data.province ? `, ${data.province}` : ''}` : '',
+        panNumber: data.panNumber,
+        vatNumber: data.vatNumber,
+        logoUrl: data.logoUrl,
+        currency: data.currency,
+        timezone: data.timezone,
+      })
+
+      setCreatedSummary({
+        name: data.name,
+        ownerName: data.ownerName,
+        currency: data.currency,
+        timezone: data.timezone,
+        vatRate: data.defaultVatRate || 13,
+      })
+
+      setIsCompleted(true)
       toast({
         title: 'Business Setup Complete 🎉',
         description: `Welcome to Inventory Lite, ${data.name}!`,
       })
-      router.push('/app/dashboard')
     } catch (err: any) {
       toast({
         variant: 'destructive',
@@ -87,243 +135,519 @@ export function OnboardingForm() {
     }
   }
 
+  const handleGoToDashboard = () => {
+    router.push('/app/dashboard')
+  }
+
+  // 10. COMPLETION SCREEN / SUCCESS STATE
+  if (isCompleted && createdSummary) {
+    return (
+      <div className="bg-white border border-slate-200/90 shadow-sm rounded-xl p-6 sm:p-10 w-full text-center">
+        <div className="h-14 w-14 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="h-8 w-8" />
+        </div>
+
+        <h2 className="text-2xl font-bold text-slate-900">Your business is ready!</h2>
+        <p className="text-sm text-slate-500 mt-1 mb-6">
+          Your Inventory Lite workspace has been created successfully.
+        </p>
+
+        {/* Business Summary Card */}
+        <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-5 mb-6 text-left space-y-3 text-xs sm:text-sm">
+          <div className="flex justify-between border-b border-slate-200/60 pb-2">
+            <span className="text-slate-500 font-medium">Business Name</span>
+            <span className="text-slate-900 font-bold">{createdSummary.name}</span>
+          </div>
+          <div className="flex justify-between border-b border-slate-200/60 pb-2">
+            <span className="text-slate-500 font-medium">Owner / Manager</span>
+            <span className="text-slate-800 font-semibold">{createdSummary.ownerName}</span>
+          </div>
+          <div className="flex justify-between border-b border-slate-200/60 pb-2">
+            <span className="text-slate-500 font-medium">Billing Currency</span>
+            <span className="text-slate-800 font-semibold">{createdSummary.currency} — Nepalese Rupee</span>
+          </div>
+          <div className="flex justify-between border-b border-slate-200/60 pb-2">
+            <span className="text-slate-500 font-medium">Timezone</span>
+            <span className="text-slate-800 font-semibold">{createdSummary.timezone}</span>
+          </div>
+          <div className="flex justify-between pt-0.5">
+            <span className="text-slate-500 font-medium">Default VAT Rate</span>
+            <span className="text-slate-800 font-semibold">{createdSummary.vatRate}%</span>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          onClick={handleGoToDashboard}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 text-sm rounded-lg shadow-xs flex items-center justify-center gap-2"
+        >
+          Go to Dashboard <ArrowRight className="h-4 w-4" />
+        </Button>
+      </div>
+    )
+  }
+
   return (
-    <div className="w-full max-w-2xl mx-auto">
-      {/* Wizard Step Indicator */}
-      <div className="flex items-center justify-between mb-8 px-4">
-        <div className={`flex items-center gap-2 ${step >= 1 ? 'text-indigo-400 font-semibold' : 'text-slate-500'}`}>
-          <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-            1
+    <div className="w-full space-y-6">
+      {/* 3. PROGRESS INDICATOR */}
+      {/* Desktop Progress Bar */}
+      <div className="hidden sm:flex items-center justify-between px-2 mb-2">
+        {/* Step 1 Pill */}
+        <div className="flex items-center gap-3">
+          <div
+            className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+              step > 1
+                ? 'bg-emerald-600 text-white'
+                : step === 1
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-400 border border-slate-200'
+            }`}
+          >
+            {step > 1 ? <Check className="h-4 w-4" /> : '01'}
           </div>
-          <span className="hidden sm:inline">Business Basics</span>
+          <span
+            className={`text-xs font-bold tracking-tight ${
+              step >= 1 ? 'text-slate-900' : 'text-slate-400'
+            }`}
+          >
+            Business
+          </span>
         </div>
-        <div className={`h-0.5 flex-1 mx-4 ${step >= 2 ? 'bg-indigo-600' : 'bg-slate-800'}`} />
-        <div className={`flex items-center gap-2 ${step >= 2 ? 'text-indigo-400 font-semibold' : 'text-slate-500'}`}>
-          <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm ${step >= 2 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-            2
+
+        {/* Divider 1 */}
+        <div
+          className={`h-0.5 flex-1 mx-4 transition-colors ${
+            step > 1 ? 'bg-indigo-600' : 'bg-slate-200'
+          }`}
+        />
+
+        {/* Step 2 Pill */}
+        <div className="flex items-center gap-3">
+          <div
+            className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+              step > 2
+                ? 'bg-emerald-600 text-white'
+                : step === 2
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-400 border border-slate-200'
+            }`}
+          >
+            {step > 2 ? <Check className="h-4 w-4" /> : '02'}
           </div>
-          <span className="hidden sm:inline">Tax & Address</span>
+          <span
+            className={`text-xs font-bold tracking-tight ${
+              step >= 2 ? 'text-slate-900' : 'text-slate-400'
+            }`}
+          >
+            Tax & Address
+          </span>
         </div>
-        <div className={`h-0.5 flex-1 mx-4 ${step >= 3 ? 'bg-indigo-600' : 'bg-slate-800'}`} />
-        <div className={`flex items-center gap-2 ${step >= 3 ? 'text-indigo-400 font-semibold' : 'text-slate-500'}`}>
-          <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm ${step >= 3 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-            3
+
+        {/* Divider 2 */}
+        <div
+          className={`h-0.5 flex-1 mx-4 transition-colors ${
+            step > 2 ? 'bg-indigo-600' : 'bg-slate-200'
+          }`}
+        />
+
+        {/* Step 3 Pill */}
+        <div className="flex items-center gap-3">
+          <div
+            className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+              step === 3
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-400 border border-slate-200'
+            }`}
+          >
+            03
           </div>
-          <span className="hidden sm:inline">Preferences</span>
+          <span
+            className={`text-xs font-bold tracking-tight ${
+              step === 3 ? 'text-slate-900' : 'text-slate-400'
+            }`}
+          >
+            Preferences
+          </span>
         </div>
       </div>
 
-      <Card className="border-slate-800 bg-slate-900/85 backdrop-blur-xl text-slate-100 shadow-2xl">
-        <form onSubmit={handleSubmit(onSubmit)}>
-          {/* STEP 1: BUSINESS IDENTITY */}
+      {/* Mobile Progress Bar */}
+      <div className="block sm:hidden space-y-2 mb-4">
+        <div className="flex justify-between items-center text-xs">
+          <span className="font-bold text-indigo-600">Step {step} of 3</span>
+          <span className="text-slate-500 font-semibold">
+            {step === 1 ? 'Business information' : step === 2 ? 'Tax & Address' : 'Preferences'}
+          </span>
+        </div>
+        <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-indigo-600 transition-all duration-300 ease-out"
+            style={{ width: `${(step / 3) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* 4. MAIN FORM CARD */}
+      <div className="bg-white border border-slate-200/90 shadow-xs rounded-xl p-6 sm:p-10">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* STEP 1: BUSINESS DETAILS */}
           {step === 1 && (
-            <>
-              <CardHeader>
-                <div className="flex items-center gap-2 text-indigo-400 font-medium text-sm mb-1">
-                  <Building2 className="h-4 w-4" /> Step 1 of 3
+            <div className="space-y-5">
+              {/* Card Header */}
+              <div className="flex items-start gap-3.5 pb-4 border-b border-slate-100">
+                <div className="h-10 w-10 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <Building2 className="h-5 w-5" />
                 </div>
-                <CardTitle className="text-2xl font-bold text-white">Business Identity</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Enter basic information about your company or store
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-slate-200">
-                    Business / Store Name <span className="text-red-400">*</span>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Business information</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Let&apos;s start with the basics about your shop or business.
+                  </p>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-4 pt-1">
+                {/* Field 1: Business / Store Name */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-xs font-bold text-slate-700">
+                    Business / Store Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="name"
-                    placeholder="Kathmandu Electronics Store"
-                    className="bg-slate-950/50 border-slate-800 text-white focus:border-indigo-500"
+                    placeholder="e.g. Kathmandu Electronics"
+                    className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
                     {...register('name')}
                   />
-                  {errors.name && (
-                    <p className="text-xs text-red-400 font-medium">{errors.name.message}</p>
+                  {errors.name ? (
+                    <p className="text-xs text-red-500 font-medium mt-1">{errors.name.message}</p>
+                  ) : (
+                    <p className="text-[11px] text-slate-400">
+                      This name will appear on your invoices and business records.
+                    </p>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="ownerName" className="text-slate-200">
-                    Owner / Manager Name <span className="text-red-400">*</span>
+                {/* Field 2: Owner / Manager Name */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="ownerName" className="text-xs font-bold text-slate-700">
+                    Owner / Manager Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="ownerName"
-                    placeholder="Ram Bahadur Thapa"
-                    className="bg-slate-950/50 border-slate-800 text-white focus:border-indigo-500"
+                    placeholder="e.g. Ram Sharma"
+                    className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
                     {...register('ownerName')}
                   />
-                  {errors.ownerName && (
-                    <p className="text-xs text-red-400 font-medium">{errors.ownerName.message}</p>
+                  {errors.ownerName ? (
+                    <p className="text-xs text-red-500 font-medium mt-1">{errors.ownerName.message}</p>
+                  ) : (
+                    <p className="text-[11px] text-slate-400">
+                      Full name of the primary administrator for this business.
+                    </p>
                   )}
                 </div>
 
+                {/* Grid 2-col for Phone & Email */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-slate-200">Phone Number</Label>
+                  {/* Field 3: Business Phone */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone" className="text-xs font-bold text-slate-700">
+                      Business Phone
+                    </Label>
                     <Input
                       id="phone"
-                      placeholder="9801234567"
-                      className="bg-slate-950/50 border-slate-800 text-white focus:border-indigo-500"
+                      type="tel"
+                      placeholder="98XXXXXXXX"
+                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
                       {...register('phone')}
                     />
-                    {errors.phone && (
-                      <p className="text-xs text-red-400 font-medium">{errors.phone.message}</p>
+                    {errors.phone ? (
+                      <p className="text-xs text-red-500 font-medium mt-1">{errors.phone.message}</p>
+                    ) : (
+                      <p className="text-[11px] text-slate-400">Primary phone for customer inquiries.</p>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-200">Business Email</Label>
+                  {/* Field 4: Business Email */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-xs font-bold text-slate-700">
+                      Business Email
+                    </Label>
                     <Input
                       id="email"
                       type="email"
-                      placeholder="info@ktmelectronics.com"
-                      className="bg-slate-950/50 border-slate-800 text-white focus:border-indigo-500"
+                      placeholder="business@example.com"
+                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
                       {...register('email')}
                     />
-                    {errors.email && (
-                      <p className="text-xs text-red-400 font-medium">{errors.email.message}</p>
+                    {errors.email ? (
+                      <p className="text-xs text-red-500 font-medium mt-1">{errors.email.message}</p>
+                    ) : (
+                      <p className="text-[11px] text-slate-400">Email printed on billing invoices.</p>
                     )}
                   </div>
                 </div>
-              </CardContent>
-            </>
+              </div>
+            </div>
           )}
 
-          {/* STEP 2: TAX & LOCATION */}
+          {/* STEP 2: TAX & ADDRESS */}
           {step === 2 && (
-            <>
-              <CardHeader>
-                <div className="flex items-center gap-2 text-indigo-400 font-medium text-sm mb-1">
-                  <Receipt className="h-4 w-4" /> Step 2 of 3
+            <div className="space-y-5">
+              {/* Card Header */}
+              <div className="flex items-start gap-3.5 pb-4 border-b border-slate-100">
+                <div className="h-10 w-10 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <Receipt className="h-5 w-5" />
                 </div>
-                <CardTitle className="text-2xl font-bold text-white">Address & Tax Information</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Provide your business location and Nepal tax registration (PAN / VAT)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="text-slate-200">Address / Location</Label>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Tax & business address</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Configure location details and Nepal tax registrations (PAN / VAT).
+                  </p>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-4 pt-1">
+                {/* Field: Business Address */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="address" className="text-xs font-bold text-slate-700">
+                    Business Address
+                  </Label>
                   <Input
                     id="address"
-                    placeholder="New Road, Kathmandu, Nepal"
-                    className="bg-slate-950/50 border-slate-800 text-white focus:border-indigo-500"
+                    placeholder="e.g. New Road, Ward No. 22"
+                    className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
                     {...register('address')}
                   />
-                  {errors.address && (
-                    <p className="text-xs text-red-400 font-medium">{errors.address.message}</p>
-                  )}
                 </div>
 
+                {/* Grid 2-col for City & Province */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="panNumber" className="text-slate-200">PAN Number (Nepal)</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="city" className="text-xs font-bold text-slate-700">
+                      City
+                    </Label>
+                    <Input
+                      id="city"
+                      placeholder="e.g. Kathmandu"
+                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
+                      {...register('city')}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="province" className="text-xs font-bold text-slate-700">
+                      Province (Nepal)
+                    </Label>
+                    <Select
+                      value={currentProvince}
+                      onValueChange={(val: string) => setValue('province', val)}
+                    >
+                      <SelectTrigger id="province" className="h-10 text-sm bg-white border-slate-300">
+                        <SelectValue placeholder="Select Province" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-slate-200">
+                        <SelectItem value="Bagmati">Bagmati Province</SelectItem>
+                        <SelectItem value="Koshi">Koshi Province</SelectItem>
+                        <SelectItem value="Madhesh">Madhesh Province</SelectItem>
+                        <SelectItem value="Gandaki">Gandaki Province</SelectItem>
+                        <SelectItem value="Lumbini">Lumbini Province</SelectItem>
+                        <SelectItem value="Karnali">Karnali Province</SelectItem>
+                        <SelectItem value="Sudurpashchim">Sudurpashchim Province</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Grid 2-col for PAN & VAT */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="panNumber" className="text-xs font-bold text-slate-700">
+                      PAN Number <span className="text-slate-400 font-normal">(Optional)</span>
+                    </Label>
                     <Input
                       id="panNumber"
-                      placeholder="600123456"
-                      className="bg-slate-950/50 border-slate-800 text-white focus:border-indigo-500"
+                      placeholder="e.g. 600112233"
+                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
                       {...register('panNumber')}
                     />
+                    <p className="text-[11px] text-slate-400">9-digit Permanent Account Number.</p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="vatNumber" className="text-slate-200">VAT Number (Nepal)</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vatNumber" className="text-xs font-bold text-slate-700">
+                      VAT Number <span className="text-slate-400 font-normal">(Optional)</span>
+                    </Label>
                     <Input
                       id="vatNumber"
-                      placeholder="300987654"
-                      className="bg-slate-950/50 border-slate-800 text-white focus:border-indigo-500"
+                      placeholder="e.g. 100223344"
+                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
                       {...register('vatNumber')}
                     />
+                    <p className="text-[11px] text-slate-400">Required if VAT registered in Nepal.</p>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="logoUrl" className="text-slate-200">Logo Image URL (Optional)</Label>
+                {/* Logo URL */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="logoUrl" className="text-xs font-bold text-slate-700">
+                    Logo Image URL <span className="text-slate-400 font-normal">(Optional)</span>
+                  </Label>
                   <Input
                     id="logoUrl"
+                    type="url"
                     placeholder="https://example.com/logo.png"
-                    className="bg-slate-950/50 border-slate-800 text-white focus:border-indigo-500"
+                    className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
                     {...register('logoUrl')}
                   />
-                  {errors.logoUrl && (
-                    <p className="text-xs text-red-400 font-medium">{errors.logoUrl.message}</p>
-                  )}
                 </div>
-              </CardContent>
-            </>
+              </div>
+            </div>
           )}
 
           {/* STEP 3: PREFERENCES */}
           {step === 3 && (
-            <>
-              <CardHeader>
-                <div className="flex items-center gap-2 text-indigo-400 font-medium text-sm mb-1">
-                  <Globe className="h-4 w-4" /> Step 3 of 3
+            <div className="space-y-5">
+              {/* Card Header */}
+              <div className="flex items-start gap-3.5 pb-4 border-b border-slate-100">
+                <div className="h-10 w-10 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <Sliders className="h-5 w-5" />
                 </div>
-                <CardTitle className="text-2xl font-bold text-white">Localization & Currency</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Default currency is set to NPR for Nepal businesses
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currency" className="text-slate-200">Billing Currency</Label>
-                  <Select
-                    value={currentCurrency}
-                    onValueChange={(val: any) => setValue('currency', val)}
-                  >
-                    <SelectTrigger className="bg-slate-950/50 border-slate-800 text-white">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                      <SelectItem value="NPR">NPR - Nepalese Rupee (रू)</SelectItem>
-                      <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
-                      <SelectItem value="EUR">EUR - Euro (€)</SelectItem>
-                      <SelectItem value="INR">INR - Indian Rupee (₹)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Set your preferences</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Configure default operational settings for currency, VAT, and invoices.
+                  </p>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="timezone" className="text-slate-200">Timezone</Label>
-                  <Select
-                    value={currentTimezone}
-                    onValueChange={(val: any) => setValue('timezone', val)}
-                  >
-                    <SelectTrigger className="bg-slate-950/50 border-slate-800 text-white">
-                      <SelectValue placeholder="Select timezone" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                      <SelectItem value="Asia/Kathmandu">Asia/Kathmandu (NPT GMT+5:45)</SelectItem>
-                      <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST GMT+5:30)</SelectItem>
-                      <SelectItem value="UTC">UTC (GMT+0:00)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              {/* Form Fields */}
+              <div className="space-y-4 pt-1">
+                {/* Grid 2-col for Currency & Timezone */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="currency" className="text-xs font-bold text-slate-700">
+                      Billing Currency
+                    </Label>
+                    <Select
+                      value={currentCurrency}
+                      onValueChange={(val: any) => setValue('currency', val)}
+                    >
+                      <SelectTrigger id="currency" className="h-10 text-sm bg-white border-slate-300">
+                        <SelectValue placeholder="Select Currency" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-slate-200">
+                        <SelectItem value="NPR">NPR — Nepalese Rupee (रू)</SelectItem>
+                        <SelectItem value="USD">USD — US Dollar ($)</SelectItem>
+                        <SelectItem value="EUR">EUR — Euro (€)</SelectItem>
+                        <SelectItem value="INR">INR — Indian Rupee (₹)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="p-4 rounded-lg bg-indigo-950/40 border border-indigo-800/40 text-indigo-200 text-sm flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold block text-indigo-100">Ready to launch!</span>
-                    Your account will be designated as the <strong className="text-white">Business Owner</strong>. All stock, products, sales, and invoices will be securely isolated to this business.
+                  <div className="space-y-1.5">
+                    <Label htmlFor="timezone" className="text-xs font-bold text-slate-700">
+                      Timezone
+                    </Label>
+                    <Select
+                      value={currentTimezone}
+                      onValueChange={(val: string) => setValue('timezone', val)}
+                    >
+                      <SelectTrigger id="timezone" className="h-10 text-sm bg-white border-slate-300">
+                        <SelectValue placeholder="Select Timezone" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-slate-200">
+                        <SelectItem value="Asia/Kathmandu">Asia/Kathmandu (NPT UTC+5:45)</SelectItem>
+                        <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST UTC+5:30)</SelectItem>
+                        <SelectItem value="UTC">UTC (GMT+0:00)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </CardContent>
-            </>
+
+                {/* Grid 2-col for Default VAT & Invoice Prefix */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="defaultVatRate" className="text-xs font-bold text-slate-700">
+                      Default VAT Rate (%)
+                    </Label>
+                    <Input
+                      id="defaultVatRate"
+                      type="number"
+                      step="0.1"
+                      placeholder="13"
+                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
+                      {...register('defaultVatRate')}
+                    />
+                    <p className="text-[11px] text-slate-400">Standard VAT rate applied in Nepal (13%).</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invoicePrefix" className="text-xs font-bold text-slate-700">
+                      Invoice Prefix
+                    </Label>
+                    <Input
+                      id="invoicePrefix"
+                      placeholder="INV-"
+                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
+                      {...register('invoicePrefix')}
+                    />
+                    <p className="text-[11px] text-slate-400">Sequential invoice prefix (e.g. INV-001).</p>
+                  </div>
+                </div>
+
+                {/* Grid 2-col for Low-Stock Threshold & Date Format */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lowStockThreshold" className="text-xs font-bold text-slate-700">
+                      Low-Stock Alert Threshold
+                    </Label>
+                    <Input
+                      id="lowStockThreshold"
+                      type="number"
+                      placeholder="10"
+                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
+                      {...register('lowStockThreshold')}
+                    />
+                    <p className="text-[11px] text-slate-400">Trigger alert when item stock falls below this.</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dateFormat" className="text-xs font-bold text-slate-700">
+                      Date Format
+                    </Label>
+                    <Select
+                      value={currentDateFormat}
+                      onValueChange={(val: string) => setValue('dateFormat', val)}
+                    >
+                      <SelectTrigger id="dateFormat" className="h-10 text-sm bg-white border-slate-300">
+                        <SelectValue placeholder="Select Date Format" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-slate-200">
+                        <SelectItem value="YYYY-MM-DD">YYYY-MM-DD (ISO / AD)</SelectItem>
+                        <SelectItem value="DD/MM/YYYY">DD/MM/YYYY (Standard)</SelectItem>
+                        <SelectItem value="BS_FORMAT">Bikram Sambat (BS Nepal Calendar)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
-          {/* FOOTER CONTROLS */}
-          <CardFooter className="flex justify-between border-t border-slate-800/60 pt-4">
+          {/* 7. BOTTOM ACTION AREA */}
+          <div className="flex items-center justify-between pt-6 border-t border-slate-100">
             {step > 1 ? (
               <Button
                 type="button"
                 variant="outline"
                 onClick={prevStep}
                 disabled={isSubmitting}
-                className="border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                className="h-10 px-4 text-xs font-bold border-slate-300 text-slate-700 hover:bg-slate-50"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back
               </Button>
             ) : (
               <div />
@@ -333,31 +657,31 @@ export function OnboardingForm() {
               <Button
                 type="button"
                 onClick={nextStep}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/30"
+                className="h-10 px-5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
               >
-                Next <ArrowRight className="ml-2 h-4 w-4" />
+                Next <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             ) : (
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/30"
+                className="h-10 px-5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Launching Business...
+                    Saving...
                   </>
                 ) : (
                   <>
-                    Complete Setup <CheckCircle className="ml-2 h-4 w-4" />
+                    Finish Setup <Sparkles className="ml-1.5 h-3.5 w-3.5" />
                   </>
                 )}
               </Button>
             )}
-          </CardFooter>
+          </div>
         </form>
-      </Card>
+      </div>
     </div>
   )
 }

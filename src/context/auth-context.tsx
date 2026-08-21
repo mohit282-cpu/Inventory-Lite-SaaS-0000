@@ -368,7 +368,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user.$id
       )
 
-      const membership = await businessMemberService.addMember({ userId: user.$id, role: 'owner' }, business.$id, user.$id)
+      const membership = await businessMemberService.createInitialOwnerMember(user.$id, business.$id)
 
       try {
         await userService.updateUserPreferences(user.$id, {

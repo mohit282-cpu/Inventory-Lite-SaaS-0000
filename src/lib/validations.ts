@@ -70,11 +70,17 @@ export const onboardingSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   address: z.string().optional(),
+  city: z.string().optional(),
+  province: z.string().optional(),
   panNumber: z.string().optional(),
   vatNumber: z.string().optional(),
   logoUrl: z.string().optional(),
   currency: z.enum(['NPR', 'USD', 'EUR', 'INR']),
   timezone: z.string().min(1, 'Timezone is required'),
+  defaultVatRate: z.coerce.number().min(0).max(100).optional(),
+  invoicePrefix: z.string().optional(),
+  lowStockThreshold: z.coerce.number().min(0).optional(),
+  dateFormat: z.string().optional(),
 })
 
 export const businessSettingsSchema = z.object({
