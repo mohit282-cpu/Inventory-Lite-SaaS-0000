@@ -110,13 +110,46 @@ export function buildAppwritePermissions(_role: string, userId: string, business
 }
 
 /**
+ * Validate binary magic bytes signature of uploaded file buffer
+ */
+export function validateFileMagicBytes(
+  headerBytes: Uint8Array,
+  mimeType: string
+): boolean {
+  if (!headerBytes || headerBytes.length < 4) return false
+
+  // PNG: 89 50 4E 47
+  if (mimeType === 'image/png') {
+    return headerBytes[0] === 0x89 && headerBytes[1] === 0x50 && headerBytes[2] === 0x4e && headerBytes[3] === 0x47
+  }
+
+  // JPEG: FF D8 FF
+  if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
+    return headerBytes[0] === 0xff && headerBytes[1] === 0xd8 && headerBytes[2] === 0xff
+  }
+
+  // WebP: RIFF (52 49 46 46)
+  if (mimeType === 'image/webp') {
+    return headerBytes[0] === 0x52 && headerBytes[1] === 0x49 && headerBytes[2] === 0x46 && headerBytes[3] === 0x46
+  }
+
+  // PDF: %PDF (25 50 44 46)
+  if (mimeType === 'application/pdf') {
+    return headerBytes[0] === 0x25 && headerBytes[1] === 0x50 && headerBytes[2] === 0x44 && headerBytes[3] === 0x46
+  }
+
+  return true
+}
+
+/**
  * Secure File Upload Validation
  * Validates file size, MIME type, extension whitelist, path traversal, and executable blocking.
  */
 export function validateFileUpload(
   file: File,
   allowedTypes: string[],
-  maxSizeMB: number = 5
+  maxSizeMB: number = 5,
+  headerBytes?: Uint8Array
 ): { valid: boolean; error?: string } {
   if (!file) {
     return { valid: false, error: 'No file provided' }
@@ -154,6 +187,11 @@ export function validateFileUpload(
   const maxSizeBytes = maxSizeMB * 1024 * 1024
   if (file.size > maxSizeBytes) {
     return { valid: false, error: `File size exceeds ${maxSizeMB}MB limit` }
+  }
+
+  // 6. Magic bytes signature check if provided
+  if (headerBytes && !validateFileMagicBytes(headerBytes, file.type)) {
+    return { valid: false, error: 'File content does not match reported image format' }
   }
 
   return { valid: true }
