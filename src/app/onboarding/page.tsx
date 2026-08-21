@@ -4,8 +4,9 @@ import React, { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { OnboardingForm } from '@/components/features/onboarding/onboarding-form'
-import { Store, LogOut, Loader2 } from 'lucide-react'
+import { LogOut, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AppLogo } from '@/components/ui/app-logo'
 
 export default function OnboardingPage() {
   const { user, activeBusiness, logout, isWorkspaceLoading } = useAuth()
@@ -35,12 +36,7 @@ export default function OnboardingPage() {
       <header className="w-full bg-white border-b border-slate-200/80 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-md bg-indigo-600 flex items-center justify-center text-white shadow-xs">
-              <Store className="h-4 w-4" />
-            </div>
-            <span className="text-base font-bold text-slate-900 tracking-tight">
-              Inventory <span className="text-indigo-600">Lite</span>
-            </span>
+            <AppLogo size={32} />
           </div>
 
           <div className="flex items-center gap-3">

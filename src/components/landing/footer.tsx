@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { Store } from 'lucide-react'
+import { AppLogo } from '@/components/ui/app-logo'
 import { LegalModal } from './legal-modal'
 
 export function LandingFooter() {
@@ -15,12 +15,7 @@ export function LandingFooter() {
           {/* Brand Col */}
           <div className="md:col-span-5 space-y-3">
             <Link href="/" className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold">
-                <Store className="h-4 w-4" />
-              </div>
-              <span className="text-base font-bold text-white tracking-tight">
-                Inventory <span className="text-indigo-400">Lite</span>
-              </span>
+              <AppLogo size={32} textColor="text-white" />
             </Link>
             <p className="text-slate-400 max-w-sm text-xs leading-relaxed">
               Simple inventory and billing for small businesses in Nepal.

@@ -3,8 +3,10 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/use-auth'
-import { Store, Menu, X, ArrowRight, LayoutDashboard } from 'lucide-react'
+import { Menu, X, ArrowRight, LayoutDashboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+import { AppLogo } from '@/components/ui/app-logo'
 
 export function LandingNavbar() {
   const { user, activeBusiness } = useAuth()
@@ -17,12 +19,7 @@ export function LandingNavbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="h-9 w-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold shadow-sm group-hover:bg-indigo-700 transition-colors">
-            <Store className="h-5 w-5" />
-          </div>
-          <span className="text-lg font-bold text-slate-900 tracking-tight">
-            Inventory <span className="text-indigo-600">Lite</span>
-          </span>
+          <AppLogo size={36} />
         </Link>
 
         {/* Desktop Links */}

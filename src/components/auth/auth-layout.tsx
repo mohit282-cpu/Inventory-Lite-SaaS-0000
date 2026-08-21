@@ -2,7 +2,8 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Store, CheckCircle2, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { CheckCircle2, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { AppLogo } from '@/components/ui/app-logo'
 
 interface AuthLayoutProps {
   children: React.ReactNode
@@ -24,47 +25,38 @@ export function AuthLayout({
         {/* Brand Header */}
         <div className="space-y-8 z-10">
           <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="h-9 w-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold group-hover:bg-indigo-500 transition-colors shadow-sm">
-              <Store className="h-5 w-5" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-white">
-              Inventory <span className="text-indigo-400">Lite</span>
-            </span>
+            <AppLogo size={36} textColor="text-white" />
           </Link>
 
           <div className="space-y-3 max-w-sm">
-            <h2 className="text-2xl lg:text-3xl font-extrabold tracking-tight text-white leading-snug">
-              Simple inventory & billing for small businesses.
-            </h2>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Manage your products, stock, sales, customers, and invoices from one simple portal — completely free.
+            <h1 className="text-2xl font-extrabold tracking-tight leading-snug">
+              Modern POS, Inventory & Credit Management for Nepal
+            </h1>
+            <p className="text-slate-400 text-xs leading-relaxed font-normal">
+              Empower your retail store, hardware shop, or wholesale business with localized billing, VAT invoices, and Udhaar tracking.
             </p>
           </div>
 
-          <div className="space-y-3 pt-4 border-t border-slate-800/80">
-            <div className="flex items-center gap-2.5 text-xs text-slate-300 font-medium">
+          <div className="space-y-3.5 pt-4">
+            <div className="flex items-center gap-3 text-xs font-medium text-slate-300">
               <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Catalog items, rates, and stock thresholds</span>
+              <span>100% Multi-Tenant Isolation & Security</span>
             </div>
-            <div className="flex items-center gap-2.5 text-xs text-slate-300 font-medium">
+            <div className="flex items-center gap-3 text-xs font-medium text-slate-300">
               <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Record sales quickly at the POS counter</span>
+              <span>Offline-Friendly & Touch-Optimized POS</span>
             </div>
-            <div className="flex items-center gap-2.5 text-xs text-slate-300 font-medium">
+            <div className="flex items-center gap-3 text-xs font-medium text-slate-300">
               <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Generate printable A4 & thermal tax invoices</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-xs text-slate-300 font-medium">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>Keep customer credit (Udharo) ledgers organized</span>
+              <span>NPR Currency & Paisa Accounting Precision</span>
             </div>
           </div>
         </div>
 
-        {/* Brand Footer Notice */}
-        <div className="pt-8 border-t border-slate-800/80 flex items-center gap-2 text-xs text-slate-400 font-medium z-10">
+        {/* Footer Badge */}
+        <div className="text-[11px] text-slate-500 flex items-center gap-2 z-10 pt-8 border-t border-slate-900">
           <ShieldCheck className="h-4 w-4 text-indigo-400" />
-          <span>100% Free Software • Built for Nepal Businesses</span>
+          <span>Appwrite BaaS Powered & Encrypted</span>
         </div>
       </div>
 
@@ -73,12 +65,7 @@ export function AuthLayout({
         {/* Mobile Header / Back Link */}
         <div className="flex items-center justify-between pb-6">
           <Link href="/" className="lg:hidden flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold">
-              <Store className="h-4 w-4" />
-            </div>
-            <span className="text-base font-bold tracking-tight text-slate-900">
-              Inventory <span className="text-indigo-600">Lite</span>
-            </span>
+            <AppLogo size={32} />
           </Link>
 
           {showBackToHome && (

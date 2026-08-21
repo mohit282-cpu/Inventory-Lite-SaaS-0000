@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NAVIGATION_GROUPS } from '@/components/layout/sidebar'
 import { useAuth } from '@/hooks/use-auth'
-import { Store, X, LogOut } from 'lucide-react'
+import { X, LogOut } from 'lucide-react'
 import { InstallAppButton } from '@/components/pwa/install-prompt'
+import { AppLogo } from '@/components/ui/app-logo'
 
 interface MobileNavProps {
   isOpen: boolean
@@ -32,12 +33,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
         {/* Header */}
         <div className="h-14 px-4 flex items-center justify-between border-b border-slate-200">
           <Link href="/app/dashboard" onClick={onClose} className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold">
-              <Store className="h-4.5 w-4.5" />
-            </div>
-            <span className="text-[15px] font-bold text-slate-900">
-              Inventory<span className="text-indigo-600 ml-0.5">Lite</span>
-            </span>
+            <AppLogo size={32} />
           </Link>
           <button
             type="button"

@@ -4,8 +4,8 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
+import { AppLogo } from '@/components/ui/app-logo'
 import {
-  Store,
   LayoutDashboard,
   Package,
   FolderTree,
@@ -87,14 +87,7 @@ export function Sidebar() {
       {/* Brand Header */}
       <div className="h-14 px-3 flex items-center justify-between border-b border-slate-200">
         <Link href="/app/dashboard" className="flex items-center gap-2.5 overflow-hidden">
-          <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-sm">
-            <Store className="h-4.5 w-4.5" />
-          </div>
-          {!isCollapsed && (
-            <span className="text-[15px] font-bold text-slate-900 tracking-tight whitespace-nowrap">
-              Inventory<span className="text-indigo-600 ml-0.5">Lite</span>
-            </span>
-          )}
+          <AppLogo iconOnly={isCollapsed} size={32} />
         </Link>
 
         <button

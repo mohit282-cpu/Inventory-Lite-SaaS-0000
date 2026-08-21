@@ -1,7 +1,8 @@
 "use client"
 
 import React from 'react'
-import { Store, ShieldCheck, Loader2 } from 'lucide-react'
+import { ShieldCheck, Loader2 } from 'lucide-react'
+import { AppLogo } from '@/components/ui/app-logo'
 
 interface AuthLoadingScreenProps {
   message?: string
@@ -13,9 +14,7 @@ export function AuthLoadingScreen({ message = 'Authenticating session...' }: Aut
       <div className="w-full max-w-sm flex flex-col items-center text-center space-y-6 animate-fade-in">
         {/* Brand Logo & Icon */}
         <div className="relative">
-          <div className="h-16 w-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
-            <Store className="h-9 w-9" />
-          </div>
+          <AppLogo iconOnly size={56} />
           <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-slate-50 flex items-center justify-center text-white shadow-xs">
             <ShieldCheck className="h-3.5 w-3.5" />
           </div>
