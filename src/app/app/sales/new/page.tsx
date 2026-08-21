@@ -539,6 +539,7 @@ export default function CreateSalePage() {
 
                   <Input
                     type="number"
+                    inputMode="decimal"
                     min="0"
                     max={discountType === 'percent' ? 100 : undefined}
                     placeholder={discountType === 'percent' ? 'e.g. 10%' : 'e.g. 50'}
@@ -583,7 +584,7 @@ export default function CreateSalePage() {
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        ON (13%)
+                        ON ({taxRate}%)
                       </button>
                     </div>
                   </div>
@@ -641,6 +642,7 @@ export default function CreateSalePage() {
                   <Label className="text-[10px] font-bold text-slate-700">Paid Amount (Rs.)</Label>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     min="0"
                     placeholder={`Full (Rs. ${grandTotal.toFixed(2)})`}
                     value={paidAmountInput}

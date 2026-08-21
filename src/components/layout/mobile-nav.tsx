@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { NAVIGATION_GROUPS } from '@/components/layout/sidebar'
 import { useAuth } from '@/hooks/use-auth'
 import { Store, X, LogOut } from 'lucide-react'
+import { InstallAppButton } from '@/components/pwa/install-prompt'
 
 interface MobileNavProps {
   isOpen: boolean
@@ -91,7 +92,9 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
         </nav>
 
         {/* Footer */}
-        <div className="px-3 py-3 border-t border-slate-200">
+        <div className="px-3 py-3 border-t border-slate-200 space-y-2">
+          <InstallAppButton className="w-full justify-center h-10 py-2" />
+
           <button
             type="button"
             onClick={() => {

@@ -27,7 +27,9 @@ import {
   ShieldCheck,
   UserPlus,
   Trash2,
+  Smartphone,
 } from 'lucide-react'
+import { InstallAppButton } from '@/components/pwa/install-prompt'
 
 import { accountDeletionService } from '@/services/account-deletion.service'
 import { DeleteBusinessModal } from '@/components/features/settings/delete-business-modal'
@@ -596,6 +598,21 @@ export default function SettingsPage() {
                 Update Password
               </Button>
             </form>
+          </Card>
+
+          {/* PWA INSTALLATION CARD */}
+          <Card className="border-indigo-100 bg-indigo-50/30 shadow-sm p-6 space-y-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Smartphone className="h-5 w-5 text-indigo-600" /> Inventory Lite Application Installation
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 font-medium">
+                  Install Inventory Lite as a fast, native-feeling app on your Phone, Tablet, or PC.
+                </p>
+              </div>
+              <InstallAppButton className="shrink-0 h-10 px-4 text-xs font-bold" />
+            </div>
           </Card>
 
           {/* DANGER ZONE SECTION */}

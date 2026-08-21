@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { LogOut, Settings, ChevronDown, Menu } from 'lucide-react'
+import { InstallAppButton } from '@/components/pwa/install-prompt'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,8 +61,10 @@ export function TopNav({ onOpenMobileNav }: TopNavProps) {
         </div>
       </div>
 
-      {/* Right User Profile Dropdown */}
+      {/* Right PWA Install Button & User Profile Dropdown */}
       <div className="flex items-center gap-3">
+        <InstallAppButton />
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
