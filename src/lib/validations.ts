@@ -20,6 +20,22 @@ export const passwordSchema = z
   .regex(/[0-9]/, 'Password must contain at least one number')
   .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character')
 
+export const safeImageUrlSchema = z
+  .string()
+  .optional()
+  .refine(
+    (url) => {
+      if (!url || url.trim() === '') return true
+      try {
+        const parsed = new URL(url)
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+      } catch {
+        return false
+      }
+    },
+    { message: 'Invalid URL scheme. Only HTTP and HTTPS URLs are allowed.' }
+  )
+
 // ==================== Auth Validations ====================
 
 export const registerSchema = z
@@ -74,7 +90,7 @@ export const onboardingSchema = z.object({
   province: z.string().optional(),
   panNumber: z.string().optional(),
   vatNumber: z.string().optional(),
-  logoUrl: z.string().optional(),
+  logoUrl: safeImageUrlSchema,
   currency: z.enum(['NPR', 'USD', 'EUR', 'INR']),
   timezone: z.string().min(1, 'Timezone is required'),
   defaultVatRate: z.coerce.number().min(0).max(100).optional(),
@@ -124,7 +140,7 @@ export const productFormSchema = z.object({
   sellingPrice: z.coerce.number().min(0, 'Selling price cannot be negative'),
   openingStock: z.coerce.number().min(0, 'Opening stock cannot be negative'),
   minStockAlert: z.coerce.number().min(0, 'Low-stock threshold cannot be negative'),
-  imageUrl: z.string().optional(),
+  imageUrl: safeImageUrlSchema,
   isActive: z.boolean(),
 })
 
