@@ -12,6 +12,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Inventory Lite - Multi-tenant Inventory SaaS",
   description: "Inventory and billing management software for small businesses in Nepal",
+  applicationName: "Inventory Lite",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -28,6 +29,10 @@ export const metadata: Metadata = {
     apple: [
       { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
     ],
+  },
+  other: {
+    "msapplication-TileImage": "/icons/icon.svg",
+    "msapplication-TileColor": "#4f46e5",
   },
 }
 
