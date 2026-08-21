@@ -74,14 +74,18 @@ export default function SettingsPage() {
     (memberships.find((m) => m.businessId === activeBusiness?.$id)?.role as UserRole) || 'owner'
 
   const handleDeleteBusinessAndAccount = async (password: string) => {
-    if (!activeBusiness?.$id || !user?.$id || !userProfile?.email) {
-      throw new Error('Business and user identity verification failed')
+    const email = userProfile?.email || user?.email
+    const userId = user?.$id || userProfile?.userId || userProfile?.$id
+    const businessId = activeBusiness?.$id
+
+    if (!businessId || !userId || !email) {
+      throw new Error('Business and user identity verification failed. Please refresh the page.')
     }
     await accountDeletionService.deleteBusinessAndAccount(
-      activeBusiness.$id,
-      user.$id,
+      businessId,
+      userId,
       password,
-      userProfile.email
+      email
     )
     toast({
       title: 'Account & Business Deleted',
@@ -627,7 +631,7 @@ export default function SettingsPage() {
             onClose={() => setDeleteModalOpen(false)}
             onConfirmDelete={handleDeleteBusinessAndAccount}
             businessName={activeBusiness?.name || 'Your Business'}
-            userEmail={userProfile?.email || ''}
+            userEmail={userProfile?.email || user?.email || ''}
           />
         </div>
       )}

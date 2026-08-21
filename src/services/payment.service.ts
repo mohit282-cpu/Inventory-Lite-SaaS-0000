@@ -115,34 +115,44 @@ export class PaymentService extends BaseService {
         userId
       )
 
-      // Recalculate Sale paid & due amount using minor units
-      const saleTotalPaisa = toMinorUnits(sale.total)
-      const currentPaidPaisa = toMinorUnits(sale.paidAmount)
-      const newPaidPaisa = currentPaidPaisa + paymentPaisa
-      const newDuePaisa = Math.max(0, saleTotalPaisa - newPaidPaisa)
-      const newStatus = newDuePaisa === 0 ? 'completed' : sale.status
+      try {
+        // Recalculate Sale paid & due amount using minor units
+        const saleTotalPaisa = toMinorUnits(sale.total)
+        const currentPaidPaisa = toMinorUnits(sale.paidAmount)
+        const newPaidPaisa = currentPaidPaisa + paymentPaisa
+        const newDuePaisa = Math.max(0, saleTotalPaisa - newPaidPaisa)
+        const newStatus = newDuePaisa === 0 ? 'completed' : sale.status
 
-      const newPaid = fromMinorUnits(newPaidPaisa)
-      const newDue = fromMinorUnits(newDuePaisa)
+        const newPaid = fromMinorUnits(newPaidPaisa)
+        const newDue = fromMinorUnits(newDuePaisa)
 
-      validateFinancialInvariants({ total: sale.total, paidAmount: newPaid, dueAmount: newDue })
+        validateFinancialInvariants({ total: sale.total, paidAmount: newPaid, dueAmount: newDue })
 
-      await saleService.update<Sale>(
-        sale.$id,
-        {
-          paidAmount: newPaid,
-          dueAmount: newDue,
-          status: newStatus,
-        },
-        businessId
-      )
+        await saleService.update<Sale>(
+          sale.$id,
+          {
+            paidAmount: newPaid,
+            dueAmount: newDue,
+            status: newStatus,
+          },
+          businessId
+        )
 
-      // Update Customer total due balance
-      if (custId && custId.trim() !== '') {
-        await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
+        // Update Customer total due balance
+        if (custId && custId.trim() !== '') {
+          await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
+        }
+
+        return paymentDoc
+      } catch (transactionErr) {
+        // TRANSACTION ROLLBACK: Delete created payment document if downstream sale/customer update fails
+        try {
+          await this.delete(paymentDoc.$id, businessId)
+        } catch {
+          // Ignore deletion error during transaction rollback
+        }
+        throw transactionErr
       }
-
-      return paymentDoc
     })
   }
 

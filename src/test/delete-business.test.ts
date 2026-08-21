@@ -33,6 +33,14 @@ vi.mock('@/config/appwrite', () => {
         mockCurrentSession = null
         return {}
       }),
+      deleteSessions: vi.fn(async () => {
+        mockCurrentSession = null
+        return {}
+      }),
+      updateStatus: vi.fn(async () => {
+        mockCurrentSession = null
+        return {}
+      }),
       get: vi.fn(async () => {
         if (!mockCurrentSession) throw new Error('Unauthorized')
         return { $id: mockCurrentSession.userId }

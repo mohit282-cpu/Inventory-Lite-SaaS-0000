@@ -9,8 +9,32 @@ import { Query } from 'appwrite'
  * Handles product inventory operations with strict tenant isolation.
  */
 export class ProductService extends BaseService {
+  private productStockMutex = new Map<string, Promise<any>>()
+
   constructor() {
     super(COLLECTIONS.PRODUCTS)
+  }
+
+  /**
+   * Execute an operation under an isolated mutex lock per product ID
+   * Prevents race conditions during concurrent stock movements.
+   */
+  async withStockLock<T>(productId: string, task: () => Promise<T>): Promise<T> {
+    const previous = this.productStockMutex.get(productId) || Promise.resolve()
+    let release: () => void = () => {}
+
+    const current = new Promise<void>((resolve) => {
+      release = resolve
+    })
+
+    this.productStockMutex.set(productId, previous.then(() => current))
+
+    try {
+      await previous
+      return await task()
+    } finally {
+      release()
+    }
   }
 
   /**

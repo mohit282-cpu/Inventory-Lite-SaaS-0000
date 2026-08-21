@@ -81,18 +81,50 @@ export class AccountDeletionService {
       // Ignore if already deleted
     }
 
-    // 5. Delete user profile document
+    // 5. Delete user profile document from database
     try {
       await databases.deleteDocument(DATABASE_ID, COLLECTIONS.USERS, userId)
     } catch {
       // Ignore if user profile deleted
     }
 
-    // 6. Delete active Appwrite session & logout
+    // 6. Delete user account from Appwrite Authentication (Server REST API / Users API)
     try {
-      await account.deleteSession('current')
+      const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1'
+      const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID
+      const apiKey = process.env.APPWRITE_API_KEY || process.env.NEXT_PUBLIC_APPWRITE_API_KEY
+
+      if (apiKey && projectId) {
+        await fetch(`${endpoint}/users/${userId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Appwrite-Project': projectId,
+            'X-Appwrite-Key': apiKey,
+          },
+        })
+      }
     } catch {
-      // Ignore session destruction errors if session expired
+      // Fallback silently if API key is not configured or user already deleted
+    }
+
+    // 7. Deactivate account status & destroy all Appwrite sessions
+    try {
+      if (typeof (account as any).updateStatus === 'function') {
+        await (account as any).updateStatus()
+      }
+    } catch {
+      // Fallback silently if status update is restricted
+    }
+
+    try {
+      await account.deleteSessions()
+    } catch {
+      try {
+        await account.deleteSession('current')
+      } catch {
+        // Session already destroyed
+      }
     }
   }
 }

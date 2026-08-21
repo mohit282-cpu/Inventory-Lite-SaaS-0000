@@ -56,42 +56,44 @@ export class StockMovementService extends BaseService {
       requiredRole: ['owner', 'admin', 'staff'],
     })
 
-    const product = await productService.getProduct(data.productId, businessId)
-    const previousQuantity = product.stockQuantity
-    let newQuantity = previousQuantity
+    return await productService.withStockLock(data.productId, async () => {
+      const product = await productService.getProduct(data.productId, businessId)
+      const previousQuantity = product.stockQuantity
+      let newQuantity = previousQuantity
 
-    if (data.type === 'stock_in') {
-      newQuantity = previousQuantity + data.quantity
-    } else if (data.type === 'stock_out') {
-      if (previousQuantity < data.quantity) {
-        throw new Error(`Insufficient stock for product "${product.name}". Available: ${previousQuantity}, Requested: ${data.quantity}`)
+      if (data.type === 'stock_in') {
+        newQuantity = previousQuantity + data.quantity
+      } else if (data.type === 'stock_out') {
+        if (previousQuantity < data.quantity) {
+          throw new Error(`Insufficient stock for product "${product.name}". Available: ${previousQuantity}, Requested: ${data.quantity}`)
+        }
+        newQuantity = previousQuantity - data.quantity
+      } else if (data.type === 'adjustment') {
+        newQuantity = data.quantity
+        if (newQuantity < 0) {
+          throw new Error('Target stock quantity for adjustment cannot be negative')
+        }
       }
-      newQuantity = previousQuantity - data.quantity
-    } else if (data.type === 'adjustment') {
-      newQuantity = data.quantity
-      if (newQuantity < 0) {
-        throw new Error('Target stock quantity for adjustment cannot be negative')
+
+      // 1. Create movement record
+      const movementData = {
+        productId: data.productId,
+        type: data.type,
+        quantity: data.type === 'adjustment' ? Math.abs(newQuantity - previousQuantity) : data.quantity,
+        previousQuantity,
+        newQuantity,
+        reason: data.reason || '',
+        referenceId: data.referenceId || '',
+        createdBy: userId,
       }
-    }
 
-    // 1. Create movement record
-    const movementData = {
-      productId: data.productId,
-      type: data.type,
-      quantity: data.type === 'adjustment' ? Math.abs(newQuantity - previousQuantity) : data.quantity,
-      previousQuantity,
-      newQuantity,
-      reason: data.reason || '',
-      referenceId: data.referenceId || '',
-      createdBy: userId,
-    }
+      const movement = await this.create<StockMovement>(movementData, businessId, userId)
 
-    const movement = await this.create<StockMovement>(movementData, businessId, userId)
+      // 2. Update product stock quantity
+      await productService.updateStockQuantity(data.productId, newQuantity, businessId)
 
-    // 2. Update product stock quantity
-    await productService.updateStockQuantity(data.productId, newQuantity, businessId)
-
-    return movement
+      return movement
+    })
   }
 
   /**

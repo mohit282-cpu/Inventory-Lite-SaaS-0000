@@ -119,14 +119,7 @@ export default function ResetPasswordPage() {
               />
               <button
                 type="button"
-                tabIndex={0}
                 onClick={() => setShowPassword(!showPassword)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    setShowPassword(!showPassword)
-                  }
-                }}
                 className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
@@ -154,14 +147,7 @@ export default function ResetPasswordPage() {
               />
               <button
                 type="button"
-                tabIndex={0}
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    setShowConfirmPassword(!showConfirmPassword)
-                  }
-                }}
                 className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
                 aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
               >
