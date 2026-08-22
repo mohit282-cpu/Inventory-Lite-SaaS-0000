@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { AuthLayout } from '@/components/auth/auth-layout'
-import { ArrowRight, Lock, Mail, User, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { ArrowRight, Lock, Mail, User, Loader2, AlertCircle, Eye, EyeOff, Smartphone } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { PasswordStrengthMeter } from '@/components/auth/password-strength-meter'
@@ -38,6 +38,7 @@ export default function SignupPage() {
     defaultValues: {
       name: '',
       email: '',
+      phone: '',
       password: '',
       confirmPassword: '',
     },
@@ -105,7 +106,7 @@ export default function SignupPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="email" className="text-xs font-bold text-slate-700">
-            Email Address
+            Email Address *
           </Label>
           <div className="relative">
             <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -119,6 +120,25 @@ export default function SignupPage() {
           </div>
           {errors.email && (
             <p className="text-xs text-red-600 font-medium">{errors.email.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="phone" className="text-xs font-bold text-slate-700">
+            Mobile / Phone Number (For Appwrite Auth & SMS alerts)
+          </Label>
+          <div className="relative">
+            <Smartphone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="e.g. 9841234567"
+              className="pl-9 h-11 bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 text-sm focus:border-indigo-600 focus:ring-indigo-600"
+              {...register('phone')}
+            />
+          </div>
+          {errors.phone && (
+            <p className="text-xs text-red-600 font-medium">{errors.phone.message}</p>
           )}
         </div>
 

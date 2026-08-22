@@ -1,5 +1,6 @@
 import { account } from '@/config/appwrite'
 import { ID, Models } from 'appwrite'
+import { formatE164Phone } from '@/lib/utils'
 
 /**
  * Authentication Service
@@ -11,13 +12,50 @@ export class AuthService {
   /**
    * Register a new user account
    */
-  async register(email: string, password: string, name: string): Promise<Models.User<Models.Preferences>> {
-    return await account.create(
+  async register(email: string, password: string, name: string, phone?: string): Promise<Models.User<Models.Preferences>> {
+    const userAcc = await account.create(
       ID.unique(),
       email,
       password,
       name
     )
+
+    // Format phone number to E.164 standard (+977...) for Appwrite Auth Console
+    if (phone && phone.trim()) {
+      const formattedPhone = formatE164Phone(phone)
+      try {
+        await account.updatePrefs({ phone: formattedPhone, rawPhone: phone })
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    return userAcc
+  }
+
+  /**
+   * Update native Appwrite Auth Phone number on user account
+   */
+  async updatePhone(phone: string, password?: string): Promise<Models.User<Models.Preferences> | null> {
+    if (!phone || !phone.trim()) return null
+    const formattedPhone = formatE164Phone(phone)
+
+    // 1. Try Web SDK account.updatePhone if password is provided
+    if (password) {
+      try {
+        const res = await account.updatePhone(formattedPhone, password)
+        return res
+      } catch (err) {
+        console.warn('[AuthService] account.updatePhone SDK warning:', err)
+      }
+    }
+
+    // 2. Always store formatted phone in user preferences
+    try {
+      return await account.updatePrefs({ phone: formattedPhone, rawPhone: phone })
+    } catch {
+      return null
+    }
   }
 
   /**

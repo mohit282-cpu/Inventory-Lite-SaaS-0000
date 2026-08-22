@@ -145,3 +145,28 @@ export function isClient(): boolean {
 export function isServer(): boolean {
   return typeof window === 'undefined'
 }
+
+/**
+ * Format any phone number into E.164 international standard (+ country code + digits)
+ * E.g., '9841234567' -> '+9779841234567'
+ */
+export function formatE164Phone(phone: string): string {
+  if (!phone || phone.trim() === '') return ''
+  const trimmed = phone.trim()
+  if (trimmed.startsWith('+')) {
+    return trimmed
+  }
+  const digitsOnly = trimmed.replace(/\D/g, '')
+  if (!digitsOnly) return ''
+
+  if (digitsOnly.startsWith('977')) {
+    return `+${digitsOnly}`
+  }
+  if (digitsOnly.length === 10 && (digitsOnly.startsWith('98') || digitsOnly.startsWith('97') || digitsOnly.startsWith('96'))) {
+    return `+977${digitsOnly}`
+  }
+  if (digitsOnly.startsWith('0')) {
+    return `+977${digitsOnly.substring(1)}`
+  }
+  return `+${digitsOnly}`
+}

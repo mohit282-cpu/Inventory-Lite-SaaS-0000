@@ -43,6 +43,9 @@ export class SaleService extends BaseService {
         discount?: number
       }>
       discount?: number
+      discountType?: 'percentage' | 'fixed' | 'amount'
+      discountValue?: number
+      vatEnabled?: boolean
       taxRate?: number
       paidAmount: number
       paymentMethod: PaymentMethod
@@ -133,17 +136,24 @@ export class SaleService extends BaseService {
       // Collision-proof sequential sale number starting from 1 per financial year (e.g. SALE-83/84-000001)
       const saleNumber = (data as any).saleNumber || (await this.generateNextSaleNumber(businessId, (data as any).createdAt))
 
-      // 4. Create Sale document
+      const isVatOn = data.vatEnabled ?? (data.taxRate !== undefined ? data.taxRate > 0 : totals.taxAmount > 0)
       const saleData = {
         saleNumber,
         customerId: data.customerId || '',
         invoiceId: '',
         subtotal: totals.subtotal,
         discount: totals.overallDiscount,
+        discountType: data.discountType || (data.discountValue ? 'percentage' : 'fixed'),
+        discountValue: data.discountValue ?? totals.overallDiscount,
+        taxableAmount: totals.taxableAmount,
         tax: totals.taxAmount,
+        vatEnabled: isVatOn,
+        vatRate: isVatOn ? (data.taxRate ?? 13) : 0,
+        taxRate: isVatOn ? (data.taxRate ?? 13) : 0,
         total: totals.total,
         paidAmount: totals.paidAmount,
         dueAmount: totals.dueAmount,
+        changeAmount: totals.changeAmount,
         paymentMethod: data.paymentMethod,
         status,
         createdBy: userId,

@@ -16,6 +16,7 @@ import {
   Wallet,
   Receipt,
   BarChart3,
+  Calendar as CalendarIcon,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -62,6 +63,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     label: 'Business',
     items: [
       { name: 'Reports', href: '/app/reports', icon: BarChart3 },
+      { name: 'Calendar', href: '/app/calendar', icon: CalendarIcon },
       { name: 'Settings', href: '/app/settings', icon: Settings },
     ],
   },

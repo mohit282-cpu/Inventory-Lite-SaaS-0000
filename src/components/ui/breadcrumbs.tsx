@@ -21,6 +21,7 @@ export function Breadcrumbs() {
     invoices: 'Invoices',
     expenses: 'Expenses',
     reports: 'Reports',
+    calendar: 'Calendar',
     settings: 'Settings',
   }
 

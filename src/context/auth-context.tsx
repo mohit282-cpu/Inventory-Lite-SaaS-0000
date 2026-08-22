@@ -11,6 +11,7 @@ import { handleApiError } from '@/lib/error-handler'
 import { withTimeout, TimeoutError } from '@/lib/async-utils'
 import { offlineAuthService } from '@/lib/offline/offline-auth.service'
 import { syncEngine } from '@/lib/offline/sync-engine'
+import { formatE164Phone } from '@/lib/utils'
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null
@@ -24,7 +25,7 @@ interface AuthContextType {
   authError: string | null
   workspaceError: string | null
   error: string | null
-  signup: (data: { name: string; email: string; password: string }) => Promise<void>
+  signup: (data: { name: string; email: string; password: string; phone?: string }) => Promise<void>
   login: (data: { email: string; password: string }) => Promise<void>
   logout: () => Promise<void>
   forgotPassword: (email: string) => Promise<void>
@@ -329,7 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshAuth()
   }, [refreshAuth])
 
-  const signup = async (data: { name: string; email: string; password: string }) => {
+  const signup = async (data: { name: string; email: string; password: string; phone?: string }) => {
     if (typeof window !== 'undefined' && !navigator.onLine) {
       throw new Error('Account registration requires an active internet connection.')
     }
@@ -338,13 +339,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearError()
       setAuthStatus('ONLINE_AUTHENTICATING')
 
-      const newAcc = await authService.register(data.email, data.password, data.name)
+      const formattedPhone = data.phone ? formatE164Phone(data.phone) : ''
+      const newAcc = await authService.register(data.email, data.password, data.name, formattedPhone || data.phone)
       await authService.login(data.email, data.password)
+
+      // Sync native Appwrite Auth Phone attribute once session is established
+      if (formattedPhone) {
+        try {
+          await authService.updatePhone(formattedPhone, data.password)
+        } catch (phoneErr) {
+          console.warn('[AuthContext] Update native Appwrite Auth phone warning:', phoneErr)
+        }
+      }
 
       try {
         await userService.createUserProfile(newAcc.$id, {
           name: data.name,
           email: data.email,
+          phone: formattedPhone || data.phone,
         })
       } catch (pErr) {
         console.warn('Profile setup warning:', pErr)

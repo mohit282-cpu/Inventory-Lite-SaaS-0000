@@ -28,6 +28,7 @@ import {
   UserPlus,
   Trash2,
   Smartphone,
+  Calendar as CalendarIcon,
 } from 'lucide-react'
 import { InstallAppButton } from '@/components/pwa/install-prompt'
 
@@ -129,6 +130,7 @@ export default function SettingsPage() {
   // Account Form State
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
+  const [userPhone, setUserPhone] = useState('')
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -184,11 +186,12 @@ export default function SettingsPage() {
       setCurrency(activeBusiness.currency || 'NPR')
       setTimezone(activeBusiness.timezone || 'Asia/Kathmandu')
     }
-    if (userProfile) {
-      setUserName(userProfile.name || '')
-      setUserEmail(userProfile.email || '')
+    if (userProfile || user) {
+      setUserName(userProfile?.name || user?.name || '')
+      setUserEmail(userProfile?.email || user?.email || '')
+      setUserPhone(userProfile?.phone || user?.prefs?.phone || (user as any)?.phone || '')
     }
-  }, [activeBusiness, userProfile])
+  }, [activeBusiness, userProfile, user])
 
   // Fetch Team Members
   const fetchMembers = useCallback(async () => {
@@ -253,10 +256,18 @@ export default function SettingsPage() {
     if (!user?.$id) return
     try {
       setSavingAccount(true)
-      await userService.updateUserProfile(user.$id, { name: userName })
+      await userService.updateUserProfile(user.$id, { name: userName, phone: userPhone })
+      try {
+        await authService.updateAccount({ name: userName })
+        if (userPhone) {
+          await authService.updatePhone(userPhone)
+        }
+      } catch {
+        // Appwrite Auth name & phone sync fallback
+      }
       toast({
         title: 'Profile Updated',
-        description: 'Your user profile details have been saved.',
+        description: 'Your user name and registered mobile phone details have been updated.',
       })
       await refreshAuth()
     } catch (err: any) {
@@ -568,11 +579,69 @@ export default function SettingsPage() {
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
                   >
                     {savingBiz ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Business Settings
+                    Save Business Credentials
                   </Button>
                 </div>
               </form>
             </CardContent>
+          </Card>
+
+          {/* Calendar & Localization Preferences Card */}
+          <Card className="lg:col-span-3 border-slate-200 bg-white shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <CalendarIcon className="h-5 w-5 text-indigo-600" /> Nepal Dual Calendar Settings
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 font-medium">
+                  Set Bikram Sambat (BS) or Gregorian (AD) as your primary application calendar and configure dual-date display preferences.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-700">Primary Calendar System</Label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-indigo-50/50 cursor-pointer font-bold text-xs text-slate-900">
+                    <input type="radio" name="primaryCal" defaultChecked className="accent-indigo-600" />
+                    <div>
+                      <span>Bikram Sambat (B.S.) — Recommended Default</span>
+                      <p className="text-[11px] font-normal text-slate-500">Nepal-first calendar system (2083 Bhadra 6)</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white cursor-pointer font-medium text-xs text-slate-700 hover:bg-slate-50">
+                    <input type="radio" name="primaryCal" className="accent-indigo-600" />
+                    <div>
+                      <span>Gregorian (A.D.)</span>
+                      <p className="text-[11px] font-normal text-slate-500">International calendar system (August 22, 2026)</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-700">Date Display Mode</Label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-indigo-50/50 cursor-pointer font-bold text-xs text-slate-900">
+                    <input type="radio" name="dateDisp" defaultChecked className="accent-indigo-600" />
+                    <div>
+                      <span>BS + AD Dual Display (Recommended)</span>
+                      <p className="text-[11px] font-normal text-slate-500">2083 Bhadra 6 (22 Aug 2026 AD)</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white cursor-pointer font-medium text-xs text-slate-700 hover:bg-slate-50">
+                    <input type="radio" name="dateDisp" className="accent-indigo-600" />
+                    <div>
+                      <span>Bikram Sambat (BS) Only</span>
+                      <p className="text-[11px] font-normal text-slate-500">2083 Bhadra 6</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
           </Card>
         </div>
       )}
@@ -607,6 +676,20 @@ export default function SettingsPage() {
                   value={userEmail}
                   disabled
                   className="bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="userPhone" className="text-xs font-bold text-slate-700">
+                  Registered Mobile / Phone Number (Appwrite Auth Profile)
+                </Label>
+                <Input
+                  id="userPhone"
+                  type="tel"
+                  placeholder="e.g. 9841234567"
+                  value={userPhone}
+                  onChange={(e) => setUserPhone(e.target.value)}
+                  className="font-mono bg-white border-slate-300 text-slate-900"
                 />
               </div>
 

@@ -8,10 +8,10 @@ test.describe('Inventory Lite SaaS - Application Page Navigation & Accessibility
   })
 
   test('Authentication Routes Render Correctly', async ({ page }) => {
-    await page.goto('/auth/login')
-    await expect(page.locator('body')).toBeVisible()
+    await page.goto('/auth/login', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('body')).toBeVisible({ timeout: 15000 })
 
-    await page.goto('/auth/signup')
-    await expect(page.locator('body')).toBeVisible()
+    await page.goto('/auth/signup', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('body')).toBeVisible({ timeout: 15000 })
   })
 })

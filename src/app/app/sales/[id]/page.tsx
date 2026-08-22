@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
 import { ArrowLeft, Printer, Loader2, Building, User, Calendar, CreditCard } from 'lucide-react'
 import { Sale, Customer, SaleItem } from '@/types'
+import { getSellerTaxLabel, getBillSummaryDetails } from '@/lib/localization'
 
 export default function SaleDetailPage() {
   const params = useParams()
@@ -26,6 +27,8 @@ export default function SaleDetailPage() {
   const [items, setItems] = useState<SaleItem[]>([])
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  const sellerTaxInfo = getSellerTaxLabel(activeBusiness)
 
   const fetchSaleDetails = useCallback(async () => {
     if (!saleId || !activeBusiness?.$id) return
@@ -109,7 +112,7 @@ export default function SaleDetailPage() {
               <div className="text-xs text-slate-600">{activeBusiness.address}</div>
             )}
             <div className="text-xs text-slate-700 font-medium">
-              PAN of the seller: <span className="font-mono font-bold text-slate-900">{activeBusiness?.vatNumber || activeBusiness?.panNumber || 'N/A'}</span>
+              <span className="font-mono font-bold text-slate-900">{sellerTaxInfo.formattedText}</span>
             </div>
             <div className="text-xs text-slate-700 font-medium">
               Seller Mobile: <span className="font-mono font-bold text-slate-900">{activeBusiness?.phone || 'N/A'}</span>
@@ -183,50 +186,61 @@ export default function SaleDetailPage() {
         </div>
 
         {/* Financial Totals Breakdown */}
-        <div className="flex justify-end pt-2">
-          <div className="w-full max-w-xs space-y-2 text-xs">
-            <div className="flex justify-between text-slate-600 font-medium">
-              <span>Subtotal</span>
-              <span className="font-mono text-slate-900 font-bold">Rs. {sale.subtotal.toFixed(2)}</span>
-            </div>
-            {sale.discount > 0 && (
-              <div className="flex justify-between text-slate-600 font-medium">
-                <span>Discount</span>
-                <span className="font-mono text-red-600 font-bold">-Rs. {sale.discount.toFixed(2)}</span>
+        {(() => {
+          const billSummary = getBillSummaryDetails(sale)
+          return (
+            <div className="flex justify-end pt-2">
+              <div className="w-full max-w-xs space-y-2 text-xs">
+                <div className="flex justify-between text-slate-600 font-medium">
+                  <span>Subtotal</span>
+                  <span className="font-mono text-slate-900 font-bold">Rs. {billSummary.subtotal.toFixed(2)}</span>
+                </div>
+                {billSummary.showDiscount && (
+                  <div className="flex justify-between text-slate-600 font-medium">
+                    <span>{billSummary.discountLabel}</span>
+                    <span className="font-mono text-emerald-700 font-bold">{billSummary.discountFormatted}</span>
+                  </div>
+                )}
+                {billSummary.showTaxableAmount && (
+                  <div className="flex justify-between text-slate-600 font-medium">
+                    <span>Taxable Amount</span>
+                    <span className="font-mono text-slate-900 font-bold">Rs. {billSummary.taxableAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                {billSummary.showVat && (
+                  <div className="flex justify-between text-slate-600 font-medium">
+                    <span>{billSummary.vatLabel}</span>
+                    <span className="font-mono text-slate-900 font-bold">{billSummary.vatFormatted}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200">
+                  <span>Grand Total</span>
+                  <span className="font-mono text-emerald-700 text-base">Rs. {billSummary.grandTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 pt-1 font-medium">
+                  <span>Paid Amount</span>
+                  <span className="font-mono text-slate-900 font-bold">Rs. {billSummary.paidAmount.toFixed(2)}</span>
+                </div>
+                {billSummary.dueAmount > 0 ? (
+                  <div className="flex justify-between text-amber-800 font-extrabold pt-1 border-t border-slate-200">
+                    <span>Outstanding Due (Udhaar)</span>
+                    <span className="font-mono text-amber-900">Rs. {billSummary.dueAmount.toFixed(2)}</span>
+                  </div>
+                ) : billSummary.changeAmount > 0 ? (
+                  <div className="flex justify-between text-emerald-800 font-extrabold pt-1 border-t border-slate-200">
+                    <span>Change Returned</span>
+                    <span className="font-mono text-emerald-900">Rs. {billSummary.changeAmount.toFixed(2)}</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between text-slate-600 font-medium pt-1 border-t border-slate-200">
+                    <span>Udhaar / Due</span>
+                    <span className="font-mono text-slate-900 font-bold">Rs. 0.00</span>
+                  </div>
+                )}
               </div>
-            )}
-            <div className="flex justify-between text-slate-600 font-medium">
-              <span>VAT Tax</span>
-              <span className="font-mono text-slate-900 font-bold">Rs. {sale.tax.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200">
-              <span>Grand Total</span>
-              <span className="font-mono text-emerald-700 text-base">Rs. {sale.total.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600 pt-1 font-medium">
-              <span>Paid Amount</span>
-              <span className="font-mono text-slate-900 font-bold">Rs. {sale.paidAmount.toFixed(2)}</span>
-            </div>
-            {sale.dueAmount > 0 ? (
-              <div className="flex justify-between text-amber-800 font-extrabold pt-1 border-t border-slate-200">
-                <span>Outstanding Due (Udhaar)</span>
-                <span className="font-mono text-amber-900">Rs. {sale.dueAmount.toFixed(2)}</span>
-              </div>
-            ) : sale.paidAmount > sale.total || (sale.changeAmount && sale.changeAmount > 0) ? (
-              <div className="flex justify-between text-emerald-800 font-extrabold pt-1 border-t border-slate-200">
-                <span>Change Returned</span>
-                <span className="font-mono text-emerald-900">
-                  Rs. {(sale.changeAmount || sale.paidAmount - sale.total).toFixed(2)}
-                </span>
-              </div>
-            ) : (
-              <div className="flex justify-between text-slate-600 font-medium pt-1 border-t border-slate-200">
-                <span>Udhaar / Due</span>
-                <span className="font-mono text-slate-900 font-bold">Rs. 0.00</span>
-              </div>
-            )}
-          </div>
-        </div>
+          )
+        })()}
       </Card>
     </div>
   )

@@ -42,6 +42,7 @@ export const registerSchema = z
   .object({
     name: nameSchema,
     email: emailSchema,
+    phone: z.string().optional().or(z.literal('')),
     password: passwordSchema,
     confirmPassword: z.string().min(1, 'Please confirm your password'),
   })

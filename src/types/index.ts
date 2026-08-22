@@ -165,9 +165,16 @@ export interface Sale extends Models.Document {
   businessId: string
   customerId?: string
   invoiceId?: string
+  saleNumber?: string
   subtotal: number
   discount: number
+  discountType?: 'percentage' | 'fixed' | 'amount'
+  discountValue?: number
+  taxableAmount?: number
   tax: number
+  vatEnabled?: boolean
+  vatRate?: number
+  taxRate?: number
   total: number
   paidAmount: number
   dueAmount: number

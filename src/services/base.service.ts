@@ -73,6 +73,16 @@ export abstract class BaseService {
       delete documentData.title
     }
 
+    if (this.collectionId === 'sales') {
+      delete documentData.discountType
+      delete documentData.discountValue
+      delete documentData.taxableAmount
+      delete documentData.vatEnabled
+      delete documentData.vatRate
+      delete documentData.taxRate
+      delete documentData.changeAmount
+    }
+
     if (collectionsWithCreatedAt.has(this.collectionId) || cleanData.createdAt !== undefined) {
       documentData.createdAt = cleanData.createdAt || new Date().toISOString()
     }

@@ -135,18 +135,21 @@ describe('Phase 2 Authentication & Business Onboarding Flow Tests', () => {
     expect(resetInvalid.success).toBe(false)
   })
 
-  it('registers user and creates extended profile record', async () => {
-    const newAcc = await authService.register(userEmail, userPass, userName)
+  it('registers user with phone number and creates extended profile record', async () => {
+    const phone = '9841234567'
+    const newAcc = await authService.register(userEmail, userPass, userName, phone)
     expect(newAcc.email).toBe(userEmail)
     expect(newAcc.name).toBe(userName)
 
     const profile = await userService.createUserProfile(newAcc.$id, {
       name: userName,
       email: userEmail,
+      phone: phone,
     })
 
     expect(profile.name).toBe(userName)
     expect(profile.email).toBe(userEmail)
+    expect(profile.phone).toBe(phone)
   })
 
   it('creates business during onboarding and sets owner role', async () => {

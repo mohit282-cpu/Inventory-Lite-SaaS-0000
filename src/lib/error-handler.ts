@@ -102,6 +102,10 @@ export function handleApiError(error: any): AppError {
     return new ConflictError('User session already active.')
   }
 
+  if (type === 'user_blocked' || message.includes('user has been blocked') || message.includes('user_blocked')) {
+    return new AuthenticationError('This user account has been deleted. If you previously deleted your account, please register a new account.')
+  }
+
   switch (code) {
     case 400:
       return new ValidationError(message, error)

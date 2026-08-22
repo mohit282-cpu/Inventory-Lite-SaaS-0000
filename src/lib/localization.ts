@@ -85,35 +85,8 @@ export function validatePAN(pan: string): boolean {
 
 // ==================== Bikram Sambat (B.S.) Date Conversion ====================
 
-const NEPALI_MONTHS_EN = [
-  'Baisakh',
-  'Jeth',
-  'Asar',
-  'Shrawan',
-  'Bhadra',
-  'Asoj',
-  'Kattik',
-  'Mangsir',
-  'Poush',
-  'Magh',
-  'Fagun',
-  'Chait',
-]
-
-const NEPALI_MONTHS_NE = [
-  'वैशाख',
-  'जेठ',
-  'असार',
-  'साउन',
-  'भदौ',
-  'असोज',
-  'कात्तिक',
-  'मंसिर',
-  'पुस',
-  'माघ',
-  'फागुन',
-  'चैत',
-]
+import { calendarService } from '@/services/calendar.service'
+import { BS_MONTH_NAMES_EN, BS_MONTH_NAMES_NE } from '@/lib/nepali-calendar-data'
 
 const NEPALI_NUMERALS = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९']
 
@@ -125,52 +98,28 @@ export function toNepaliNumerals(str: string | number): string {
 }
 
 /**
- * Approximate Gregorian (A.D.) to Bikram Sambat (B.S.) date conversion helper
- * Gregorian year + 56/57 years offset
+ * Exact Gregorian (A.D.) to Bikram Sambat (B.S.) date conversion helper
  */
 export function convertADToBS(dateInput: string | Date): { year: number; month: number; day: number } {
-  const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
-  if (isNaN(d.getTime())) {
-    return { year: 2081, month: 1, day: 1 }
-  }
-
-  const year = d.getFullYear()
-  const month = d.getMonth() // 0-indexed (0 = Jan)
-  const day = d.getDate()
-
-  // Nepal BS is ~56 years & 8.5 months ahead of AD
-  let bsYear = year + 57
-  let bsMonth = month + 9 // Jan -> Magh (month index 9)
-
-  if (bsMonth > 12) {
-    bsMonth -= 12
-  } else {
-    bsYear -= 1
-  }
-
-  return {
-    year: bsYear,
-    month: Math.max(1, Math.min(12, bsMonth)),
-    day,
-  }
+  return calendarService.adToBs(dateInput)
 }
 
 /**
  * Format a date string into displayable Bikram Sambat (B.S.) representation
- * Example: "2026-08-19" -> "2083 Bhadra 3 B.S." (English) or "२०८३ भदौ ३" (Nepali)
+ * Example: "2026-08-22" -> "2083 Bhadra 6 B.S." (English) or "२०८३ भदौ ६" (Nepali)
  */
 export function formatBSDate(
   dateInput: string | Date,
   language: 'en' | 'ne' = 'en'
 ): string {
-  const { year, month, day } = convertADToBS(dateInput)
+  const { year, month, day } = calendarService.adToBs(dateInput)
 
   if (language === 'ne') {
-    const monthName = NEPALI_MONTHS_NE[month - 1] || 'वैशाख'
+    const monthName = BS_MONTH_NAMES_NE[month - 1] || 'वैशाख'
     return `${toNepaliNumerals(year)} ${monthName} ${toNepaliNumerals(day)}`
   }
 
-  const monthName = NEPALI_MONTHS_EN[month - 1] || 'Baisakh'
+  const monthName = BS_MONTH_NAMES_EN[month - 1] || 'Baisakh'
   return `${year} ${monthName} ${day} B.S.`
 }
 
@@ -222,4 +171,169 @@ export function getFiscalYearCode(dateInput?: string | Date): string {
   const endYearShort = (bsYear + 1).toString().slice(-2)
 
   return `${startYearShort}/${endYearShort}`
+}
+
+/**
+ * Format seller Tax Registration label according to Nepal IRD bill requirements.
+ * Displays PAN of the seller if PAN is entered, VAT of the seller if VAT is entered,
+ * or both if both PAN and VAT numbers are configured.
+ */
+export function getSellerTaxLabel(business?: { panNumber?: string; vatNumber?: string } | null): {
+  pan?: string
+  vat?: string
+  formattedText: string
+} {
+  const pan = business?.panNumber?.trim()
+  const vat = business?.vatNumber?.trim()
+
+  if (pan && vat) {
+    return {
+      pan,
+      vat,
+      formattedText: `PAN of the seller: ${pan} | VAT of the seller: ${vat}`,
+    }
+  }
+
+  if (vat) {
+    return {
+      vat,
+      formattedText: `VAT of the seller: ${vat}`,
+    }
+  }
+
+  if (pan) {
+    return {
+      pan,
+      formattedText: `PAN of the seller: ${pan}`,
+    }
+  }
+
+  return {
+    formattedText: 'PAN of the seller: N/A',
+  }
+}
+
+export interface BillSummaryDetails {
+  subtotal: number
+  showDiscount: boolean
+  discountType: 'percentage' | 'fixed' | 'amount'
+  discountValue: number
+  discountAmount: number
+  discountLabel: string
+  discountFormatted: string
+  showTaxableAmount: boolean
+  taxableAmount: number
+  showVat: boolean
+  vatRate: number
+  vatAmount: number
+  vatLabel: string
+  vatFormatted: string
+  grandTotal: number
+  paidAmount: number
+  dueAmount: number
+  changeAmount: number
+}
+
+/**
+ * Calculate consistent Bill Summary Details according to actual transaction settings.
+ * Ensures Discount and VAT are displayed cleanly and accurately across all bill formats.
+ */
+export function getBillSummaryDetails(sale: {
+  subtotal: number
+  discount?: number
+  discountType?: string
+  discountValue?: number
+  taxableAmount?: number
+  tax?: number
+  vatEnabled?: boolean
+  vatRate?: number
+  taxRate?: number
+  total: number
+  paidAmount?: number
+  dueAmount?: number
+  changeAmount?: number
+}): BillSummaryDetails {
+  const subtotal = sale.subtotal || 0
+  const discountAmount = sale.discount || 0
+  const showDiscount = discountAmount > 0
+
+  let discountType: 'percentage' | 'fixed' | 'amount' = 'fixed'
+  let discountValue = sale.discountValue || 0
+
+  if (sale.discountType === 'percentage' || sale.discountType === 'percent') {
+    discountType = 'percentage'
+    if (!discountValue && subtotal > 0) {
+      discountValue = Math.round((discountAmount / subtotal) * 100)
+    }
+  } else if (sale.discountType === 'fixed' || sale.discountType === 'amount') {
+    discountType = 'fixed'
+    discountValue = discountAmount
+  } else if (discountValue > 0 && subtotal > 0 && Math.abs((subtotal * discountValue / 100) - discountAmount) < 0.05) {
+    discountType = 'percentage'
+  } else if (subtotal > 0 && discountAmount > 0) {
+    const calcPct = (discountAmount / subtotal) * 100
+    if (Number.isInteger(calcPct) && Math.abs((subtotal * calcPct / 100) - discountAmount) < 0.01) {
+      discountType = 'percentage'
+      discountValue = calcPct
+    } else {
+      discountType = 'fixed'
+      discountValue = discountAmount
+    }
+  } else {
+    discountType = 'fixed'
+    discountValue = discountAmount
+  }
+
+  const discountLabel = discountType === 'percentage' ? `Discount (${discountValue}%):` : 'Discount Amount:'
+  const discountFormatted = `- Rs. ${formatNPR(discountAmount, false)}`
+
+  // Determine VAT status
+  const vatAmount = sale.tax || 0
+
+  let showVat = false
+  if (sale.vatEnabled !== undefined) {
+    showVat = Boolean(sale.vatEnabled)
+  } else {
+    showVat = vatAmount > 0
+  }
+
+  const taxableAmount = sale.taxableAmount ?? Math.max(0, subtotal - discountAmount)
+  let vatRate = sale.vatRate ?? sale.taxRate ?? 13
+  if (showVat && vatAmount > 0 && taxableAmount > 0) {
+    const derivedRate = Math.round((vatAmount / taxableAmount) * 100)
+    if (derivedRate > 0) {
+      vatRate = derivedRate
+    }
+  }
+
+  const showTaxableAmount = showVat && showDiscount
+
+  const vatLabel = `VAT (${vatRate}%):`
+  const vatFormatted = `+ Rs. ${formatNPR(vatAmount, false)}`
+
+  const grandTotal = sale.total || 0
+  const paidAmount = sale.paidAmount || 0
+  const dueAmount = sale.dueAmount || 0
+  const changeAmount = sale.changeAmount ?? Math.max(0, paidAmount - grandTotal)
+
+  return {
+    subtotal,
+    showDiscount,
+    discountType,
+    discountValue,
+    discountAmount,
+    discountLabel,
+    discountFormatted,
+    showTaxableAmount,
+    taxableAmount,
+    showVat,
+    vatRate,
+    vatAmount,
+    vatLabel,
+    vatFormatted,
+    grandTotal,
+    paidAmount,
+    dueAmount,
+    changeAmount,
+  }
 }
