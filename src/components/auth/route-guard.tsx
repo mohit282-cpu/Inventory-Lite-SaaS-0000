@@ -54,11 +54,15 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
     return <AuthLoadingScreen message="Authenticating session..." />
   }
 
-  // 2. Error / Timeout / Offline State
-  if (authStatus === 'TIMEOUT' || authStatus === 'ERROR' || authStatus === 'OFFLINE') {
+  // 2. Authenticated user (online or offline mode) -> ALWAYS render children, NEVER block with full-page error!
+  if (user) {
+    return <>{children}</>
+  }
+
+  // 3. Error / Timeout / Offline State ONLY for unauthenticated users
+  if (authStatus === 'TIMEOUT' || authStatus === 'ERROR' || authStatus === 'OFFLINE_NOT_AUTHORIZED') {
     return <AuthErrorScreen status={authStatus} error={authError} onRetry={retryAuth} />
   }
 
-  // 3. Render Protected Route
   return <>{children}</>
 }

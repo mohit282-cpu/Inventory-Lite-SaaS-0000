@@ -218,6 +218,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       if (!isMountedRef.current) return
 
+      // PRESERVE AUTHENTICATED SESSION FOR ACTIVE USERS
+      if (user) {
+        setAuthStatus('OFFLINE_AUTHORIZED')
+        setIsWorkspaceLoading(false)
+        return
+      }
+
       setUser(null)
       setUserProfile(null)
       setActiveBusiness(null)
@@ -240,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthError(err.message || 'An error occurred while verifying your session.')
       }
     }
-  }, [])
+  }, [user])
 
   /**
    * Concurrency Guarded Auth Refresh
