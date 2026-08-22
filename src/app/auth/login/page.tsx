@@ -25,6 +25,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
 
+  const isOffline = typeof window !== 'undefined' && !navigator.onLine
+
   const {
     register,
     handleSubmit,
@@ -45,13 +47,12 @@ export default function LoginPage() {
       setIsSubmitting(true)
       await login(data)
       toast({
-        title: 'Logged in successfully',
-        description: 'Welcome back to Inventory Lite',
+        title: isOffline ? 'Offline Session Started' : 'Logged in successfully',
+        description: isOffline ? 'Working in Offline Mode. Local data loaded.' : 'Welcome back to Inventory Lite',
       })
       router.push('/app/dashboard')
-    } catch {
-      // Generic error message to prevent account enumeration
-      const msg = 'Invalid email or password.'
+    } catch (err: any) {
+      const msg = err?.message || 'Invalid email or password.'
       setApiError(msg)
       toast({
         variant: 'destructive',
@@ -66,9 +67,18 @@ export default function LoginPage() {
   return (
     <AuthLayout title="Welcome back" subtitle="Sign in to manage your business.">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left">
+        {isOffline && (
+          <div className="flex items-center gap-2 p-3.5 rounded-lg bg-amber-50 text-amber-800 text-xs font-semibold border border-amber-200">
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+            <div>
+              <span className="font-bold">Offline Mode:</span> Previously authorized accounts on this device can sign in offline. First-time sign in requires internet.
+            </div>
+          </div>
+        )}
+
         {apiError && (
           <div className="flex items-center gap-2 p-3.5 rounded-lg bg-red-50 text-red-700 text-xs font-semibold border border-red-200">
-            <AlertCircle className="h-4 w-4 shrink-0" />
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
             <span>{apiError}</span>
           </div>
         )}

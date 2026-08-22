@@ -9,6 +9,8 @@ import { businessService } from '@/services/business.service'
 import { businessMemberService } from '@/services/business-member.service'
 import { handleApiError } from '@/lib/error-handler'
 import { withTimeout, TimeoutError } from '@/lib/async-utils'
+import { offlineAuthService } from '@/lib/offline/offline-auth.service'
+import { syncEngine } from '@/lib/offline/sync-engine'
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null
@@ -74,25 +76,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Primary Authentication Bootstrap
-   * Guaranteed termination path via withTimeout (10s max limit)
+   * Includes Offline Authorization Check
    */
   const refreshAuthInternal = useCallback(async () => {
     // 1. Check Offline Status
     if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && !navigator.onLine) {
-      if (isMountedRef.current) {
+      const offlineRecord = await offlineAuthService.getAuthorizedOfflineRecord()
+      if (offlineRecord && isMountedRef.current) {
+        const mockUser: Models.User<Models.Preferences> = {
+          $id: offlineRecord.userId,
+          $createdAt: offlineRecord.authorizedAt,
+          $updatedAt: offlineRecord.lastValidatedAt,
+          name: offlineRecord.userProfile?.name || offlineRecord.email,
+          registration: offlineRecord.authorizedAt,
+          status: true,
+          labels: [],
+          passwordUpdate: '',
+          email: offlineRecord.email,
+          phone: '',
+          emailVerification: true,
+          phoneVerification: false,
+          mfa: false,
+          prefs: {},
+          accessedAt: offlineRecord.lastValidatedAt,
+          targets: [],
+        }
+
+        setUser(mockUser)
+        setUserProfile(offlineRecord.userProfile)
+        setActiveBusiness(offlineRecord.activeBusiness)
+        setMemberships(offlineRecord.memberships || [])
+        setAuthStatus('OFFLINE_AUTHORIZED')
+        setAuthError(null)
+      } else if (isMountedRef.current) {
         setUser(null)
         setUserProfile(null)
         setActiveBusiness(null)
         setMemberships([])
-        setAuthStatus('OFFLINE')
-        setAuthError('You are currently offline. Check your connection.')
+        setAuthStatus('OFFLINE_NOT_AUTHORIZED')
+        setAuthError(
+          'First-time login requires an internet connection. Connect to the internet and sign in once to enable offline access on this device.'
+        )
       }
       return
     }
 
     try {
       if (isMountedRef.current) {
-        setAuthStatus('INITIALIZING')
+        setAuthStatus('ONLINE_AUTHENTICATING')
         setAuthError(null)
       }
 
@@ -117,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 3. AUTHENTICATED! Unblock app immediately
       if (isMountedRef.current) {
         setUser(currentUser)
-        setAuthStatus('AUTHENTICATED')
+        setAuthStatus('ONLINE_AUTHENTICATED')
         setAuthError(null)
         setIsWorkspaceLoading(true)
         setWorkspaceError(null)
@@ -197,8 +228,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthStatus('TIMEOUT')
         setAuthError('Authentication verification timed out after 10s.')
       } else if (err?.message?.includes('Network') || err?.message?.includes('Fetch')) {
-        setAuthStatus('OFFLINE')
-        setAuthError('Network error connecting to authentication server.')
+        const offlineRecord = await offlineAuthService.getAuthorizedOfflineRecord()
+        if (offlineRecord) {
+          setAuthStatus('OFFLINE_AUTHORIZED')
+        } else {
+          setAuthStatus('OFFLINE_NOT_AUTHORIZED')
+          setAuthError('Network error connecting to authentication server.')
+        }
       } else {
         setAuthStatus('ERROR')
         setAuthError(err.message || 'An error occurred while verifying your session.')
@@ -229,16 +265,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Attach window online/offline listeners
   useEffect(() => {
-    const handleOnline = () => {
-      if (authStatus === 'OFFLINE' || authStatus === 'TIMEOUT') {
-        refreshAuth()
+    const handleOnline = async () => {
+      if (
+        authStatus === 'OFFLINE_AUTHORIZED' ||
+        authStatus === 'OFFLINE' ||
+        authStatus === 'TIMEOUT' ||
+        authStatus === 'SYNC_FAILED'
+      ) {
+        setAuthStatus('SYNCING')
+        try {
+          const currentUser = await authService.getCurrentUser()
+          if (currentUser) {
+            setAuthStatus('ONLINE_AUTHENTICATED')
+            if (activeBusiness?.$id) {
+              await syncEngine.processSyncQueue(activeBusiness.$id)
+            }
+          } else {
+            // Appwrite cloud session was revoked or invalidated
+            await offlineAuthService.clearOfflineRecord()
+            if (isMountedRef.current) {
+              setUser(null)
+              setUserProfile(null)
+              setActiveBusiness(null)
+              setMemberships([])
+              setAuthStatus('SESSION_EXPIRED')
+              setAuthError('Your session has expired or was revoked. Please sign in again.')
+            }
+          }
+        } catch {
+          setAuthStatus('SYNC_FAILED')
+        }
       }
     }
 
     const handleOffline = () => {
       if (isMountedRef.current) {
-        setAuthStatus('OFFLINE')
-        setAuthError('You are currently offline.')
+        if (user && activeBusiness) {
+          setAuthStatus('OFFLINE_AUTHORIZED')
+        } else {
+          setAuthStatus('OFFLINE_NOT_AUTHORIZED')
+          setAuthError('You are currently offline.')
+        }
       }
     }
 
@@ -249,16 +316,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [authStatus, refreshAuth])
+  }, [authStatus, user, activeBusiness])
 
   useEffect(() => {
     refreshAuth()
   }, [refreshAuth])
 
   const signup = async (data: { name: string; email: string; password: string }) => {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      throw new Error('Account registration requires an active internet connection.')
+    }
+
     try {
       clearError()
-      setAuthStatus('INITIALIZING')
+      setAuthStatus('ONLINE_AUTHENTICATING')
 
       const newAcc = await authService.register(data.email, data.password, data.name)
       await authService.login(data.email, data.password)
@@ -284,9 +355,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (data: { email: string; password: string }) => {
     try {
       clearError()
-      setAuthStatus('INITIALIZING')
+
+      // Handle Offline Login
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        setAuthStatus('INITIALIZING')
+        const verifyRes = await offlineAuthService.verifyOfflineCredentials(data.email, data.password)
+        if (!verifyRes.success || !verifyRes.record) {
+          const errMsg =
+            verifyRes.code === 'OFFLINE_NOT_AUTHORIZED'
+              ? 'First-time login requires an internet connection. Connect to the internet and sign in once to enable offline access on this device.'
+              : 'Invalid email or password.'
+          setAuthStatus('OFFLINE_NOT_AUTHORIZED')
+          setAuthError(errMsg)
+          throw new Error(errMsg)
+        }
+
+        const offlineRecord = verifyRes.record
+        const mockUser: Models.User<Models.Preferences> = {
+          $id: offlineRecord.userId,
+          $createdAt: offlineRecord.authorizedAt,
+          $updatedAt: offlineRecord.lastValidatedAt,
+          name: offlineRecord.userProfile?.name || offlineRecord.email,
+          registration: offlineRecord.authorizedAt,
+          status: true,
+          labels: [],
+          passwordUpdate: '',
+          email: offlineRecord.email,
+          phone: '',
+          emailVerification: true,
+          phoneVerification: false,
+          mfa: false,
+          prefs: {},
+          accessedAt: offlineRecord.lastValidatedAt,
+          targets: [],
+        }
+
+        setUser(mockUser)
+        setUserProfile(offlineRecord.userProfile)
+        setActiveBusiness(offlineRecord.activeBusiness)
+        setMemberships(offlineRecord.memberships || [])
+        setAuthStatus('OFFLINE_AUTHORIZED')
+        setAuthError(null)
+        return
+      }
+
+      // Online Login
+      setAuthStatus('ONLINE_AUTHENTICATING')
       await authService.login(data.email, data.password)
       await refreshAuth()
+
+      // Record offline authorization after successful online refresh
+      const currentUser = await authService.getCurrentUser()
+      if (currentUser) {
+        const profile = await userService.getUserProfile(currentUser.$id).catch(() => null)
+        const mems = await businessMemberService.getUserMemberships(currentUser.$id).catch(() => [])
+        let biz: Business | null = null
+        if (mems.length > 0) {
+          biz = await businessService.getBusiness(mems[0].businessId).catch(() => null)
+        }
+        if (biz) {
+          await offlineAuthService.recordOnlineLogin(data.email, data.password, currentUser, profile, biz, mems)
+          syncEngine.initialSync(biz.$id)
+        }
+      }
+      setAuthStatus('ONLINE_AUTHENTICATED')
     } catch (err: any) {
       const appErr = handleApiError(err)
       setAuthError(appErr.message)
@@ -298,6 +430,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       setAuthStatus('INITIALIZING')
+      if (user?.$id) {
+        await offlineAuthService.clearOfflineRecord(user.$id)
+      } else {
+        await offlineAuthService.clearOfflineRecord()
+      }
       await authService.logout()
     } catch {
       // Ignore logout errors
@@ -314,6 +451,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const forgotPassword = async (email: string) => {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      throw new Error('Password reset requires an active internet connection.')
+    }
     try {
       clearError()
       await authService.recoverPassword(email)
@@ -325,6 +465,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const resetPassword = async (password: string, userId: string, secret: string) => {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      throw new Error('Password reset requires an active internet connection.')
+    }
     try {
       clearError()
       await authService.completePasswordRecovery(userId, secret, password)
@@ -413,7 +556,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const isAuthLoading = authStatus === 'INITIALIZING'
+  const isAuthLoading = authStatus === 'INITIALIZING' || authStatus === 'ONLINE_AUTHENTICATING'
 
   return (
     <AuthContext.Provider

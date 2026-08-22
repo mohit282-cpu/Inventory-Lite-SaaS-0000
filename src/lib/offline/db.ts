@@ -107,6 +107,21 @@ export interface SyncMetadata {
   lastSyncedAt: string
 }
 
+export interface OfflineAuthRecord {
+  id: string // lowercased email
+  userId: string
+  email: string
+  passwordHash: string
+  salt: string
+  deviceId: string
+  userProfile: any
+  activeBusinessId: string
+  activeBusiness: any
+  memberships: any[]
+  authorizedAt: string
+  lastValidatedAt: string
+}
+
 export class InventoryLiteLocalDB extends Dexie {
   products!: Table<LocalProduct, string>
   categories!: Table<LocalCategory, string>
@@ -117,11 +132,12 @@ export class InventoryLiteLocalDB extends Dexie {
   payments!: Table<LocalPayment, string>
   syncQueue!: Table<SyncQueueItem, number>
   syncMetadata!: Table<SyncMetadata, string>
+  authRecords!: Table<OfflineAuthRecord, string>
 
   constructor() {
     super('inventory_lite_local')
 
-    this.version(1).stores({
+    this.version(2).stores({
       products: 'id, businessId, categoryId, syncStatus',
       categories: 'id, businessId',
       customers: 'id, businessId, syncStatus',
@@ -131,6 +147,7 @@ export class InventoryLiteLocalDB extends Dexie {
       payments: 'id, businessId, customerId, saleId, syncStatus',
       syncQueue: '++id, businessId, userId, entityType, status, createdAt',
       syncMetadata: 'businessId',
+      authRecords: 'id, userId, email, activeBusinessId',
     })
   }
 

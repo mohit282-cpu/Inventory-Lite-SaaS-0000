@@ -20,7 +20,20 @@ export type CreditStatus = 'UNPAID' | 'PARTIAL' | 'PAID' | 'OVERDUE'
 
 export type StockMovementType = 'stock_in' | 'stock_out' | 'adjustment'
 
-export type AuthStatus = 'INITIALIZING' | 'AUTHENTICATED' | 'UNAUTHENTICATED' | 'TIMEOUT' | 'ERROR' | 'OFFLINE'
+export type AuthStatus =
+  | 'INITIALIZING'
+  | 'ONLINE_AUTHENTICATING'
+  | 'ONLINE_AUTHENTICATED'
+  | 'OFFLINE_AUTHORIZED'
+  | 'OFFLINE_NOT_AUTHORIZED'
+  | 'SYNCING'
+  | 'SYNC_FAILED'
+  | 'SESSION_EXPIRED'
+  | 'AUTHENTICATED'
+  | 'UNAUTHENTICATED'
+  | 'TIMEOUT'
+  | 'ERROR'
+  | 'OFFLINE'
 
 // ==================== Appwrite Document Base ====================
 
