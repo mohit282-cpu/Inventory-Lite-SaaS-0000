@@ -169,10 +169,12 @@ export class ProductService extends BaseService {
       categoryId?: string
       isActive?: boolean
       searchTerm?: string
+      limit?: number
     }
   ): Promise<Product[]> {
     try {
-      const queries: any[] = [Query.orderDesc('createdAt')]
+      const limit = filters?.limit || 200
+      const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
 
       if (filters?.categoryId) {
         queries.push(Query.equal('categoryId', filters.categoryId))

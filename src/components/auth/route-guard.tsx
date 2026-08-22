@@ -49,8 +49,10 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
     }
   }, [user, activeBusiness, memberships, authStatus, isAuthLoading, pathname, router, requireBusiness])
 
-  // 1. Loading State
-  if (isAuthLoading || authStatus === 'INITIALIZING') {
+  const isPublicRoute = pathname === '/' || pathname.startsWith('/auth')
+
+  // 1. Loading State - Only block protected app routes, allow public marketing pages to render static HTML immediately
+  if ((isAuthLoading || authStatus === 'INITIALIZING') && !isPublicRoute) {
     return <AuthLoadingScreen message="Authenticating session..." />
   }
 
@@ -59,8 +61,8 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
     return <>{children}</>
   }
 
-  // 3. Error / Timeout / Offline State ONLY for unauthenticated users
-  if (authStatus === 'TIMEOUT' || authStatus === 'ERROR' || authStatus === 'OFFLINE_NOT_AUTHORIZED') {
+  // 3. Error / Timeout / Offline State ONLY for unauthenticated users on protected routes
+  if ((authStatus === 'TIMEOUT' || authStatus === 'ERROR' || authStatus === 'OFFLINE_NOT_AUTHORIZED') && !isPublicRoute) {
     return <AuthErrorScreen status={authStatus} error={authError} onRetry={retryAuth} />
   }
 

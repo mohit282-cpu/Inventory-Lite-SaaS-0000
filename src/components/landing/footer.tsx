@@ -113,7 +113,7 @@ export function LandingFooter() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-4">
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 gap-4">
           <div>
             &copy; {new Date().getFullYear()} Inventory Lite SaaS. All rights reserved.
           </div>

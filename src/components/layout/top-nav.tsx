@@ -48,8 +48,8 @@ export function TopNav({ onOpenMobileNav }: TopNavProps) {
         <button
           type="button"
           onClick={onOpenMobileNav}
-          className="md:hidden p-1.5 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus:outline-none"
-          aria-label="Open navigation menu"
+          className="md:hidden p-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none"
+          aria-label="Open navigation menu drawer"
         >
           <Menu className="h-5 w-5" />
         </button>

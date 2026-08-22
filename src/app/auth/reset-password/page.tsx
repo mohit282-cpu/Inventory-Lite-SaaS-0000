@@ -19,7 +19,7 @@ import { PasswordStrengthMeter } from '@/components/auth/password-strength-meter
 
 type ResetPasswordValues = z.infer<typeof resetPasswordSchema>
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const { resetPassword } = useAuth()
   const { toast } = useToast()
   const searchParams = useSearchParams()
@@ -186,5 +186,13 @@ export default function ResetPasswordPage() {
         </form>
       )}
     </AuthLayout>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading...</div>}>
+      <ResetPasswordForm />
+    </React.Suspense>
   )
 }

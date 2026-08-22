@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { Mail, CheckCircle2, AlertCircle, Loader2, ArrowRight } from 'lucide-react'
 
-export default function VerifyEmailPage() {
+function VerifyEmailForm() {
   const searchParams = useSearchParams()
   const userId = searchParams.get('userId') || ''
   const secret = searchParams.get('secret') || ''
@@ -150,5 +150,13 @@ export default function VerifyEmailPage() {
         )}
       </div>
     </AuthLayout>
+  )
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center text-sm text-slate-500">Loading...</div>}>
+      <VerifyEmailForm />
+    </React.Suspense>
   )
 }

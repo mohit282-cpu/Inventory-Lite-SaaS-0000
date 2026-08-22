@@ -62,7 +62,9 @@ export function LandingFAQ() {
                 <button
                   type="button"
                   onClick={() => toggle(idx)}
-                  className="w-full flex items-center justify-between text-left text-base font-bold text-slate-900 focus:outline-none"
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${idx}`}
+                  className="w-full flex items-center justify-between text-left text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600/30 rounded-md py-1"
                 >
                   <span>{item.q}</span>
                   <ChevronDown
@@ -73,7 +75,7 @@ export function LandingFAQ() {
                 </button>
 
                 {isOpen && (
-                  <p className="mt-3 text-sm text-slate-600 leading-relaxed animate-fade-in">
+                  <p id={`faq-answer-${idx}`} className="mt-3 text-sm text-slate-600 leading-relaxed animate-fade-in">
                     {item.a}
                   </p>
                 )}

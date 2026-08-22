@@ -1,9 +1,9 @@
 "use client"
 
 import React, { useEffect, useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { useAuth } from '@/context/auth-context'
 import { Card } from '@/components/ui/card'
-import { LoadingPage } from '@/components/ui/loading'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -32,23 +32,34 @@ import {
   WifiOff,
 } from 'lucide-react'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from 'recharts'
 
-const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
+// Code-split Recharts chart components dynamically to reduce initial JS bootup & TBT
+const SalesTrendChart = dynamic(
+  () => import('@/components/dashboard/dashboard-charts').then((mod) => mod.SalesTrendChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-64 w-full bg-slate-50 animate-pulse rounded-lg flex items-center justify-center text-xs text-slate-400">Loading Sales Chart...</div>,
+  }
+)
+
+const PaymentMethodsChart = dynamic(
+  () => import('@/components/dashboard/dashboard-charts').then((mod) => mod.PaymentMethodsChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-64 w-full bg-slate-50 animate-pulse rounded-lg flex items-center justify-center text-xs text-slate-400">Loading Payment Chart...</div>,
+  }
+)
+
+const TopProductsChart = dynamic(
+  () => import('@/components/dashboard/dashboard-charts').then((mod) => mod.TopProductsChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-56 w-full bg-slate-50 animate-pulse rounded-lg flex items-center justify-center text-xs text-slate-400">Loading Top Products...</div>,
+  }
+)
 
 export default function DashboardPage() {
+  const { isOnline, lastSyncedAt } = useOfflineSync()
   const { activeBusiness, userProfile } = useAuth()
 
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
@@ -57,49 +68,39 @@ export default function DashboardPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodPoint[]>([])
   const [recentSales, setRecentSales] = useState<Sale[]>([])
   const [lowStockList, setLowStockList] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
 
   const fetchDashboardData = useCallback(async () => {
     if (!activeBusiness?.$id) return
     try {
-      setLoading(true)
       const bId = activeBusiness.$id
 
-      const [m, trend, topProds, payMethods, allSales, allProds] = await Promise.all([
+      const [m, trend, topProds, payMethods, recentSalesList, prodsList] = await Promise.all([
         analyticsService.getDashboardMetrics(bId),
         analyticsService.getSalesChartData(bId, 7),
         analyticsService.getTopSellingProducts(bId, 5),
         analyticsService.getSalesByPaymentMethod(bId),
-        saleService.listSales(bId),
-        productService.listProducts(bId),
+        saleService.listSales(bId, { limit: 5 }),
+        productService.listProducts(bId, { limit: 50 }),
       ])
 
       setMetrics(m)
       setSalesTrend(trend)
       setTopProducts(topProds)
       setPaymentMethods(payMethods)
-      setRecentSales(allSales.slice(0, 5))
+      setRecentSales(recentSalesList)
 
-      const alerts = allProds.filter(
+      const alerts = prodsList.filter(
         (p) => (p.stockQuantity || 0) <= (p.lowStockThreshold ?? 5)
       )
       setLowStockList(alerts.slice(0, 5))
     } catch (err) {
       console.error('Failed to load dashboard data:', err)
-    } finally {
-      setLoading(false)
     }
   }, [activeBusiness?.$id])
 
   useEffect(() => {
     fetchDashboardData()
   }, [fetchDashboardData])
-
-  const { isOnline, lastSyncedAt } = useOfflineSync()
-
-  if (loading) {
-    return <LoadingPage message="Loading real-time business dashboard..." />
-  }
 
   const currency = activeBusiness?.currency || 'NPR'
   const firstName = userProfile?.name?.split(' ')[0] || 'Store Owner'
@@ -262,25 +263,7 @@ export default function DashboardPage() {
             <h3 className="text-base font-bold text-slate-900">Sales Revenue Trend</h3>
             <p className="text-xs text-slate-500">Daily sales breakdown • Last 7 Days</p>
           </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesTrend}>
-                <defs>
-                  <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#0f172a', borderRadius: '8px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  formatter={(val: number) => [`Rs. ${val.toFixed(2)}`, 'Revenue']}
-                />
-                <Area type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={2.5} fillOpacity={1} fill="url(#salesGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <SalesTrendChart data={salesTrend} />
         </Card>
 
         {/* Payment Methods Share */}
@@ -289,28 +272,7 @@ export default function DashboardPage() {
             <h3 className="text-base font-bold text-slate-900">Payment Method Share</h3>
             <p className="text-xs text-slate-500">Sales volume by payment channel</p>
           </div>
-          <div className="h-64 w-full flex items-center justify-center">
-            {paymentMethods.some((p) => p.count > 0) ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={paymentMethods} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4}>
-                    {paymentMethods.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#0f172a', borderRadius: '8px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(val: number) => [`Rs. ${val.toFixed(2)}`, 'Total']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="text-center text-slate-400 text-xs py-8 space-y-2">
-                <CreditCard className="h-8 w-8 mx-auto opacity-30" />
-                <p>No payment method transactions logged yet.</p>
-              </div>
-            )}
-          </div>
+          <PaymentMethodsChart data={paymentMethods} />
         </Card>
       </div>
 
@@ -330,26 +292,7 @@ export default function DashboardPage() {
             </Button>
           </div>
 
-          {topProducts.length > 0 ? (
-            <div className="h-56 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProducts} layout="vertical">
-                  <XAxis type="number" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                  <YAxis dataKey="name" type="category" stroke="#475569" fontSize={11} width={120} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', color: '#0f172a', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(val: number) => [`Rs. ${val.toFixed(2)}`, 'Revenue']}
-                  />
-                  <Bar dataKey="revenue" fill="#10b981" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-slate-400 text-xs space-y-2">
-              <Package className="h-8 w-8 mx-auto opacity-30" />
-              <p>Top selling products will automatically populate here as sales occur.</p>
-            </div>
-          )}
+          <TopProductsChart data={topProducts} />
         </Card>
 
         {/* Stock Alerts */}
