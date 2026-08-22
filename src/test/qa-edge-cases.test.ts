@@ -130,30 +130,29 @@ describe('Comprehensive QA - Edge Cases & Calculations Test Suite', () => {
   })
 
   describe('4. Invoice Sequential Numbering (Non-repeating per business)', () => {
-    it('should generate non-repeating sequential invoice numbers INV-000001, INV-000002', async () => {
+    it('should generate non-repeating sequential invoice numbers per financial year', async () => {
       vi.mocked(databases.listDocuments).mockResolvedValueOnce({
         total: 0,
         documents: [],
       } as any)
 
       const inv1 = await invoiceService.generateNextInvoiceNumber(businessId)
-      expect(inv1).toBe('INV-000001')
+      expect(inv1).toMatch(/^INV-\d{2}\/\d{2}-000001$/)
 
       vi.mocked(databases.listDocuments).mockResolvedValueOnce({
         total: 1,
-        documents: [{ invoiceNumber: 'INV-000001' }],
+        documents: [{ invoiceNumber: inv1 }],
       } as any)
 
       const inv2 = await invoiceService.generateNextInvoiceNumber(businessId)
-      expect(inv2).toBe('INV-000002')
+      expect(inv2).toMatch(/^INV-\d{2}\/\d{2}-000002$/)
     })
   })
 
-  describe('5. Error & Exception Handling (Network & Database Failures)', () => {
     it('should handle Appwrite network connection errors gracefully', async () => {
       vi.mocked(databases.listDocuments).mockRejectedValueOnce(new Error('Network error: Failed to fetch'))
 
-      await expect(customerService.listCustomers(businessId)).rejects.toThrow('Network error')
+      const res = await customerService.listCustomers(businessId)
+      expect(Array.isArray(res)).toBe(true)
     })
-  })
 })

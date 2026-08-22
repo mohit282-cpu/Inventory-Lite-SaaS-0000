@@ -143,12 +143,12 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
               <div>
                 <h1 className="text-2xl font-black uppercase text-slate-900 tracking-tight">{business.name}</h1>
                 {business.address && <p className="text-sm text-slate-600 mt-1">{business.address}</p>}
-                {business.phone && <p className="text-sm text-slate-600">Phone: {business.phone}</p>}
+                <p className="text-sm text-slate-700 font-medium mt-0.5">
+                  Mobile No (Seller): <span className="font-mono font-bold text-slate-900">{business.phone || 'N/A'}</span>
+                </p>
                 {business.email && <p className="text-sm text-slate-600">Email: {business.email}</p>}
                 <div className="flex items-center gap-4 mt-2 font-mono text-xs font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded inline-flex border border-slate-200">
-                  {business.panNumber && <span>PAN: {business.panNumber}</span>}
-                  {business.vatNumber && <span>VAT: {business.vatNumber}</span>}
-                  {!business.panNumber && !business.vatNumber && <span>PAN/VAT: N/A</span>}
+                  <span>PAN of the seller: <strong className="text-slate-900">{business.panNumber || business.vatNumber || 'N/A'}</strong></span>
                 </div>
               </div>
 
@@ -156,15 +156,19 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
                 <div className="inline-block bg-indigo-700 text-white px-4 py-1.5 rounded font-black text-sm uppercase tracking-wider mb-2">
                   TAX INVOICE
                 </div>
+                <p className="text-xs uppercase text-slate-500 font-extrabold tracking-wider">Bill No</p>
                 <p className="font-mono text-lg font-bold text-slate-900">{invoice.invoiceNumber}</p>
-                <p className="text-xs text-slate-500 mt-1 font-medium">
-                  Issue Date: {new Date(invoice.issueDate || invoice.createdAt).toLocaleDateString()}
+                
+                <p className="text-xs uppercase text-slate-500 font-extrabold tracking-wider mt-2">Billing Date</p>
+                <p className="text-xs text-slate-700 font-bold">
+                  {new Date(invoice.issueDate || invoice.createdAt).toLocaleDateString()} (AD)
                 </p>
                 <p className="text-xs text-indigo-700 font-bold">
                   मिति (B.S.): {formatBSDate(invoice.issueDate || invoice.createdAt, 'en')} ({formatBSDate(invoice.issueDate || invoice.createdAt, 'ne')})
                 </p>
-                <p className="text-xs text-slate-600 font-medium">
-                  Payment Method: <span className="font-bold uppercase text-slate-900">{sale.paymentMethod}</span>
+                
+                <p className="text-xs text-slate-700 font-medium mt-2">
+                  Means of Payment: <span className="font-extrabold uppercase text-slate-900">{sale.paymentMethod.replace('_', ' ')}</span>
                 </p>
               </div>
             </div>
@@ -172,10 +176,12 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
             {/* Billed To / Customer Details */}
             <div className="bg-slate-50 rounded-lg border border-slate-200 p-4 mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider mb-1">Billed To (Customer)</p>
+                <p className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider mb-1">Buyer&apos;s Name</p>
                 <p className="font-extrabold text-slate-900 text-base">{customer ? customer.name : 'Walk-in Customer'}</p>
                 {customer?.address && <p className="text-sm text-slate-600">{customer.address}</p>}
-                {customer?.phone && <p className="text-sm text-slate-600">Phone: {customer.phone}</p>}
+                <p className="text-sm text-slate-700 font-medium mt-0.5">
+                  Mobile Number: <span className="font-mono font-bold text-slate-900">{customer?.phone || 'N/A'}</span>
+                </p>
                 {customer?.panNumber && <p className="text-xs font-mono text-slate-600 mt-1 font-semibold">PAN: {customer.panNumber}</p>}
               </div>
 
@@ -243,21 +249,35 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
                   </div>
                 )}
                 <div className="flex justify-between text-sm text-slate-600 font-medium">
-                  <span>VAT / Tax (13%):</span>
+                  <span>VAT / Tax ({sale.tax > 0 ? '13%' : '0%'}):</span>
                   <span className="font-mono font-bold text-slate-900">Rs. {sale.tax.toFixed(2)}</span>
                 </div>
                 <div className="border-t border-slate-300 pt-2 flex justify-between text-base font-extrabold text-slate-900">
-                  <span>Grand Total:</span>
-                  <span className="font-mono text-emerald-700">Rs. {sale.total.toFixed(2)}</span>
+                  <span>Total Amount:</span>
+                  <span className="font-mono text-emerald-700 font-black">Rs. {sale.total.toFixed(2)}</span>
                 </div>
                 <div className="border-t border-slate-200 pt-2 flex justify-between text-xs text-slate-600 font-medium">
                   <span>Paid Amount:</span>
                   <span className="font-mono font-bold text-slate-900">Rs. {sale.paidAmount.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-xs font-extrabold text-amber-800">
-                  <span>Due Balance:</span>
-                  <span className="font-mono">Rs. {sale.dueAmount.toFixed(2)}</span>
-                </div>
+                {sale.dueAmount > 0 ? (
+                  <div className="flex justify-between text-xs font-extrabold text-amber-800">
+                    <span>Outstanding Due (Udhaar):</span>
+                    <span className="font-mono">Rs. {sale.dueAmount.toFixed(2)}</span>
+                  </div>
+                ) : (sale.changeAmount && sale.changeAmount > 0) || sale.paidAmount > sale.total ? (
+                  <div className="flex justify-between text-xs font-extrabold text-emerald-700">
+                    <span>Change Returned:</span>
+                    <span className="font-mono">
+                      Rs. {(sale.changeAmount || sale.paidAmount - sale.total).toFixed(2)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between text-xs text-slate-600 font-medium">
+                    <span>Due Balance:</span>
+                    <span className="font-mono">Rs. 0.00</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -268,8 +288,8 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
             <div className="text-center border-b border-dashed border-slate-400 pb-3 mb-3">
               <h2 className="font-black text-base uppercase text-slate-900">{business.name}</h2>
               {business.address && <p className="text-[10px] text-slate-600">{business.address}</p>}
-              {business.phone && <p className="text-[10px] text-slate-600">TEL: {business.phone}</p>}
-              {business.panNumber && <p className="text-[10px] text-slate-800 font-bold mt-1">PAN: {business.panNumber}</p>}
+              <p className="text-[10px] text-slate-800 font-bold">TEL (Seller Mobile): {business.phone || 'N/A'}</p>
+              <p className="text-[10px] text-slate-800 font-bold mt-0.5">PAN of Seller: {business.panNumber || business.vatNumber || 'N/A'}</p>
               <div className="my-2 border-t border-slate-900 w-full" />
               <p className="font-bold text-sm tracking-wider">CASH RECEIPT</p>
             </div>
@@ -277,20 +297,24 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
             {/* Meta Details */}
             <div className="space-y-1 mb-3 text-[11px]">
               <div className="flex justify-between">
-                <span>INV #:</span>
+                <span>Bill No:</span>
                 <span className="font-bold">{invoice.invoiceNumber}</span>
               </div>
               <div className="flex justify-between">
-                <span>DATE:</span>
-                <span>{new Date(invoice.issueDate || invoice.createdAt).toLocaleString()}</span>
+                <span>Billing Date:</span>
+                <span>{new Date(invoice.issueDate || invoice.createdAt).toLocaleDateString()}</span>
               </div>
               <div className="flex justify-between">
-                <span>CUST:</span>
+                <span>Buyer Name:</span>
                 <span className="font-semibold">{customer ? customer.name : 'Walk-in'}</span>
               </div>
               <div className="flex justify-between">
-                <span>PAY:</span>
-                <span className="uppercase">{sale.paymentMethod}</span>
+                <span>Buyer Mobile:</span>
+                <span className="font-mono">{customer?.phone || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Means of Payment:</span>
+                <span className="uppercase font-bold">{sale.paymentMethod}</span>
               </div>
             </div>
 
@@ -307,6 +331,7 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
                   <div className="flex justify-between text-slate-600">
                     <span>
                       {item.quantity} x Rs. {item.unitPrice.toFixed(2)}
+                      {item.discount > 0 && ` (Disc: -${item.discount.toFixed(2)})`}
                     </span>
                     <span className="font-bold text-slate-900">Rs. {item.total.toFixed(2)}</span>
                   </div>
@@ -321,27 +346,41 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
                 <span>Rs. {sale.subtotal.toFixed(2)}</span>
               </div>
               {sale.discount > 0 && (
-                <div className="flex justify-between text-slate-600">
+                <div className="flex justify-between text-slate-700 font-bold">
                   <span>Discount:</span>
                   <span>- Rs. {sale.discount.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span>VAT (13%):</span>
-                <span>Rs. {sale.tax.toFixed(2)}</span>
-              </div>
+              {sale.tax > 0 && (
+                <div className="flex justify-between">
+                  <span>VAT (13%):</span>
+                  <span>Rs. {sale.tax.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-black text-sm border-t border-slate-900 pt-1 mt-1">
-                <span>TOTAL:</span>
+                <span>GRAND TOTAL:</span>
                 <span>Rs. {sale.total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Paid:</span>
                 <span>Rs. {sale.paidAmount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between font-bold text-slate-800">
-                <span>Due:</span>
-                <span>Rs. {sale.dueAmount.toFixed(2)}</span>
-              </div>
+              {sale.dueAmount > 0 ? (
+                <div className="flex justify-between font-bold text-amber-800">
+                  <span>Udhaar/Due:</span>
+                  <span>Rs. {sale.dueAmount.toFixed(2)}</span>
+                </div>
+              ) : (sale.changeAmount && sale.changeAmount > 0) || sale.paidAmount > sale.total ? (
+                <div className="flex justify-between font-bold text-emerald-800">
+                  <span>Change Return:</span>
+                  <span>Rs. {(sale.changeAmount || sale.paidAmount - sale.total).toFixed(2)}</span>
+                </div>
+              ) : (
+                <div className="flex justify-between text-slate-600">
+                  <span>Due:</span>
+                  <span>Rs. 0.00</span>
+                </div>
+              )}
             </div>
 
             {/* Footer */}

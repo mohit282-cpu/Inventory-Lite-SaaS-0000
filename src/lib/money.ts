@@ -41,6 +41,7 @@ export interface CalculatedSaleTotals {
   total: number
   paidAmount: number
   dueAmount: number
+  changeAmount: number
   processedItems: Array<{
     productId: string
     quantity: number
@@ -53,6 +54,15 @@ export interface CalculatedSaleTotals {
 /**
  * Centralized Server-Side Sale Totals Calculation
  * Recalculates all totals from items, strictly validating every monetary parameter.
+ * 
+ * Order of calculation:
+ * 1. Product subtotal = sum of (quantity * unitPrice)
+ * 2. Line discounts deducted -> subtotal after line discounts
+ * 3. Overall discount deducted -> taxable amount
+ * 4. Tax calculated on taxable amount -> final total (grand total)
+ * 5. Paid amount compared against final total:
+ *    - dueAmount = MAX(finalTotal - paidAmount, 0)
+ *    - changeAmount = MAX(paidAmount - finalTotal, 0)
  */
 export function calculateSaleTotals(params: {
   items: Array<{
@@ -83,7 +93,9 @@ export function calculateSaleTotals(params: {
     throw new Error('Invalid paid amount: Must be a non-negative number')
   }
 
-  let subtotalPaisa = 0
+  let grossSubtotalPaisa = 0
+  let lineDiscountTotalPaisa = 0
+
   const processedItems = items.map((item) => {
     if (typeof item.quantity !== 'number' || isNaN(item.quantity) || !isFinite(item.quantity) || item.quantity <= 0) {
       throw new Error('Item quantity must be a positive number greater than zero')
@@ -103,7 +115,8 @@ export function calculateSaleTotals(params: {
     }
     const itemTotalPaisa = qtyPaisa - discountPaisa
 
-    subtotalPaisa += itemTotalPaisa
+    grossSubtotalPaisa += qtyPaisa
+    lineDiscountTotalPaisa += discountPaisa
 
     return {
       productId: item.productId,
@@ -114,33 +127,32 @@ export function calculateSaleTotals(params: {
     }
   })
 
+  const subtotalAfterLineDiscountsPaisa = grossSubtotalPaisa - lineDiscountTotalPaisa
+
   const overallDiscountPaisa = toMinorUnits(discount)
-  if (overallDiscountPaisa > subtotalPaisa) {
+  if (overallDiscountPaisa > subtotalAfterLineDiscountsPaisa) {
     throw new Error('Overall discount cannot exceed sale subtotal')
   }
 
-  const taxableAmountPaisa = subtotalPaisa - overallDiscountPaisa
+  const taxableAmountPaisa = Math.max(0, subtotalAfterLineDiscountsPaisa - overallDiscountPaisa)
   const taxRatePercent = taxRate
   const taxAmountPaisa = Math.round((taxableAmountPaisa * taxRatePercent) / 100)
 
   const totalPaisa = taxableAmountPaisa + taxAmountPaisa
   const requestedPaidPaisa = toMinorUnits(paidAmount)
 
-  if (requestedPaidPaisa > totalPaisa) {
-    throw new Error(`Paid amount (Rs. ${paidAmount.toFixed(2)}) cannot exceed total sale amount (Rs. ${(totalPaisa / 100).toFixed(2)})`)
-  }
-
-  const paidPaisa = requestedPaidPaisa
-  const duePaisa = totalPaisa - paidPaisa
+  const duePaisa = Math.max(0, totalPaisa - requestedPaidPaisa)
+  const changePaisa = Math.max(0, requestedPaidPaisa - totalPaisa)
 
   return {
-    subtotal: fromMinorUnits(subtotalPaisa),
+    subtotal: fromMinorUnits(grossSubtotalPaisa),
     overallDiscount: fromMinorUnits(overallDiscountPaisa),
     taxableAmount: fromMinorUnits(taxableAmountPaisa),
     taxAmount: fromMinorUnits(taxAmountPaisa),
     total: fromMinorUnits(totalPaisa),
-    paidAmount: fromMinorUnits(paidPaisa),
+    paidAmount: fromMinorUnits(requestedPaidPaisa),
     dueAmount: fromMinorUnits(duePaisa),
+    changeAmount: fromMinorUnits(changePaisa),
     processedItems,
   }
 }
@@ -152,16 +164,35 @@ export function validateFinancialInvariants(record: {
   total: number
   paidAmount: number
   dueAmount: number
+  changeAmount?: number
 }): void {
   const totalP = toMinorUnits(record.total)
   const paidP = toMinorUnits(record.paidAmount)
   const dueP = toMinorUnits(record.dueAmount)
+  const changeP = record.changeAmount !== undefined
+    ? toMinorUnits(record.changeAmount)
+    : Math.max(0, paidP - totalP)
 
   if (totalP < 0) throw new Error('Financial Invariant Error: Total cannot be negative')
   if (paidP < 0) throw new Error('Financial Invariant Error: Paid amount cannot be negative')
   if (dueP < 0) throw new Error('Financial Invariant Error: Due amount cannot be negative')
-  if (paidP > totalP) throw new Error('Financial Invariant Error: Paid amount exceeds total')
-  if (Math.abs(dueP - (totalP - paidP)) > 1) {
-    throw new Error('Financial Invariant Error: dueAmount must equal total - paidAmount')
+  if (changeP < 0) throw new Error('Financial Invariant Error: Change amount cannot be negative')
+
+  // Rule: Cannot have both due > 0 and change > 0
+  if (dueP > 0 && changeP > 0) {
+    throw new Error('Financial Invariant Error: Transaction cannot have both Due and Change')
+  }
+
+  if (paidP < totalP) {
+    if (Math.abs(dueP - (totalP - paidP)) > 1) {
+      throw new Error('Financial Invariant Error: dueAmount must equal total - paidAmount when underpaid')
+    }
+  } else {
+    if (dueP !== 0) {
+      throw new Error('Financial Invariant Error: dueAmount must be 0 when paidAmount >= total')
+    }
+    if (Math.abs(changeP - (paidP - totalP)) > 1) {
+      throw new Error('Financial Invariant Error: changeAmount must equal paidAmount - total when overpaid')
+    }
   }
 }

@@ -108,12 +108,12 @@ export default function SaleDetailPage() {
             {activeBusiness?.address && (
               <div className="text-xs text-slate-600">{activeBusiness.address}</div>
             )}
-            <div className="text-xs text-slate-500 font-mono">
-              PAN/VAT: {activeBusiness?.vatNumber || activeBusiness?.panNumber || 'N/A'}
+            <div className="text-xs text-slate-700 font-medium">
+              PAN of the seller: <span className="font-mono font-bold text-slate-900">{activeBusiness?.vatNumber || activeBusiness?.panNumber || 'N/A'}</span>
             </div>
-            {activeBusiness?.phone && (
-              <div className="text-xs text-slate-500 font-mono">Phone: {activeBusiness.phone}</div>
-            )}
+            <div className="text-xs text-slate-700 font-medium">
+              Seller Mobile: <span className="font-mono font-bold text-slate-900">{activeBusiness?.phone || 'N/A'}</span>
+            </div>
           </div>
 
           <div className="space-y-2 sm:text-right">
@@ -121,12 +121,17 @@ export default function SaleDetailPage() {
               <StatusBadge status={sale.status} />
             </div>
             <div className="text-xs text-slate-500 font-mono flex items-center sm:justify-end gap-1.5 mt-1 font-medium">
+              <span className="font-bold text-slate-700">Bill No:</span>
+              <span className="font-bold text-indigo-700">{sale.saleNumber || sale.$id}</span>
+            </div>
+            <div className="text-xs text-slate-500 font-mono flex items-center sm:justify-end gap-1.5 mt-1 font-medium">
               <Calendar className="h-3.5 w-3.5 text-indigo-600" />
+              <span className="font-bold text-slate-700">Billing Date:</span>
               {new Date(sale.createdAt).toLocaleString()}
             </div>
             <div className="text-xs text-slate-600 flex items-center sm:justify-end gap-1.5">
               <CreditCard className="h-3.5 w-3.5 text-indigo-600" />
-              Payment: <span className="uppercase font-bold text-slate-900">{sale.paymentMethod.replace('_', ' ')}</span>
+              Means of Payment: <span className="uppercase font-bold text-slate-900">{sale.paymentMethod.replace('_', ' ')}</span>
             </div>
           </div>
         </div>
@@ -135,11 +140,13 @@ export default function SaleDetailPage() {
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
           <User className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
           <div className="text-xs space-y-0.5">
-            <div className="text-slate-500 font-extrabold uppercase text-[10px]">Billed To</div>
+            <div className="text-slate-500 font-extrabold uppercase text-[10px]">Buyer&apos;s Name</div>
             <div className="font-extrabold text-slate-900 text-sm">
-              {customer ? customer.name : 'Walk-in Guest'}
+              {customer ? customer.name : 'Walk-in Customer'}
             </div>
-            {customer?.phone && <div className="text-slate-600 font-mono">Phone: {customer.phone}</div>}
+            <div className="text-slate-700 font-medium">
+              Mobile Number: <span className="font-mono font-bold text-slate-900">{customer?.phone || 'N/A'}</span>
+            </div>
             {customer?.address && <div className="text-slate-600">{customer.address}</div>}
             {customer?.panNumber && <div className="text-slate-600 font-mono">PAN: {customer.panNumber}</div>}
           </div>
@@ -200,10 +207,22 @@ export default function SaleDetailPage() {
               <span>Paid Amount</span>
               <span className="font-mono text-slate-900 font-bold">Rs. {sale.paidAmount.toFixed(2)}</span>
             </div>
-            {sale.dueAmount > 0 && (
+            {sale.dueAmount > 0 ? (
               <div className="flex justify-between text-amber-800 font-extrabold pt-1 border-t border-slate-200">
-                <span>Outstanding Due</span>
+                <span>Outstanding Due (Udhaar)</span>
                 <span className="font-mono text-amber-900">Rs. {sale.dueAmount.toFixed(2)}</span>
+              </div>
+            ) : sale.paidAmount > sale.total || (sale.changeAmount && sale.changeAmount > 0) ? (
+              <div className="flex justify-between text-emerald-800 font-extrabold pt-1 border-t border-slate-200">
+                <span>Change Returned</span>
+                <span className="font-mono text-emerald-900">
+                  Rs. {(sale.changeAmount || sale.paidAmount - sale.total).toFixed(2)}
+                </span>
+              </div>
+            ) : (
+              <div className="flex justify-between text-slate-600 font-medium pt-1 border-t border-slate-200">
+                <span>Udhaar / Due</span>
+                <span className="font-mono text-slate-900 font-bold">Rs. 0.00</span>
               </div>
             )}
           </div>

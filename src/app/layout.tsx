@@ -7,7 +7,7 @@ import { RouteGuard } from "@/components/auth/route-guard"
 import { Toaster } from "@/components/ui/toaster"
 import { SWRegister } from "@/components/pwa/sw-register"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"], fallback: ["system-ui", "sans-serif"] })
 
 export const metadata: Metadata = {
   title: "Inventory Lite - Multi-tenant Inventory SaaS",

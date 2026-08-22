@@ -7,6 +7,8 @@ import { saleItemService } from './sale-item.service'
 import { customerService } from './customer.service'
 import { businessService } from './business.service'
 
+import { offlineNumberPoolService } from './offline-number-pool.service'
+
 export interface InvoiceFullDetails {
   invoice: Invoice
   sale: Sale
@@ -26,26 +28,11 @@ export class InvoiceService extends BaseService {
   }
 
   /**
-   * Helper to generate a unique sequential invoice number per business (INV-000001)
+   * Helper to generate a unique sequential invoice number per business starting from 1 every financial year (INV-83/84-000001)
    */
-  async generateNextInvoiceNumber(businessId: string): Promise<string> {
-    const invoices = await this.list<Invoice>(businessId, [
-      Query.orderDesc('createdAt'),
-      Query.limit(100),
-    ])
-
-    let maxNumber = 0
-    for (const inv of invoices) {
-      if (inv.invoiceNumber && inv.invoiceNumber.startsWith('INV-')) {
-        const numPart = parseInt(inv.invoiceNumber.replace('INV-', ''), 10)
-        if (!isNaN(numPart) && numPart > maxNumber) {
-          maxNumber = numPart
-        }
-      }
-    }
-
-    const nextNum = maxNumber + 1
-    return `INV-${String(nextNum).padStart(6, '0')}`
+  async generateNextInvoiceNumber(businessId: string, dateInput?: string | Date): Promise<string> {
+    const allocated = await offlineNumberPoolService.allocateDocumentNumber(businessId, 'INVOICE', dateInput)
+    return allocated.formattedNumber
   }
 
   /**
@@ -62,7 +49,7 @@ export class InvoiceService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Invoice> {
-    const invoiceNumber = data.invoiceNumber || (await this.generateNextInvoiceNumber(businessId))
+    const invoiceNumber = data.invoiceNumber || (await this.generateNextInvoiceNumber(businessId, data.issueDate))
     const issueDate = data.issueDate || new Date().toISOString()
 
     const invoiceData = {

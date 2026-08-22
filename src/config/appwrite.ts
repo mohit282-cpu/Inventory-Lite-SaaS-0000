@@ -31,6 +31,7 @@ export const COLLECTIONS = {
   INVOICES: 'invoices',
   PAYMENTS: 'payments',
   EXPENSES: 'expenses',
+  FINANCIAL_SEQUENCES: 'financial_sequences',
 } as const
 
 // Storage Bucket IDs

@@ -195,3 +195,31 @@ export function formatAddressNepal(addr: NepalAddress): string {
   if (addr.province) parts.push(`${addr.province} Province`)
   return parts.length > 0 ? parts.join(', ') : 'Nepal'
 }
+
+/**
+ * Calculate the Nepalese Fiscal Year (BS) code for any given date.
+ * Nepal fiscal year starts Shrawan 1st (mid-July AD ~ July 16).
+ * Example: 2026-08-22 (August 2026) -> "83/84" (Fiscal Year 2083/84)
+ * Example: 2024-05-10 (May 2024) -> "80/81" (Fiscal Year 2080/81)
+ */
+export function getFiscalYearCode(dateInput?: string | Date): string {
+  const d = dateInput ? (typeof dateInput === 'string' ? new Date(dateInput) : dateInput) : new Date()
+  const validDate = isNaN(d.getTime()) ? new Date() : d
+
+  const year = validDate.getFullYear()
+  const month = validDate.getMonth() // 0-indexed (0 = Jan, 6 = July)
+  const day = validDate.getDate()
+
+  // Shrawan 1st in Nepal is approx July 16 in Gregorian calendar
+  const isAfterShrawan1 = month > 6 || (month === 6 && day >= 16)
+
+  let bsYear = year + 57
+  if (!isAfterShrawan1) {
+    bsYear -= 1
+  }
+
+  const startYearShort = bsYear.toString().slice(-2)
+  const endYearShort = (bsYear + 1).toString().slice(-2)
+
+  return `${startYearShort}/${endYearShort}`
+}

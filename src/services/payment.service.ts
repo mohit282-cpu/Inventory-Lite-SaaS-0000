@@ -99,21 +99,88 @@ export class PaymentService extends BaseService {
       }
 
       // Persist Payment document
-      const paymentDoc = await this.create<Payment>(
-        {
-          saleId: data.saleId,
-          customerId: custId,
-          invoiceId: data.invoiceId || sale.invoiceId || '',
-          amount: fromMinorUnits(paymentPaisa),
-          paymentMethod: data.paymentMethod,
-          paymentDate: pDate,
-          referenceNumber: data.referenceNumber || '',
-          notes: data.notes || '',
-          createdBy: userId,
-        },
-        businessId,
-        userId
-      )
+      let paymentDoc: Payment
+      try {
+        paymentDoc = await this.create<Payment>(
+          {
+            saleId: data.saleId,
+            customerId: custId,
+            invoiceId: data.invoiceId || sale.invoiceId || '',
+            amount: fromMinorUnits(paymentPaisa),
+            paymentMethod: data.paymentMethod,
+            paymentDate: pDate,
+            referenceNumber: data.referenceNumber || '',
+            notes: data.notes || '',
+            createdBy: userId,
+          },
+          businessId,
+          userId
+        )
+      } catch (err: any) {
+        const isCollectionMissingOrOffline =
+          (typeof window !== 'undefined' && !navigator.onLine) ||
+          err.message?.includes('could not be found') ||
+          err.message?.includes('404') ||
+          err.message?.includes('Collection') ||
+          err.message?.includes('Network') ||
+          err.message?.includes('fetch')
+
+        if (isCollectionMissingOrOffline) {
+          const generatedId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+          const localPayment = {
+            id: generatedId,
+            businessId,
+            customerId: custId,
+            saleId: data.saleId,
+            amount: fromMinorUnits(paymentPaisa),
+            paymentMethod: data.paymentMethod,
+            notes: data.notes || '',
+            syncStatus: 'PENDING_SYNC' as const,
+            createdAt: pDate,
+          }
+
+          try {
+            const { localDB } = await import('@/lib/offline/db')
+            await localDB.payments.put(localPayment)
+            await localDB.syncQueue.add({
+              businessId,
+              userId,
+              entityType: 'payment',
+              entityId: generatedId,
+              operation: 'CREATE',
+              payload: localPayment,
+              retryCount: 0,
+              status: 'PENDING',
+              createdAt: pDate,
+            })
+          } catch {
+            // Local DB write non-fatal
+          }
+
+          paymentDoc = {
+            $id: generatedId,
+            businessId,
+            customerId: custId,
+            saleId: data.saleId,
+            invoiceId: data.invoiceId || sale.invoiceId || '',
+            amount: fromMinorUnits(paymentPaisa),
+            paymentMethod: data.paymentMethod,
+            paymentDate: pDate,
+            referenceNumber: data.referenceNumber || '',
+            notes: data.notes || '',
+            createdBy: userId,
+            createdAt: pDate,
+            updatedAt: pDate,
+            $createdAt: pDate,
+            $updatedAt: pDate,
+            $databaseId: '',
+            $collectionId: '',
+            $permissions: [],
+          }
+        } else {
+          throw err
+        }
+      }
 
       try {
         // Recalculate Sale paid & due amount using minor units
@@ -128,19 +195,49 @@ export class PaymentService extends BaseService {
 
         validateFinancialInvariants({ total: sale.total, paidAmount: newPaid, dueAmount: newDue })
 
-        await saleService.update<Sale>(
-          sale.$id,
-          {
-            paidAmount: newPaid,
-            dueAmount: newDue,
-            status: newStatus,
-          },
-          businessId
-        )
+        try {
+          await saleService.update<Sale>(
+            sale.$id,
+            {
+              paidAmount: newPaid,
+              dueAmount: newDue,
+              status: newStatus,
+            },
+            businessId
+          )
+        } catch {
+          // Fallback local update if sale update in cloud fails
+          try {
+            const { localDB } = await import('@/lib/offline/db')
+            const localSale = await localDB.sales.get(sale.$id)
+            if (localSale) {
+              await localDB.sales.update(sale.$id, {
+                paidAmount: newPaid,
+                dueAmount: newDue,
+                status: newStatus as any,
+              })
+            }
+          } catch {
+            // Local fallback non-fatal
+          }
+        }
 
         // Update Customer total due balance
         if (custId && custId.trim() !== '') {
-          await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
+          try {
+            await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
+          } catch {
+            try {
+              const { localDB } = await import('@/lib/offline/db')
+              const localCust = await localDB.customers.get(custId)
+              if (localCust) {
+                const newCustDue = Math.max(0, (localCust.dueAmount || 0) - fromMinorUnits(paymentPaisa))
+                await localDB.customers.update(custId, { dueAmount: newCustDue })
+              }
+            } catch {
+              // Local fallback non-fatal
+            }
+          }
         }
 
         return paymentDoc
@@ -178,9 +275,60 @@ export class PaymentService extends BaseService {
     }
 
     try {
-      return await this.list<Payment>(businessId, queries)
+      const items = await this.list<Payment>(businessId, queries)
+      try {
+        const { localDB } = await import('@/lib/offline/db')
+        for (const item of items) {
+          await localDB.payments.put({
+            id: item.$id,
+            businessId: item.businessId,
+            customerId: item.customerId || '',
+            saleId: item.saleId,
+            amount: item.amount,
+            paymentMethod: item.paymentMethod,
+            notes: item.notes,
+            syncStatus: 'SYNCED',
+            createdAt: item.paymentDate || item.createdAt || item.$createdAt,
+          })
+        }
+      } catch {
+        // Caching non-fatal
+      }
+      return items
     } catch {
-      return []
+      try {
+        const { localDB } = await import('@/lib/offline/db')
+        const localItems = await localDB.payments.where('businessId').equals(businessId).toArray()
+        let filtered = localItems
+        if (filters?.saleId) {
+          filtered = filtered.filter((p) => p.saleId === filters.saleId)
+        }
+        if (filters?.customerId) {
+          filtered = filtered.filter((p) => p.customerId === filters.customerId)
+        }
+        return filtered.map((p) => ({
+          $id: p.id,
+          businessId: p.businessId,
+          customerId: p.customerId || '',
+          saleId: p.saleId || '',
+          invoiceId: '',
+          amount: p.amount,
+          paymentMethod: p.paymentMethod as any,
+          paymentDate: p.createdAt,
+          referenceNumber: '',
+          notes: p.notes || '',
+          createdBy: '',
+          createdAt: p.createdAt,
+          updatedAt: p.createdAt,
+          $createdAt: p.createdAt,
+          $updatedAt: p.createdAt,
+          $databaseId: '',
+          $collectionId: '',
+          $permissions: [],
+        }))
+      } catch {
+        return []
+      }
     }
   }
 

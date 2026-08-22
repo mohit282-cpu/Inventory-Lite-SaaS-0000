@@ -113,24 +113,25 @@ export default function CreateSalePage() {
   const effectiveTaxRate = isVatEnabled ? taxRate : 0
 
   // Memoized Billing Totals Calculations
-  const { subtotal, grandTotal, dueAmount, effectivePaidAmount, taxAmount } =
+  const { subtotal, grandTotal, dueAmount, changeAmount, effectivePaidAmount, taxAmount } =
     React.useMemo(() => {
-      const sub = cart.reduce(
-        (sum, item) => sum + item.quantity * item.unitPrice - item.discount,
-        0
-      )
-      const taxable = Math.max(0, sub - effectiveOverallDiscount)
+      const rawSub = cart.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+      const lineDisc = cart.reduce((sum, item) => sum + item.discount, 0)
+      const subAfterLineDisc = Math.max(0, rawSub - lineDisc)
+      const taxable = Math.max(0, subAfterLineDisc - effectiveOverallDiscount)
       const tax = (taxable * effectiveTaxRate) / 100
       const total = taxable + tax
       const paid = paidAmountInput !== '' ? parseFloat(paidAmountInput) || 0 : total
       const due = Math.max(0, total - paid)
+      const change = Math.max(0, paid - total)
 
       return {
-        subtotal: sub,
+        subtotal: rawSub,
         taxableSubtotal: taxable,
         taxAmount: tax,
         grandTotal: total,
         dueAmount: due,
+        changeAmount: change,
         effectivePaidAmount: paid,
       }
     }, [cart, effectiveOverallDiscount, effectiveTaxRate, paidAmountInput])
@@ -652,14 +653,21 @@ export default function CreateSalePage() {
                 </div>
               </div>
 
-              {dueAmount > 0 && (
+              {dueAmount > 0 ? (
                 <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs flex justify-between text-red-700 font-bold">
                   <span className="flex items-center gap-1">
-                    <AlertCircle className="h-3.5 w-3.5 text-red-600" /> Outstanding Due:
+                    <AlertCircle className="h-3.5 w-3.5 text-red-600" /> Outstanding Due (Udhaar):
                   </span>
                   <span className="font-mono font-extrabold">Rs. {dueAmount.toFixed(2)}</span>
                 </div>
-              )}
+              ) : changeAmount > 0 ? (
+                <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs flex justify-between text-emerald-800 font-bold">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Change Return to Customer:
+                  </span>
+                  <span className="font-mono font-extrabold">Rs. {changeAmount.toFixed(2)}</span>
+                </div>
+              ) : null}
             </div>
 
             {/* Complete Sale Action Trigger */}

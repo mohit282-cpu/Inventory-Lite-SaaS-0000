@@ -12,10 +12,20 @@ import { generateSecureToken } from '@/lib/security'
 import { authorizeBusinessAccess } from '@/lib/authorization'
 import { auditLogService } from './audit-log.service'
 import { idempotencyManager } from '@/lib/idempotency'
+import { offlineNumberPoolService } from './offline-number-pool.service'
 
 export class SaleService extends BaseService {
   constructor() {
     super(COLLECTIONS.SALES)
+  }
+
+  /**
+   * Helper to generate a sequential sale number per business starting from 1 every financial year.
+   * Format: SALE-83/84-000001
+   */
+  async generateNextSaleNumber(businessId: string, dateInput?: string | Date): Promise<string> {
+    const allocated = await offlineNumberPoolService.allocateDocumentNumber(businessId, 'SALE', dateInput)
+    return allocated.formattedNumber
   }
 
   /**
@@ -120,8 +130,8 @@ export class SaleService extends BaseService {
       })
 
       const status: SaleStatus = totals.dueAmount > 0 ? 'pending' : 'completed'
-      // Collision-proof sale number generation
-      const saleNumber = `SALE-${Date.now()}-${generateSecureToken(6).toUpperCase()}`
+      // Collision-proof sequential sale number starting from 1 per financial year (e.g. SALE-83/84-000001)
+      const saleNumber = (data as any).saleNumber || (await this.generateNextSaleNumber(businessId, (data as any).createdAt))
 
       // 4. Create Sale document
       const saleData = {
@@ -194,7 +204,7 @@ export class SaleService extends BaseService {
         }
 
         return {
-          sale,
+          sale: { ...sale, changeAmount: totals.changeAmount },
           items: createdItems,
           invoice,
         }
@@ -258,7 +268,7 @@ export class SaleService extends BaseService {
     const { localDB } = await import('@/lib/offline/db')
 
     const localSaleId = customId || `LOCAL-SALE-${Date.now()}-${generateSecureToken(6)}`
-    const saleNumber = `SALE-OFFLINE-${generateSecureToken(6).toUpperCase()}`
+    const saleNumber = await this.generateNextSaleNumber(businessId, data.createdAt)
 
     // Calculate totals locally
     const itemsWithDetails: any[] = []
@@ -293,6 +303,7 @@ export class SaleService extends BaseService {
       total: totals.total,
       paidAmount: totals.paidAmount,
       dueAmount: totals.dueAmount,
+      changeAmount: totals.changeAmount,
       status,
       paymentMethod: data.paymentMethod,
       syncStatus: 'PENDING_SYNC' as const,

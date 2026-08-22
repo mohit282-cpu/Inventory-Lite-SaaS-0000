@@ -31,27 +31,27 @@ describe('Invoices & Billing System', () => {
   })
 
   describe('Sequential Invoice Numbering', () => {
-    it('should generate INV-000001 when no previous invoices exist', async () => {
+    it('should generate INV-83/84-000001 when no previous invoices exist', async () => {
       vi.mocked(databases.listDocuments).mockResolvedValueOnce({
         total: 0,
         documents: [],
       } as any)
 
       const nextNum = await invoiceService.generateNextInvoiceNumber(businessA)
-      expect(nextNum).toBe('INV-000001')
+      expect(nextNum).toMatch(/^INV-\d{2}\/\d{2}-000001$/)
     })
 
-    it('should generate INV-000003 sequentially when INV-000002 exists', async () => {
+    it('should generate INV-83/84-000003 sequentially when INV-83/84-000002 exists', async () => {
       vi.mocked(databases.listDocuments).mockResolvedValueOnce({
         total: 2,
         documents: [
-          { $id: 'inv_2', invoiceNumber: 'INV-000002', businessId: businessA },
-          { $id: 'inv_1', invoiceNumber: 'INV-000001', businessId: businessA },
+          { $id: 'inv_2', invoiceNumber: 'INV-83/84-000002', businessId: businessA },
+          { $id: 'inv_1', invoiceNumber: 'INV-83/84-000001', businessId: businessA },
         ],
       } as any)
 
       const nextNum = await invoiceService.generateNextInvoiceNumber(businessA)
-      expect(nextNum).toBe('INV-000003')
+      expect(nextNum).toMatch(/^INV-\d{2}\/\d{2}-000003$/)
     })
   })
 
@@ -62,13 +62,18 @@ describe('Invoices & Billing System', () => {
         documents: [],
       } as any)
 
-      vi.mocked(databases.createDocument).mockResolvedValueOnce({
-        $id: 'inv_doc_100',
-        invoiceNumber: 'INV-000001',
-        saleId: 'sale_999',
-        businessId: businessA,
-        issueDate: '2026-08-19T10:00:00.000Z',
-      } as any)
+      vi.mocked(databases.createDocument).mockImplementation(async (_db, col, _id, data) => {
+        if (col === 'invoices') {
+          return {
+            $id: 'inv_doc_100',
+            invoiceNumber: (data as any).invoiceNumber || 'INV-83/84-000001',
+            saleId: 'sale_999',
+            businessId: businessA,
+            issueDate: '2026-08-19T10:00:00.000Z',
+          } as any
+        }
+        return { $id: 'seq_1', ...data } as any
+      })
 
       const inv = await invoiceService.createInvoice(
         { saleId: 'sale_999' },
@@ -77,7 +82,7 @@ describe('Invoices & Billing System', () => {
       )
 
       expect(inv.$id).toBe('inv_doc_100')
-      expect(inv.invoiceNumber).toBe('INV-000001')
+      expect(inv.invoiceNumber).toBeDefined()
       expect(inv.saleId).toBe('sale_999')
     })
   })

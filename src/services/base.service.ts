@@ -59,6 +59,7 @@ export abstract class BaseService {
       'sales',
       'invoices',
       'expenses',
+      'payments',
     ])
 
     const documentData: any = {

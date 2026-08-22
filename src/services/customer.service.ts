@@ -72,18 +72,90 @@ export class CustomerService extends BaseService {
       limit?: number
     }
   ): Promise<Customer[]> {
-    const limit = filters?.limit || 200
-    const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
+    try {
+      const limit = filters?.limit || 200
+      const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
 
-    if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
-      queries.push(Query.search('name', filters.searchTerm.trim()))
+      if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+        queries.push(Query.search('name', filters.searchTerm.trim()))
+      }
+
+      if (filters?.hasDueOnly) {
+        queries.push(Query.greaterThan('totalDue', 0))
+      }
+
+      const items = await this.list<Customer>(businessId, queries)
+
+      try {
+        const { localDB } = await import('@/lib/offline/db')
+        for (const item of items) {
+          await localDB.customers.put({
+            id: item.$id,
+            businessId: item.businessId,
+            name: item.name,
+            phone: item.phone,
+            email: item.email,
+            address: item.address,
+            dueAmount: item.totalDue || item.dueAmount || 0,
+            syncStatus: 'SYNCED',
+            createdAt: item.createdAt || item.$createdAt,
+          })
+        }
+      } catch {
+        // Caching non-fatal
+      }
+
+      return items
+    } catch (err: any) {
+      const isOffline =
+        typeof window !== 'undefined' &&
+        (!navigator.onLine ||
+          err.message?.includes('Network') ||
+          err.message?.includes('fetch') ||
+          err.message?.includes('offline'))
+
+      if (isOffline) {
+        try {
+          const { localDB } = await import('@/lib/offline/db')
+          const localCusts = await localDB.customers
+            .where('businessId')
+            .equals(businessId)
+            .toArray()
+
+          let filtered = localCusts
+          if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+            const q = filters.searchTerm.trim().toLowerCase()
+            filtered = filtered.filter(
+              (c) => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q))
+            )
+          }
+          if (filters?.hasDueOnly) {
+            filtered = filtered.filter((c) => (c.dueAmount || 0) > 0)
+          }
+
+          return filtered.map((c) => ({
+            $id: c.id,
+            businessId: c.businessId,
+            name: c.name,
+            phone: c.phone || '',
+            email: c.email || '',
+            address: c.address || '',
+            totalDue: c.dueAmount || 0,
+            dueAmount: c.dueAmount || 0,
+            createdAt: c.createdAt || new Date().toISOString(),
+            updatedAt: c.createdAt || new Date().toISOString(),
+            $createdAt: c.createdAt || new Date().toISOString(),
+            $updatedAt: c.createdAt || new Date().toISOString(),
+            $databaseId: '',
+            $collectionId: '',
+            $permissions: [],
+          }))
+        } catch {
+          return []
+        }
+      }
+      throw err
     }
-
-    if (filters?.hasDueOnly) {
-      queries.push(Query.greaterThan('totalDue', 0))
-    }
-
-    return await this.list<Customer>(businessId, queries)
   }
 
   /**

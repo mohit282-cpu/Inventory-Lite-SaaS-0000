@@ -46,20 +46,22 @@ export default function StockMovementsPage() {
     try {
       setIsLoading(true)
       const [movs, prods, lowStock] = await Promise.all([
-        stockMovementService.listMovements(activeBusiness.$id),
-        productService.listProducts(activeBusiness.$id),
-        productService.getLowStockProducts(activeBusiness.$id),
+        stockMovementService.listMovements(activeBusiness.$id).catch(() => []),
+        productService.listProducts(activeBusiness.$id).catch(() => []),
+        productService.getLowStockProducts(activeBusiness.$id).catch(() => []),
       ])
       setMovements(movs)
       setProducts(prods)
       setLowStockProducts(lowStock)
       setFilteredMovements(movs)
     } catch (err: any) {
-      toast({
-        title: 'Error loading stock ledger',
-        description: err.message || 'Failed to fetch stock records.',
-        variant: 'destructive',
-      })
+      if (typeof window !== 'undefined' && navigator.onLine) {
+        toast({
+          title: 'Error loading stock ledger',
+          description: err.message || 'Failed to fetch stock records.',
+          variant: 'destructive',
+        })
+      }
     } finally {
       setIsLoading(false)
     }

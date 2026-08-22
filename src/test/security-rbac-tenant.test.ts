@@ -216,13 +216,14 @@ describe('Production Hardening & Comprehensive Security Tests', () => {
       paidAmount: 500,
     })
 
-    // Subtotal = 3 * 500 - 100 = 1400
+    // Gross Subtotal = 3 * 500 = 1500
+    // Line discount = 100
     // Taxable = 1400 - 100 = 1300
     // Tax 13% of 1300 = 169
     // Total = 1469
     // Paid = 500
     // Due = 969
-    expect(calculated.subtotal).toBe(1400)
+    expect(calculated.subtotal).toBe(1500)
     expect(calculated.taxAmount).toBe(169)
     expect(calculated.total).toBe(1469)
     expect(calculated.dueAmount).toBe(969)

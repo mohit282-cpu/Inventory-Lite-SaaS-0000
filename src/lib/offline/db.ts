@@ -46,6 +46,7 @@ export interface LocalSale {
   total: number
   paidAmount: number
   dueAmount: number
+  changeAmount?: number
   status: 'completed' | 'cancelled' | 'pending'
   paymentMethod: string
   syncStatus: 'SYNCED' | 'PENDING_SYNC' | 'FAILED'
@@ -122,6 +123,37 @@ export interface OfflineAuthRecord {
   lastValidatedAt: string
 }
 
+export interface LocalStockMovement {
+  id: string
+  businessId: string
+  productId: string
+  type: 'stock_in' | 'stock_out' | 'adjustment'
+  quantity: number
+  previousQuantity: number
+  newQuantity: number
+  reason?: string
+  referenceId?: string
+  createdBy?: string
+  syncStatus: 'SYNCED' | 'PENDING_SYNC' | 'FAILED'
+  createdAt: string
+}
+
+export interface LocalNumberBlock {
+  key: string // e.g. "biz123_SALE_2083/84"
+  businessId: string
+  documentType: 'SALE' | 'INVOICE'
+  financialYear: string // e.g. "2083/84"
+  startNumber: number
+  endNumber: number
+  nextAvailableNumber: number
+  reservedAt: string
+}
+
+export interface DeviceMeta {
+  key: string // e.g. "device_id"
+  value: string
+}
+
 export class InventoryLiteLocalDB extends Dexie {
   products!: Table<LocalProduct, string>
   categories!: Table<LocalCategory, string>
@@ -133,11 +165,14 @@ export class InventoryLiteLocalDB extends Dexie {
   syncQueue!: Table<SyncQueueItem, number>
   syncMetadata!: Table<SyncMetadata, string>
   authRecords!: Table<OfflineAuthRecord, string>
+  stockMovements!: Table<LocalStockMovement, string>
+  numberBlocks!: Table<LocalNumberBlock, string>
+  deviceMeta!: Table<DeviceMeta, string>
 
   constructor() {
     super('inventory_lite_local')
 
-    this.version(2).stores({
+    this.version(4).stores({
       products: 'id, businessId, categoryId, syncStatus',
       categories: 'id, businessId',
       customers: 'id, businessId, syncStatus',
@@ -148,6 +183,9 @@ export class InventoryLiteLocalDB extends Dexie {
       syncQueue: '++id, businessId, userId, entityType, status, createdAt',
       syncMetadata: 'businessId',
       authRecords: 'id, userId, email, activeBusinessId',
+      stockMovements: 'id, businessId, productId, type, createdAt',
+      numberBlocks: 'key, businessId, documentType, financialYear',
+      deviceMeta: 'key',
     })
   }
 

@@ -171,6 +171,7 @@ export interface Sale extends Models.Document {
   total: number
   paidAmount: number
   dueAmount: number
+  changeAmount?: number
   paymentMethod: PaymentMethod
   status: SaleStatus
   dueDate?: string
@@ -285,3 +286,17 @@ export interface FormConfig {
   submitLabel: string
   onSubmit: (data: any) => Promise<void>
 }
+
+// ==================== Financial Year Sequence Entity ====================
+
+export type DocumentType = 'SALE' | 'INVOICE'
+
+export interface FinancialSequence extends AppwriteDocument {
+  businessId: string
+  documentType: DocumentType
+  financialYear: string // e.g. "2083/84"
+  nextNumber: number
+  createdAt: string
+  updatedAt: string
+}
+

@@ -51,9 +51,61 @@ export class CategoryService extends BaseService {
    * List all categories for a business
    */
   async listCategories(businessId: string): Promise<Category[]> {
-    return await this.list<Category>(businessId, [
-      Query.orderAsc('name')
-    ])
+    try {
+      const items = await this.list<Category>(businessId, [
+        Query.orderAsc('name')
+      ])
+
+      try {
+        const { localDB } = await import('@/lib/offline/db')
+        for (const item of items) {
+          await localDB.categories.put({
+            id: item.$id,
+            businessId: item.businessId,
+            name: item.name,
+            description: item.description,
+          })
+        }
+      } catch {
+        // Caching non-fatal
+      }
+
+      return items
+    } catch (err: any) {
+      const isOffline =
+        typeof window !== 'undefined' &&
+        (!navigator.onLine ||
+          err.message?.includes('Network') ||
+          err.message?.includes('fetch') ||
+          err.message?.includes('offline'))
+
+      if (isOffline) {
+        try {
+          const { localDB } = await import('@/lib/offline/db')
+          const localCats = await localDB.categories
+            .where('businessId')
+            .equals(businessId)
+            .toArray()
+
+          return localCats.map((c) => ({
+            $id: c.id,
+            businessId: c.businessId,
+            name: c.name,
+            description: c.description || '',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            $createdAt: new Date().toISOString(),
+            $updatedAt: new Date().toISOString(),
+            $databaseId: '',
+            $collectionId: '',
+            $permissions: [],
+          }))
+        } catch {
+          return []
+        }
+      }
+      throw err
+    }
   }
 
   /**
