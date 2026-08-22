@@ -64,8 +64,17 @@ export class PaymentService extends BaseService {
     // 2. Rate limiting check
     rateLimiter.checkLimit(`payment_${userId}`, 30, 60000)
 
-    // 3. Idempotency check
-    return await idempotencyManager.execute(data.idempotencyKey, async () => {
+    // 3. Persistent Idempotency check
+    const persistentCheck = async (): Promise<Payment | null> => {
+      if (!data.idempotencyKey) return null
+      const existingPayments = await this.listPayments(businessId, { saleId: data.saleId })
+      const match = existingPayments.find(
+        (p) => p.referenceNumber === data.idempotencyKey || p.notes?.includes(data.idempotencyKey!)
+      )
+      return match || null
+    }
+
+    return await idempotencyManager.executeWithPersistentFallback(data.idempotencyKey, persistentCheck, async () => {
       const paymentPaisa = toMinorUnits(data.amount)
       if (paymentPaisa <= 0) {
         throw new Error('Payment amount must be greater than zero')

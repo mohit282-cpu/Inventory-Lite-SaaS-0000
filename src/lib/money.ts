@@ -72,10 +72,11 @@ export function calculateSaleTotals(params: {
     discount?: number
   }>
   discount?: number
+  vatEnabled?: boolean
   taxRate?: number
   paidAmount?: number
 }): CalculatedSaleTotals {
-  const { items, discount = 0, taxRate = 13, paidAmount = 0 } = params
+  const { items, discount = 0, vatEnabled = true, taxRate = 13, paidAmount = 0 } = params
 
   if (!items || !Array.isArray(items) || items.length === 0) {
     throw new Error('Sale transaction must contain at least one item')
@@ -135,8 +136,8 @@ export function calculateSaleTotals(params: {
   }
 
   const taxableAmountPaisa = Math.max(0, subtotalAfterLineDiscountsPaisa - overallDiscountPaisa)
-  const taxRatePercent = taxRate
-  const taxAmountPaisa = Math.round((taxableAmountPaisa * taxRatePercent) / 100)
+  const effectiveTaxRatePercent = vatEnabled ? taxRate : 0
+  const taxAmountPaisa = Math.round((taxableAmountPaisa * effectiveTaxRatePercent) / 100)
 
   const totalPaisa = taxableAmountPaisa + taxAmountPaisa
   const requestedPaidPaisa = toMinorUnits(paidAmount)

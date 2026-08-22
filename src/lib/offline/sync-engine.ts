@@ -200,6 +200,19 @@ export class SyncEngine {
     let failedCount = 0
 
     try {
+      // Reset stuck PROCESSING/SYNCING items from interrupted browser sessions back to PENDING
+      const stuckItems = await localDB.syncQueue
+        .where('businessId')
+        .equals(businessId)
+        .and((item) => item.status === 'PROCESSING' || item.status === 'SYNCING')
+        .toArray()
+
+      for (const stuck of stuckItems) {
+        if (stuck.id) {
+          await localDB.syncQueue.update(stuck.id, { status: 'PENDING' })
+        }
+      }
+
       const rawItems = await localDB.syncQueue
         .where('businessId')
         .equals(businessId)
@@ -228,8 +241,10 @@ export class SyncEngine {
           onProgress(`Syncing ${item.entityType} (${currentIndex}/${totalItems})...`, currentIndex, totalItems)
         }
 
+        let createdServerId: string | undefined = undefined
+
         try {
-          await localDB.syncQueue.update(item.id!, { status: 'SYNCING' })
+          await localDB.syncQueue.update(item.id!, { status: 'PROCESSING' })
 
           // Replace any temporary customer ID in payload if mapped from earlier sync step
           const payload = { ...item.payload }
@@ -237,9 +252,12 @@ export class SyncEngine {
             payload.customerId = idMappings.get(payload.customerId)
           }
 
+          const idempotencyKey = item.idempotencyKey || item.entityId
+
           if (item.entityType === 'customer') {
             const created = await customerService.createCustomer(payload, item.businessId, item.userId)
             if (created && created.$id) {
+              createdServerId = created.$id
               idMappings.set(item.entityId, created.$id)
               // Update local Dexie customer record
               const existingLocal = await localDB.customers.get(item.entityId)
@@ -253,43 +271,66 @@ export class SyncEngine {
               }
             }
           } else if (item.entityType === 'sale') {
-            // Pass idempotency key
-            payload.idempotencyKey = payload.idempotencyKey || item.entityId
+            payload.idempotencyKey = idempotencyKey
             const result = await saleService.createSale(payload, item.businessId, item.userId)
             if (result && result.sale && result.sale.$id) {
+              createdServerId = result.sale.$id
               idMappings.set(item.entityId, result.sale.$id)
               await localDB.sales.update(item.entityId, { syncStatus: 'SYNCED' })
             }
           } else if (item.entityType === 'payment') {
-            payload.idempotencyKey = payload.idempotencyKey || item.entityId
+            payload.idempotencyKey = idempotencyKey
             if (payload.saleId && idMappings.has(payload.saleId)) {
               payload.saleId = idMappings.get(payload.saleId)
             }
-            await paymentService.createPayment(payload, item.businessId, item.userId)
-            await localDB.payments.update(item.entityId, { syncStatus: 'SYNCED' })
+            const payDoc = await paymentService.createPayment(payload, item.businessId, item.userId)
+            if (payDoc && payDoc.$id) {
+              createdServerId = payDoc.$id
+              await localDB.payments.update(item.entityId, { syncStatus: 'SYNCED' })
+            }
           } else if (item.entityType === 'expense') {
-            await expenseService.createExpense(payload, item.businessId, item.userId)
-            await localDB.expenses.update(item.entityId, { syncStatus: 'SYNCED' })
+            const expDoc = await expenseService.createExpense(payload, item.businessId, item.userId)
+            if (expDoc && expDoc.$id) {
+              createdServerId = expDoc.$id
+              await localDB.expenses.update(item.entityId, { syncStatus: 'SYNCED' })
+            }
           } else if (item.entityType === 'product') {
-            await productService.createProduct(payload, item.businessId, item.userId)
-            await localDB.products.update(item.entityId, { syncStatus: 'SYNCED' })
+            const prodDoc = await productService.createProduct(payload, item.businessId, item.userId)
+            if (prodDoc && prodDoc.$id) {
+              createdServerId = prodDoc.$id
+              await localDB.products.update(item.entityId, { syncStatus: 'SYNCED' })
+            }
           }
 
           await localDB.syncQueue.update(item.id!, {
             status: 'SYNCED',
+            serverId: createdServerId,
             errorMessage: undefined,
           })
           syncedCount++
         } catch (err: any) {
           console.error(`[SyncEngine] Failed to sync queue item ${item.id}:`, err)
-          const newRetryCount = (item.retryCount || 0) + 1
-          const isFinalFailure = newRetryCount >= 4
+          const isStockOrBusinessConflict =
+            err?.message?.includes('Insufficient stock') ||
+            err?.message?.includes('conflict') ||
+            err?.message?.includes('CONFLICT') ||
+            err?.message?.includes('already exists')
 
-          await localDB.syncQueue.update(item.id!, {
-            status: isFinalFailure ? 'FAILED' : 'PENDING',
-            retryCount: newRetryCount,
-            errorMessage: err?.message || 'Synchronization failed',
-          })
+          if (isStockOrBusinessConflict) {
+            await localDB.syncQueue.update(item.id!, {
+              status: 'CONFLICT',
+              errorMessage: err?.message || 'Conflict detected during synchronization',
+            })
+          } else {
+            const newRetryCount = (item.retryCount || 0) + 1
+            const isFinalFailure = newRetryCount >= 4
+
+            await localDB.syncQueue.update(item.id!, {
+              status: isFinalFailure ? 'FAILED' : 'PENDING',
+              retryCount: newRetryCount,
+              errorMessage: err?.message || 'Synchronization failed',
+            })
+          }
           failedCount++
         }
       }

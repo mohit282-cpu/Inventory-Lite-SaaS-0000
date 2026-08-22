@@ -100,12 +100,16 @@ export abstract class BaseService {
       documentData.businessId = businessId
     }
 
-    // Secure Appwrite permissions: NEVER use public Role.any() for business data
-    const secureUserTarget = userId ? Role.user(userId) : Role.users()
+    // Secure Appwrite permissions: NEVER use public Role.any() or broad Role.users() for business data
+    if (!permissions && !userId) {
+      throw new Error('Security Error: Document creation requires a valid userId or explicit permission target. Broad Role.users() fallback is prohibited.')
+    }
+
+    const secureTarget = userId ? Role.user(userId) : Role.team(businessId)
     const docPermissions = permissions || [
-      Permission.read(secureUserTarget),
-      Permission.update(secureUserTarget),
-      Permission.delete(secureUserTarget),
+      Permission.read(secureTarget),
+      Permission.update(secureTarget),
+      Permission.delete(secureTarget),
     ]
 
     const doc = await databases.createDocument(

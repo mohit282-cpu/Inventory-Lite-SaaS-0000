@@ -61,7 +61,20 @@ export class SaleService extends BaseService {
       requiredRole: ['owner', 'admin', 'staff'],
     })
 
-    return await idempotencyManager.execute(data.idempotencyKey, async () => {
+    const persistentCheck = async (): Promise<{ sale: Sale; items: any[]; invoice?: any } | null> => {
+      if (!data.idempotencyKey) return null
+      const existingSales = await this.listSales(businessId)
+      const matchedSale = existingSales.find(
+        (s: any) => s.idempotencyKey === data.idempotencyKey || (s as any).referenceId === data.idempotencyKey
+      )
+      if (matchedSale) {
+        const items = await saleItemService.listSaleItems(matchedSale.$id, businessId)
+        return { sale: matchedSale, items, invoice: null }
+      }
+      return null
+    }
+
+    return await idempotencyManager.executeWithPersistentFallback(data.idempotencyKey, persistentCheck, async () => {
       if (!data.items || data.items.length === 0) {
         throw new Error('Sale must include at least one item')
       }
@@ -122,6 +135,7 @@ export class SaleService extends BaseService {
       const totals = calculateSaleTotals({
         items: validatedItems,
         discount: data.discount || 0,
+        vatEnabled: data.vatEnabled ?? true,
         taxRate: data.taxRate ?? 13,
         paidAmount: data.paidAmount || 0,
       })
@@ -439,6 +453,86 @@ export class SaleService extends BaseService {
 
       return localSales.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1)) as any[]
     }
+  }
+
+  /**
+   * Delete / Cancel a sale transaction safely.
+   * Restores product stock, adjusts customer due balance, and deletes sale item records.
+   */
+  async cancelSale(saleId: string, businessId: string, userId: string): Promise<boolean> {
+    await authorizeBusinessAccess({
+      userId,
+      businessId,
+      requiredRole: ['owner', 'admin'],
+    })
+
+    const sale = await this.getSale(saleId, businessId)
+    if (!sale) {
+      throw new Error('Sale transaction not found')
+    }
+
+    // 1. Fetch sale items and restore stock
+    const items = await saleItemService.listSaleItems(saleId, businessId)
+    for (const item of items) {
+      try {
+        await stockMovementService.processStockIn(
+          item.productId,
+          item.quantity,
+          businessId,
+          userId,
+          `Sale Cancellation: #${sale.saleNumber || sale.$id}`,
+          sale.$id
+        )
+      } catch (stockErr) {
+        console.error('Failed to restore stock on sale cancellation:', stockErr)
+      }
+      try {
+        await saleItemService.delete(item.$id, businessId)
+      } catch {
+        // Non-fatal
+      }
+    }
+
+    // 2. Adjust customer due balance if remaining due balance exists
+    if (sale.customerId && sale.dueAmount > 0) {
+      try {
+        await customerService.updateDueAmount(sale.customerId, -sale.dueAmount, businessId)
+      } catch (custErr) {
+        console.error('Failed to adjust customer due balance on sale cancellation:', custErr)
+      }
+    }
+
+    // 3. Update Sale document status to 'cancelled' (non-destructive financial reversal)
+    await this.update<Sale>(
+      saleId,
+      {
+        status: 'cancelled',
+        dueAmount: 0,
+        notes: `${sale.notes || ''} [CANCELLED by ${userId} on ${new Date().toISOString()}]`.trim(),
+      },
+      businessId
+    )
+
+    try {
+      await auditLogService.logEvent(
+        businessId,
+        userId,
+        'sale_cancelled',
+        saleId,
+        { saleNumber: sale.saleNumber, total: sale.total, reason: 'Manual sale cancellation' }
+      )
+    } catch {
+      // Non-fatal audit log
+    }
+
+    return true
+  }
+
+  /**
+   * Hard delete sale (restricted for cleanup)
+   */
+  async deleteSale(saleId: string, businessId: string, userId: string): Promise<boolean> {
+    return await this.cancelSale(saleId, businessId, userId)
   }
 }
 
