@@ -488,6 +488,13 @@ export class PaymentService extends BaseService {
       return true
     })
   }
+
+  /**
+   * Get payments list for business
+   */
+  async getPayments(businessId: string): Promise<Payment[]> {
+    return await this.list<Payment>(businessId, [Query.orderDesc('createdAt'), Query.limit(200)])
+  }
 }
 
 export const paymentService = new PaymentService()

@@ -129,7 +129,35 @@ export class ProductService extends BaseService {
    * Get product by ID
    */
   async getProduct(productId: string, businessId: string): Promise<Product> {
-    return await this.getById<Product>(productId, businessId)
+    try {
+      return await this.getById<Product>(productId, businessId)
+    } catch (err) {
+      const { localDB } = await import('@/lib/offline/db')
+      const localProd = await localDB.products.get(productId)
+      if (localProd && localProd.businessId === businessId) {
+        return {
+          $id: localProd.id,
+          businessId: localProd.businessId,
+          name: localProd.name,
+          sku: localProd.sku || '',
+          barcode: localProd.barcode || '',
+          unit: localProd.unit || 'pcs',
+          purchasePrice: localProd.purchasePrice || 0,
+          sellingPrice: localProd.price,
+          stockQuantity: localProd.quantity,
+          lowStockThreshold: localProd.minStock || 5,
+          isActive: true,
+          createdAt: localProd.updatedAt || new Date().toISOString(),
+          updatedAt: localProd.updatedAt || new Date().toISOString(),
+          $createdAt: localProd.updatedAt || new Date().toISOString(),
+          $updatedAt: localProd.updatedAt || new Date().toISOString(),
+          $databaseId: '',
+          $collectionId: '',
+          $permissions: [],
+        }
+      }
+      throw err
+    }
   }
 
   /**
@@ -143,21 +171,61 @@ export class ProductService extends BaseService {
       searchTerm?: string
     }
   ): Promise<Product[]> {
-    const queries: any[] = [Query.orderDesc('createdAt')]
+    try {
+      const queries: any[] = [Query.orderDesc('createdAt')]
 
-    if (filters?.categoryId) {
-      queries.push(Query.equal('categoryId', filters.categoryId))
+      if (filters?.categoryId) {
+        queries.push(Query.equal('categoryId', filters.categoryId))
+      }
+
+      if (filters?.isActive !== undefined) {
+        queries.push(Query.equal('isActive', filters.isActive))
+      }
+
+      if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+        queries.push(Query.search('name', filters.searchTerm.trim()))
+      }
+
+      return await this.list<Product>(businessId, queries)
+    } catch (err) {
+      console.warn('[ProductService] Appwrite listProducts failed. Falling back to local IndexedDB store...')
+      const { localDB } = await import('@/lib/offline/db')
+      let localProducts = await localDB.products.where('businessId').equals(businessId).toArray()
+
+      if (filters?.categoryId) {
+        localProducts = localProducts.filter((p) => p.categoryId === filters.categoryId)
+      }
+      if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+        const term = filters.searchTerm.trim().toLowerCase()
+        localProducts = localProducts.filter(
+          (p) =>
+            p.name.toLowerCase().includes(term) ||
+            p.sku?.toLowerCase().includes(term) ||
+            p.barcode?.toLowerCase().includes(term)
+        )
+      }
+
+      return localProducts.map((p) => ({
+        $id: p.id,
+        businessId: p.businessId,
+        name: p.name,
+        sku: p.sku || '',
+        barcode: p.barcode || '',
+        unit: p.unit || 'pcs',
+        purchasePrice: p.purchasePrice || 0,
+        sellingPrice: p.price,
+        stockQuantity: p.quantity,
+        lowStockThreshold: p.minStock || 5,
+        isActive: true,
+        createdAt: p.updatedAt || new Date().toISOString(),
+        updatedAt: p.updatedAt || new Date().toISOString(),
+        $createdAt: p.updatedAt || new Date().toISOString(),
+        $updatedAt: p.updatedAt || new Date().toISOString(),
+        $databaseId: '',
+        $collectionId: '',
+        $permissions: [],
+      }))
     }
-
-    if (filters?.isActive !== undefined) {
-      queries.push(Query.equal('isActive', filters.isActive))
-    }
-
-    if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
-      queries.push(Query.search('name', filters.searchTerm.trim()))
-    }
-
-    return await this.list<Product>(businessId, queries)
   }
 
   /**

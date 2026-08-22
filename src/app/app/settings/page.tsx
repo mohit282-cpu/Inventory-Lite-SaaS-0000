@@ -33,6 +33,81 @@ import { InstallAppButton } from '@/components/pwa/install-prompt'
 
 import { accountDeletionService } from '@/services/account-deletion.service'
 import { DeleteBusinessModal } from '@/components/features/settings/delete-business-modal'
+import { useOfflineSync } from '@/hooks/useOfflineSync'
+import { Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react'
+
+function OfflineSyncCenterCard() {
+  const { isOnline, isSyncing, pendingCount, failedCount, lastSyncedAt, syncNow, retryFailed } = useOfflineSync()
+
+  return (
+    <Card className="border-emerald-100 bg-emerald-50/20 shadow-sm p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            {isOnline ? <Wifi className="h-5 w-5 text-emerald-600" /> : <WifiOff className="h-5 w-5 text-rose-600" />}
+            Offline Data & Sync Center
+          </h3>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Manage your IndexedDB local data cache and background Appwrite Cloud synchronization.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => syncNow()}
+            disabled={isSyncing || !isOnline}
+            className="h-9 text-xs font-bold border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+          >
+            <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            Sync Now
+          </Button>
+
+          {failedCount > 0 && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => retryFailed()}
+              disabled={isSyncing || !isOnline}
+              className="h-9 text-xs font-bold"
+            >
+              <AlertCircle className="mr-1.5 h-3.5 w-3.5" />
+              Retry Failed ({failedCount})
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
+        <div className="p-3 bg-white rounded-lg border border-slate-200">
+          <div className="text-slate-500 font-medium">Network Status</div>
+          <div className="font-bold text-slate-900 mt-0.5 flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            {isOnline ? 'Online' : 'Offline'}
+          </div>
+        </div>
+
+        <div className="p-3 bg-white rounded-lg border border-slate-200">
+          <div className="text-slate-500 font-medium">Pending Transactions</div>
+          <div className="font-bold text-slate-900 mt-0.5">{pendingCount} pending</div>
+        </div>
+
+        <div className="p-3 bg-white rounded-lg border border-slate-200">
+          <div className="text-slate-500 font-medium">Failed Syncs</div>
+          <div className="font-bold text-slate-900 mt-0.5 text-rose-600">{failedCount} failed</div>
+        </div>
+
+        <div className="p-3 bg-white rounded-lg border border-slate-200">
+          <div className="text-slate-500 font-medium">Last Synced</div>
+          <div className="font-bold text-slate-900 mt-0.5 truncate">
+            {lastSyncedAt ? new Date(lastSyncedAt).toLocaleTimeString() : 'Never'}
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
 
 export default function SettingsPage() {
   const { activeBusiness, user, userProfile, memberships, refreshAuth, logout } = useAuth()
@@ -614,6 +689,9 @@ export default function SettingsPage() {
               <InstallAppButton className="shrink-0 h-10 px-4 text-xs font-bold" />
             </div>
           </Card>
+
+          {/* OFFLINE DATA & SYNC CENTER CARD */}
+          <OfflineSyncCenterCard />
 
           {/* DANGER ZONE SECTION */}
           <div className="md:col-span-2 border-2 border-red-200 bg-red-50/40 shadow-sm p-6 rounded-xl space-y-4">
