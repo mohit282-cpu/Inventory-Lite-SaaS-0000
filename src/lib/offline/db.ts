@@ -115,10 +115,13 @@ export interface SyncQueueItem {
   userId: string
   entityType: 'sale' | 'customer' | 'payment' | 'product' | 'stock' | 'expense'
   entityId: string
+  localTransactionId?: string
+  idempotencyKey?: string
+  serverId?: string
   operation: 'CREATE' | 'UPDATE' | 'DELETE'
   payload: any
   retryCount: number
-  status: 'PENDING' | 'SYNCING' | 'SYNCED' | 'FAILED'
+  status: 'PENDING' | 'PROCESSING' | 'SYNCING' | 'SYNCED' | 'FAILED' | 'CONFLICT'
   createdAt: string
   errorMessage?: string
 }

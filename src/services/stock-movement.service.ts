@@ -56,44 +56,62 @@ export class StockMovementService extends BaseService {
       requiredRole: ['owner', 'admin', 'staff'],
     })
 
-    return await productService.withStockLock(data.productId, async () => {
-      const product = await productService.getProduct(data.productId, businessId)
-      const previousQuantity = product.stockQuantity
-      let newQuantity = previousQuantity
+    let retries = 3
+    while (retries > 0) {
+      try {
+        return await productService.withStockLock(data.productId, async () => {
+          const product = await productService.getProduct(data.productId, businessId)
+          const previousQuantity = product.stockQuantity
+          let newQuantity = previousQuantity
 
-      if (data.type === 'stock_in') {
-        newQuantity = previousQuantity + data.quantity
-      } else if (data.type === 'stock_out') {
-        if (previousQuantity < data.quantity) {
-          throw new Error(`Insufficient stock for product "${product.name}". Available: ${previousQuantity}, Requested: ${data.quantity}`)
+          if (data.type === 'stock_in') {
+            newQuantity = previousQuantity + data.quantity
+          } else if (data.type === 'stock_out') {
+            if (previousQuantity < data.quantity) {
+              throw new Error(`Insufficient stock for product "${product.name}". Available: ${previousQuantity}, Requested: ${data.quantity}`)
+            }
+            newQuantity = previousQuantity - data.quantity
+          } else if (data.type === 'adjustment') {
+            newQuantity = data.quantity
+            if (newQuantity < 0) {
+              throw new Error('Target stock quantity for adjustment cannot be negative')
+            }
+          }
+
+          // 1. Update product stock quantity atomically with CAS check
+          await productService.updateStockWithCAS(
+            data.productId,
+            previousQuantity,
+            newQuantity,
+            businessId,
+            data.type === 'stock_out' ? data.quantity : 0
+          )
+
+          // 2. Create movement record after successful CAS update
+          const movementData = {
+            productId: data.productId,
+            type: data.type,
+            quantity: data.type === 'adjustment' ? Math.abs(newQuantity - previousQuantity) : data.quantity,
+            previousQuantity,
+            newQuantity,
+            reason: data.reason || '',
+            referenceId: data.referenceId || '',
+            createdBy: userId,
+          }
+
+          const movement = await this.create<StockMovement>(movementData, businessId, userId)
+          return movement
+        })
+      } catch (err: any) {
+        if (err?.message?.includes('CONCURRENCY_CONFLICT') && retries > 1) {
+          retries--
+          continue
         }
-        newQuantity = previousQuantity - data.quantity
-      } else if (data.type === 'adjustment') {
-        newQuantity = data.quantity
-        if (newQuantity < 0) {
-          throw new Error('Target stock quantity for adjustment cannot be negative')
-        }
+        throw err
       }
+    }
 
-      // 1. Create movement record
-      const movementData = {
-        productId: data.productId,
-        type: data.type,
-        quantity: data.type === 'adjustment' ? Math.abs(newQuantity - previousQuantity) : data.quantity,
-        previousQuantity,
-        newQuantity,
-        reason: data.reason || '',
-        referenceId: data.referenceId || '',
-        createdBy: userId,
-      }
-
-      const movement = await this.create<StockMovement>(movementData, businessId, userId)
-
-      // 2. Update product stock quantity
-      await productService.updateStockQuantity(data.productId, newQuantity, businessId)
-
-      return movement
-    })
+    throw new Error('Stock movement concurrency conflict. Please retry the transaction.')
   }
 
   /**

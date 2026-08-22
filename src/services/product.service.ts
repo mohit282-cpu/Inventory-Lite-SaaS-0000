@@ -309,7 +309,7 @@ export class ProductService extends BaseService {
   }
 
   /**
-   * Adjust stock quantity directly
+   * Adjust stock quantity directly with non-negative validation
    */
   async updateStockQuantity(
     productId: string,
@@ -319,6 +319,35 @@ export class ProductService extends BaseService {
     if (newQuantity < 0) {
       throw new Error('Stock quantity cannot be negative')
     }
+    return await this.update<Product>(productId, { stockQuantity: newQuantity }, businessId)
+  }
+
+  /**
+   * Compare-And-Swap (CAS) Atomic Stock Update
+   * Verifies database stock state matches expectedPreviousQuantity before updating.
+   * Prevents race conditions and overselling across concurrent requests and serverless containers.
+   */
+  async updateStockWithCAS(
+    productId: string,
+    expectedPreviousQuantity: number,
+    newQuantity: number,
+    businessId: string,
+    requestedDeduction: number = 0
+  ): Promise<Product> {
+    if (newQuantity < 0) {
+      throw new Error('Stock quantity cannot be negative')
+    }
+
+    const currentDoc = await this.getProduct(productId, businessId)
+    if (currentDoc.stockQuantity !== expectedPreviousQuantity) {
+      if (requestedDeduction > 0 && currentDoc.stockQuantity < requestedDeduction) {
+        throw new Error(
+          `Insufficient stock for product "${currentDoc.name}". Available: ${currentDoc.stockQuantity}, Requested: ${requestedDeduction}`
+        )
+      }
+      throw new Error('CONCURRENCY_CONFLICT: Product stock was updated by another transaction')
+    }
+
     return await this.update<Product>(productId, { stockQuantity: newQuantity }, businessId)
   }
 

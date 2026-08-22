@@ -301,6 +301,15 @@ export default function CreateSalePage() {
       return
     }
 
+    if (dueAmount > 0 && (!selectedCustomerId || selectedCustomerId === 'guest')) {
+      toast({
+        title: 'Customer Required for Credit Sale',
+        description: 'Please select or add a customer to record outstanding credit/due (Udhaar).',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
