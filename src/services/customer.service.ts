@@ -244,7 +244,7 @@ export class CustomerService extends BaseService {
       // Fallback if sales query fails
     }
 
-    const totalPurchases = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+    const totalPurchases = sales.reduce((sum, s) => sum + (s.total ?? s.totalAmount ?? 0), 0)
     const totalPaid = sales.reduce((sum, s) => sum + (s.paidAmount || 0), 0)
     const computedDue = Math.max(0, totalPurchases - totalPaid)
     const totalDue = sales.length > 0 ? computedDue : (customer.totalDue || 0)

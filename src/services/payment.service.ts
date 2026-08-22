@@ -641,7 +641,7 @@ export class PaymentService extends BaseService {
    * Get payments list for business
    */
   async getPayments(businessId: string): Promise<Payment[]> {
-    return await this.list<Payment>(businessId, [Query.orderDesc('createdAt'), Query.limit(200)])
+    return await this.listPayments(businessId)
   }
 }
 

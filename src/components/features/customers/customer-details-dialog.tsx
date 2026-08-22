@@ -167,7 +167,7 @@ export function CustomerDetailsDialog({
                       {summary.sales.map((s) => (
                         <tr key={s.$id} className="hover:bg-slate-50">
                           <td className="px-3 py-2 font-mono font-bold text-indigo-700">{s.saleNumber}</td>
-                          <td className="px-3 py-2 font-mono text-emerald-700 font-bold">Rs. {s.totalAmount?.toFixed(2)}</td>
+                          <td className="px-3 py-2 font-mono text-emerald-700 font-bold">Rs. {(s.total ?? s.totalAmount ?? 0).toFixed(2)}</td>
                           <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
                           <td className="px-3 py-2 text-slate-500 font-medium">{new Date(s.createdAt).toLocaleDateString()}</td>
                         </tr>

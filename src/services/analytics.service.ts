@@ -187,6 +187,10 @@ export class AnalyticsService {
       cash: 'Cash',
       bank_transfer: 'Bank Transfer / Fonepay',
       card: 'Card Payment',
+      digital_wallet: 'Digital Wallet',
+      eSewa: 'eSewa',
+      Khalti: 'Khalti',
+      credit: 'Credit / Udhaar',
       other: 'Other Method',
     }
 

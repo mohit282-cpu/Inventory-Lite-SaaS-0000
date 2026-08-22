@@ -190,7 +190,7 @@ export const saleInputSchema = z.object({
   overallDiscount: z.coerce.number().min(0, 'Discount cannot be negative').default(0),
   taxRate: z.coerce.number().min(0, 'Tax rate cannot be negative').default(13),
   paidAmount: z.coerce.number().min(0, 'Paid amount cannot be negative').default(0),
-  paymentMethod: z.enum(['cash', 'bank_transfer', 'card', 'other']).default('cash'),
+  paymentMethod: z.enum(['cash', 'bank_transfer', 'card', 'digital_wallet', 'credit', 'eSewa', 'Khalti', 'other']).default('cash'),
   notes: z.string().optional(),
 })
 
@@ -215,7 +215,7 @@ export const invoiceSchema = z.object({
 export const paymentSchema = z.object({
   invoiceId: z.string().min(1, 'Invoice is required'),
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
-  paymentMethod: z.enum(['cash', 'card', 'bank_transfer', 'digital_wallet', 'credit']),
+  paymentMethod: z.enum(['cash', 'card', 'bank_transfer', 'digital_wallet', 'credit', 'eSewa', 'Khalti', 'other']),
   reference: z.string().optional(),
   notes: z.string().optional(),
 })

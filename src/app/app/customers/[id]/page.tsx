@@ -233,7 +233,7 @@ export default function CustomerDetailPage() {
                   {summary.sales.map((s) => (
                     <tr key={s.$id} className="hover:bg-slate-800/40 transition-colors">
                       <td className="px-4 py-3 font-mono font-semibold text-white">{s.saleNumber}</td>
-                      <td className="px-4 py-3 font-mono font-bold text-emerald-400">Rs. {s.totalAmount?.toFixed(2)}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-emerald-400">Rs. {(s.total ?? s.totalAmount ?? 0).toFixed(2)}</td>
                       <td className="px-4 py-3 font-mono text-slate-300">Rs. {(s.paidAmount || 0).toFixed(2)}</td>
                       <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
                       <td className="px-4 py-3 text-xs text-slate-400">{new Date(s.createdAt).toLocaleDateString()}</td>

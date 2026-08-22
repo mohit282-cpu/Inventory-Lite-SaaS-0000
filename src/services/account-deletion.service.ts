@@ -92,7 +92,7 @@ export class AccountDeletionService {
     try {
       const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1'
       const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID
-      const apiKey = process.env.APPWRITE_API_KEY || process.env.NEXT_PUBLIC_APPWRITE_API_KEY
+      const apiKey = process.env.APPWRITE_API_KEY
 
       if (apiKey && projectId) {
         await fetch(`${endpoint}/users/${userId}`, {
