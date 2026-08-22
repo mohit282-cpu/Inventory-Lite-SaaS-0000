@@ -1,9 +1,14 @@
-import { localDB } from './db'
+import { localDB, SyncQueueItem } from './db'
 import { productService } from '@/services/product.service'
 import { categoryService } from '@/services/category.service'
 import { customerService } from '@/services/customer.service'
 import { saleService } from '@/services/sale.service'
 import { paymentService } from '@/services/payment.service'
+import { expenseService } from '@/services/expense.service'
+
+export interface SyncProgressCallback {
+  (step: string, current: number, total: number): void
+}
 
 export class SyncEngine {
   private isProcessing = false
@@ -16,21 +21,32 @@ export class SyncEngine {
   /**
    * Initial data download from Appwrite Cloud into IndexedDB
    */
-  async initialSync(businessId: string): Promise<boolean> {
+  async initialSync(businessId: string, onProgress?: SyncProgressCallback): Promise<boolean> {
     if (!this.isOnline() || !businessId || businessId === 'system') return false
 
     try {
-      const [products, categories, customers, sales, payments] = await Promise.all([
+      if (onProgress) onProgress('Fetching cloud catalog...', 1, 5)
+      const [products, categories, customers, sales, payments, expenses] = await Promise.all([
         productService.listProducts(businessId).catch(() => []),
         categoryService.listCategories(businessId).catch(() => []),
         customerService.listCustomers(businessId).catch(() => []),
         saleService.listSales(businessId).catch(() => []),
         paymentService.getPayments(businessId).catch(() => []),
+        expenseService.listExpenses(businessId).catch(() => []),
       ])
 
+      if (onProgress) onProgress('Storing products & categories...', 2, 5)
       await localDB.transaction(
         'rw',
-        [localDB.products, localDB.categories, localDB.customers, localDB.sales, localDB.payments, localDB.syncMetadata],
+        [
+          localDB.products,
+          localDB.categories,
+          localDB.customers,
+          localDB.sales,
+          localDB.payments,
+          localDB.expenses,
+          localDB.syncMetadata,
+        ],
         async () => {
           // Sync Products
           for (const p of products) {
@@ -62,6 +78,7 @@ export class SyncEngine {
             })
           }
 
+          if (onProgress) onProgress('Storing customers & sales history...', 3, 5)
           // Sync Customers
           for (const cust of customers) {
             await localDB.customers.put({
@@ -97,6 +114,7 @@ export class SyncEngine {
             })
           }
 
+          if (onProgress) onProgress('Storing payments & expenses...', 4, 5)
           // Sync Payments
           for (const pay of payments) {
             await localDB.payments.put({
@@ -112,6 +130,22 @@ export class SyncEngine {
             })
           }
 
+          // Sync Expenses
+          for (const exp of expenses) {
+            await localDB.expenses.put({
+              id: exp.$id,
+              businessId: exp.businessId,
+              title: exp.title || exp.description || 'Expense',
+              amount: exp.amount,
+              category: exp.category,
+              date: exp.date || exp.createdAt,
+              notes: exp.notes,
+              syncStatus: 'SYNCED',
+              createdAt: exp.createdAt || exp.$createdAt,
+              createdBy: exp.createdBy || '',
+            })
+          }
+
           // Set Sync Metadata
           await localDB.syncMetadata.put({
             businessId,
@@ -120,6 +154,7 @@ export class SyncEngine {
         }
       )
 
+      if (onProgress) onProgress('Initial sync complete', 5, 5)
       return true
     } catch (error) {
       console.error('[SyncEngine] Error downloading cloud data:', error)
@@ -128,9 +163,34 @@ export class SyncEngine {
   }
 
   /**
-   * Process pending transaction sync queue items
+   * Order priority for dependency resolution
    */
-  async processSyncQueue(businessId: string): Promise<{ syncedCount: number; failedCount: number }> {
+  private getEntityTypePriority(type: SyncQueueItem['entityType']): number {
+    switch (type) {
+      case 'customer':
+        return 1
+      case 'product':
+        return 2
+      case 'sale':
+        return 3
+      case 'payment':
+        return 4
+      case 'stock':
+        return 5
+      case 'expense':
+        return 6
+      default:
+        return 99
+    }
+  }
+
+  /**
+   * Process pending transaction sync queue items in strict dependency order
+   */
+  async processSyncQueue(
+    businessId: string,
+    onProgress?: SyncProgressCallback
+  ): Promise<{ syncedCount: number; failedCount: number }> {
     if (!this.isOnline() || this.isProcessing || !businessId) {
       return { syncedCount: 0, failedCount: 0 }
     }
@@ -140,27 +200,79 @@ export class SyncEngine {
     let failedCount = 0
 
     try {
-      const pendingItems = await localDB.syncQueue
+      const rawItems = await localDB.syncQueue
         .where('businessId')
         .equals(businessId)
         .and((item) => item.status === 'PENDING' || item.status === 'FAILED')
-        .sortBy('id')
+        .toArray()
+
+      // Sort by dependency priority first, then by creation date/id
+      const pendingItems = rawItems.sort((a, b) => {
+        const pA = this.getEntityTypePriority(a.entityType)
+        const pB = this.getEntityTypePriority(b.entityType)
+        if (pA !== pB) return pA - pB
+        return (a.id || 0) - (b.id || 0)
+      })
+
+      const totalItems = pendingItems.length
+      let currentIndex = 0
+
+      // Map to replace temporary local IDs with real server IDs
+      const idMappings = new Map<string, string>()
 
       for (const item of pendingItems) {
         if (!this.isOnline()) break
+        currentIndex++
+
+        if (onProgress) {
+          onProgress(`Syncing ${item.entityType} (${currentIndex}/${totalItems})...`, currentIndex, totalItems)
+        }
 
         try {
           await localDB.syncQueue.update(item.id!, { status: 'SYNCING' })
 
-          if (item.entityType === 'sale') {
-            await saleService.createSale(item.payload, item.businessId, item.userId)
-            await localDB.sales.update(item.entityId, { syncStatus: 'SYNCED' })
-          } else if (item.entityType === 'customer') {
-            await customerService.createCustomer(item.payload, item.businessId, item.userId)
-            await localDB.customers.update(item.entityId, { syncStatus: 'SYNCED' })
+          // Replace any temporary customer ID in payload if mapped from earlier sync step
+          const payload = { ...item.payload }
+          if (payload.customerId && idMappings.has(payload.customerId)) {
+            payload.customerId = idMappings.get(payload.customerId)
+          }
+
+          if (item.entityType === 'customer') {
+            const created = await customerService.createCustomer(payload, item.businessId, item.userId)
+            if (created && created.$id) {
+              idMappings.set(item.entityId, created.$id)
+              // Update local Dexie customer record
+              const existingLocal = await localDB.customers.get(item.entityId)
+              if (existingLocal) {
+                await localDB.customers.delete(item.entityId)
+                await localDB.customers.put({
+                  ...existingLocal,
+                  id: created.$id,
+                  syncStatus: 'SYNCED',
+                })
+              }
+            }
+          } else if (item.entityType === 'sale') {
+            // Pass idempotency key
+            payload.idempotencyKey = payload.idempotencyKey || item.entityId
+            const result = await saleService.createSale(payload, item.businessId, item.userId)
+            if (result && result.sale && result.sale.$id) {
+              idMappings.set(item.entityId, result.sale.$id)
+              await localDB.sales.update(item.entityId, { syncStatus: 'SYNCED' })
+            }
           } else if (item.entityType === 'payment') {
-            await paymentService.createPayment(item.payload, item.businessId, item.userId)
+            payload.idempotencyKey = payload.idempotencyKey || item.entityId
+            if (payload.saleId && idMappings.has(payload.saleId)) {
+              payload.saleId = idMappings.get(payload.saleId)
+            }
+            await paymentService.createPayment(payload, item.businessId, item.userId)
             await localDB.payments.update(item.entityId, { syncStatus: 'SYNCED' })
+          } else if (item.entityType === 'expense') {
+            await expenseService.createExpense(payload, item.businessId, item.userId)
+            await localDB.expenses.update(item.entityId, { syncStatus: 'SYNCED' })
+          } else if (item.entityType === 'product') {
+            await productService.createProduct(payload, item.businessId, item.userId)
+            await localDB.products.update(item.entityId, { syncStatus: 'SYNCED' })
           }
 
           await localDB.syncQueue.update(item.id!, {
@@ -197,3 +309,4 @@ export class SyncEngine {
 }
 
 export const syncEngine = new SyncEngine()
+

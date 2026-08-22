@@ -56,16 +56,120 @@ export class ExpenseService extends BaseService {
       createdBy: userId,
     }
 
-    const doc = await this.create<Expense>(expenseData, businessId, userId)
-    return this.mapExpense(doc)
+    try {
+      const doc = await this.create<Expense>(expenseData, businessId, userId)
+      try {
+        const { localDB } = await import('@/lib/offline/db')
+        await localDB.expenses.put({
+          id: doc.$id,
+          businessId,
+          title: descStr,
+          amount: data.amount,
+          category: data.category,
+          date: expenseData.date,
+          notes: data.notes || '',
+          syncStatus: 'SYNCED',
+          createdAt: doc.createdAt || doc.$createdAt || new Date().toISOString(),
+          createdBy: userId,
+        })
+      } catch {}
+      return this.mapExpense(doc)
+    } catch (err: any) {
+      const isOffline =
+        typeof window !== 'undefined' &&
+        (!navigator.onLine ||
+          err.message?.includes('Network') ||
+          err.message?.includes('fetch') ||
+          err.message?.includes('offline'))
+
+      if (isOffline) {
+        const { generateSecureToken } = await import('@/lib/security')
+        const { localDB } = await import('@/lib/offline/db')
+        const localId = `LOCAL-EXP-${Date.now()}-${generateSecureToken(4)}`
+        const createdAt = new Date().toISOString()
+
+        const localObj: Expense = {
+          $id: localId,
+          businessId,
+          title: descStr,
+          description: descStr,
+          category: data.category,
+          amount: data.amount,
+          date: expenseData.date,
+          notes: data.notes || '',
+          createdBy: userId,
+          createdAt,
+          updatedAt: createdAt,
+          $createdAt: createdAt,
+          $updatedAt: createdAt,
+          $databaseId: '',
+          $collectionId: '',
+          $permissions: [],
+        }
+
+        await localDB.expenses.put({
+          id: localId,
+          businessId,
+          title: descStr,
+          amount: data.amount,
+          category: data.category,
+          date: expenseData.date,
+          notes: data.notes || '',
+          syncStatus: 'PENDING_SYNC',
+          createdAt,
+          createdBy: userId,
+        })
+
+        await localDB.syncQueue.add({
+          businessId,
+          userId,
+          entityType: 'expense',
+          entityId: localId,
+          operation: 'CREATE',
+          payload: data,
+          retryCount: 0,
+          status: 'PENDING',
+          createdAt,
+        })
+
+        return localObj
+      }
+      throw err
+    }
   }
 
   /**
    * Get expense by ID
    */
   async getExpense(expenseId: string, businessId: string): Promise<Expense> {
-    const doc = await this.getById<Expense>(expenseId, businessId)
-    return this.mapExpense(doc)
+    try {
+      const doc = await this.getById<Expense>(expenseId, businessId)
+      return this.mapExpense(doc)
+    } catch (err) {
+      const { localDB } = await import('@/lib/offline/db')
+      const localExp = await localDB.expenses.get(expenseId)
+      if (localExp) {
+        return {
+          $id: localExp.id,
+          businessId: localExp.businessId,
+          title: localExp.title,
+          description: localExp.title,
+          category: localExp.category,
+          amount: localExp.amount,
+          date: localExp.date,
+          notes: localExp.notes || '',
+          createdBy: localExp.createdBy || '',
+          createdAt: localExp.createdAt,
+          updatedAt: localExp.createdAt,
+          $createdAt: localExp.createdAt,
+          $updatedAt: localExp.createdAt,
+          $databaseId: '',
+          $collectionId: '',
+          $permissions: [],
+        }
+      }
+      throw err
+    }
   }
 
   /**
@@ -77,14 +181,78 @@ export class ExpenseService extends BaseService {
       category?: string
     }
   ): Promise<Expense[]> {
-    const queries: any[] = [Query.orderDesc('date')]
+    const isOffline =
+      typeof window !== 'undefined' &&
+      (!navigator.onLine)
 
-    if (filters?.category && filters.category !== 'all') {
-      queries.push(Query.equal('category', filters.category))
+    if (isOffline) {
+      const { localDB } = await import('@/lib/offline/db')
+      let localExps = await localDB.expenses.where('businessId').equals(businessId).toArray()
+
+      if (filters?.category && filters.category !== 'all') {
+        localExps = localExps.filter((e) => e.category === filters.category)
+      }
+
+      return localExps
+        .sort((a, b) => (b.date > a.date ? 1 : -1))
+        .map((exp) => ({
+          $id: exp.id,
+          businessId: exp.businessId,
+          title: exp.title,
+          description: exp.title,
+          category: exp.category,
+          amount: exp.amount,
+          date: exp.date,
+          notes: exp.notes || '',
+          createdBy: exp.createdBy || '',
+          createdAt: exp.createdAt,
+          updatedAt: exp.createdAt,
+          $createdAt: exp.createdAt,
+          $updatedAt: exp.createdAt,
+          $databaseId: '',
+          $collectionId: '',
+          $permissions: [],
+        }))
     }
 
-    const list = await this.list<Expense>(businessId, queries)
-    return list.map((exp) => this.mapExpense(exp))
+    try {
+      const queries: any[] = [Query.orderDesc('date')]
+
+      if (filters?.category && filters.category !== 'all') {
+        queries.push(Query.equal('category', filters.category))
+      }
+
+      const list = await this.list<Expense>(businessId, queries)
+      return list.map((exp) => this.mapExpense(exp))
+    } catch (err) {
+      const { localDB } = await import('@/lib/offline/db')
+      let localExps = await localDB.expenses.where('businessId').equals(businessId).toArray()
+
+      if (filters?.category && filters.category !== 'all') {
+        localExps = localExps.filter((e) => e.category === filters.category)
+      }
+
+      return localExps
+        .sort((a, b) => (b.date > a.date ? 1 : -1))
+        .map((exp) => ({
+          $id: exp.id,
+          businessId: exp.businessId,
+          title: exp.title,
+          description: exp.title,
+          category: exp.category,
+          amount: exp.amount,
+          date: exp.date,
+          notes: exp.notes || '',
+          createdBy: exp.createdBy || '',
+          createdAt: exp.createdAt,
+          updatedAt: exp.createdAt,
+          $createdAt: exp.createdAt,
+          $updatedAt: exp.createdAt,
+          $databaseId: '',
+          $collectionId: '',
+          $permissions: [],
+        }))
+    }
   }
 
   /**

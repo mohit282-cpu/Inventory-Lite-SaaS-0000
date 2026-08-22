@@ -29,7 +29,9 @@ import {
   XCircle,
   Clock,
   Info,
+  WifiOff,
 } from 'lucide-react'
+import { useOfflineSync } from '@/hooks/useOfflineSync'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -93,6 +95,8 @@ export default function DashboardPage() {
     fetchDashboardData()
   }, [fetchDashboardData])
 
+  const { isOnline, lastSyncedAt } = useOfflineSync()
+
   if (loading) {
     return <LoadingPage message="Loading real-time business dashboard..." />
   }
@@ -102,6 +106,19 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 text-slate-900">
+      {!isOnline && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <WifiOff className="h-4 w-4 text-amber-600 shrink-0" />
+            <span>
+              Offline Mode — Displaying local cached metrics.{' '}
+              {lastSyncedAt ? `Last cloud sync: ${new Date(lastSyncedAt).toLocaleTimeString()}` : ''}
+            </span>
+          </div>
+          <span className="bg-amber-200/80 px-2 py-0.5 rounded text-[10px] uppercase font-mono">Offline</span>
+        </div>
+      )}
+
       {/* 1. Refined Dashboard Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>

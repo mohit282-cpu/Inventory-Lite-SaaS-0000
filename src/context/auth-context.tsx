@@ -446,7 +446,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const logout = async () => {
+  const logout = async (force: boolean = false) => {
+    if (activeBusiness?.$id && !force && typeof window !== 'undefined') {
+      try {
+        const { localDB } = await import('@/lib/offline/db')
+        const pendingItems = await localDB.syncQueue
+          .where('businessId')
+          .equals(activeBusiness.$id)
+          .and((item) => item.status === 'PENDING' || item.status === 'FAILED')
+          .toArray()
+
+        if (pendingItems.length > 0) {
+          const confirmed = window.confirm(
+            `Warning: You have ${pendingItems.length} unsynchronized transaction(s). Signing out will leave them pending locally. Are you sure you want to sign out?`
+          )
+          if (!confirmed) return
+        }
+      } catch {
+        // Non-fatal warning check
+      }
+    }
+
     try {
       setAuthStatus('INITIALIZING')
       if (user?.$id) {
@@ -542,6 +562,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setActiveBusiness(business)
       setMemberships((prev) => [...prev, membership])
+      if (typeof window !== 'undefined' && navigator.onLine) {
+        syncEngine.initialSync(business.$id)
+      }
       return business
     } catch (err: any) {
       const appErr = handleApiError(err)
@@ -567,6 +590,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setActiveBusiness(business)
+      if (typeof window !== 'undefined' && navigator.onLine) {
+        syncEngine.initialSync(businessId)
+      }
     } catch (err: any) {
       const appErr = handleApiError(err)
       setWorkspaceError(appErr.message)

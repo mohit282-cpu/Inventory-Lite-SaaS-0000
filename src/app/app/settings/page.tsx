@@ -37,8 +37,20 @@ import { DeleteBusinessModal } from '@/components/features/settings/delete-busin
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react'
 
+import { useLiveQuery } from 'dexie-react-hooks'
+import { localDB } from '@/lib/offline/db'
+
 function OfflineSyncCenterCard() {
-  const { isOnline, isSyncing, pendingCount, failedCount, lastSyncedAt, syncNow, retryFailed } = useOfflineSync()
+  const { activeBusiness } = useAuth()
+  const businessId = activeBusiness?.$id || ''
+  const { isOnline, isSyncing, syncProgress, pendingCount, failedCount, lastSyncedAt, syncNow, retryFailed } = useOfflineSync()
+
+  const syncItems = useLiveQuery(
+    () => (businessId ? localDB.syncQueue.where('businessId').equals(businessId).toArray() : []),
+    [businessId]
+  )
+
+  const pendingOrFailedItems = (syncItems || []).filter((i) => i.status === 'PENDING' || i.status === 'FAILED' || i.status === 'SYNCING')
 
   return (
     <Card className="border-emerald-100 bg-emerald-50/20 shadow-sm p-6 space-y-4">
@@ -80,6 +92,13 @@ function OfflineSyncCenterCard() {
         </div>
       </div>
 
+      {syncProgress && (
+        <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800 flex items-center gap-2">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin text-amber-600" />
+          <span>{syncProgress}</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
         <div className="p-3 bg-white rounded-lg border border-slate-200">
           <div className="text-slate-500 font-medium">Network Status</div>
@@ -106,6 +125,38 @@ function OfflineSyncCenterCard() {
           </div>
         </div>
       </div>
+
+      {pendingOrFailedItems.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <h4 className="text-xs font-bold text-slate-700">Pending Synchronization Queue ({pendingOrFailedItems.length})</h4>
+          <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg bg-white divide-y text-xs">
+            {pendingOrFailedItems.map((item) => (
+              <div key={item.id} className="p-2.5 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-slate-900 uppercase text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 mr-2">
+                    {item.entityType}
+                  </span>
+                  <span className="font-mono text-slate-600">{item.entityId}</span>
+                  {item.errorMessage && (
+                    <div className="text-[10px] text-red-600 font-medium mt-0.5">{item.errorMessage}</div>
+                  )}
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                    item.status === 'FAILED'
+                      ? 'bg-red-50 text-red-700 border border-red-200'
+                      : item.status === 'SYNCING'
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
+                      : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                  }`}
+                >
+                  {item.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Card>
   )
 }

@@ -9,6 +9,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 export interface UseOfflineSyncResult {
   isOnline: boolean
   isSyncing: boolean
+  syncProgress: string
   pendingCount: number
   failedCount: number
   lastSyncedAt: string | null
@@ -22,6 +23,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
 
   const [isOnline, setIsOnline] = useState<boolean>(true)
   const [isSyncing, setIsSyncing] = useState<boolean>(false)
+  const [syncProgress, setSyncProgress] = useState<string>('')
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
 
   // Reactive Dexie query for pending sync items
@@ -45,11 +47,14 @@ export function useOfflineSync(): UseOfflineSyncResult {
     if (!businessId || isSyncing || typeof window === 'undefined' || !navigator.onLine) return
 
     setIsSyncing(true)
+    setSyncProgress('Initializing sync...')
     try {
-      await syncEngine.initialSync(businessId)
-      await syncEngine.processSyncQueue(businessId)
+      await syncEngine.initialSync(businessId, (step) => setSyncProgress(step))
+      await syncEngine.processSyncQueue(businessId, (step) => setSyncProgress(step))
+      setSyncProgress('Sync complete')
     } finally {
       setIsSyncing(false)
+      setTimeout(() => setSyncProgress(''), 3000)
     }
   }, [businessId, isSyncing])
 
@@ -57,6 +62,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
     if (!businessId || isSyncing || typeof window === 'undefined' || !navigator.onLine) return
 
     setIsSyncing(true)
+    setSyncProgress('Retrying failed transactions...')
     try {
       const failedItems = (syncQueueItems || []).filter((item) => item.status === 'FAILED')
       for (const item of failedItems) {
@@ -64,9 +70,11 @@ export function useOfflineSync(): UseOfflineSyncResult {
           await localDB.syncQueue.update(item.id, { status: 'PENDING', retryCount: 0 })
         }
       }
-      await syncEngine.processSyncQueue(businessId)
+      await syncEngine.processSyncQueue(businessId, (step) => setSyncProgress(step))
+      setSyncProgress('Retry complete')
     } finally {
       setIsSyncing(false)
+      setTimeout(() => setSyncProgress(''), 3000)
     }
   }, [businessId, isSyncing, syncQueueItems])
 
@@ -104,6 +112,7 @@ export function useOfflineSync(): UseOfflineSyncResult {
   return {
     isOnline,
     isSyncing,
+    syncProgress,
     pendingCount,
     failedCount,
     lastSyncedAt,

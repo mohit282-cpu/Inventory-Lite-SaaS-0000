@@ -89,11 +89,31 @@ export interface LocalPayment {
   createdAt: string
 }
 
+export interface LocalExpense {
+  id: string
+  businessId: string
+  title: string
+  amount: number
+  category: string
+  date: string
+  notes?: string
+  syncStatus: 'SYNCED' | 'PENDING_SYNC' | 'FAILED'
+  createdAt: string
+  createdBy?: string
+}
+
+export interface LocalSetting {
+  key: string // e.g. "biz123_vat" or "biz123_business"
+  businessId: string
+  value: any
+  updatedAt: string
+}
+
 export interface SyncQueueItem {
   id?: number
   businessId: string
   userId: string
-  entityType: 'sale' | 'customer' | 'payment' | 'product' | 'stock'
+  entityType: 'sale' | 'customer' | 'payment' | 'product' | 'stock' | 'expense'
   entityId: string
   operation: 'CREATE' | 'UPDATE' | 'DELETE'
   payload: any
@@ -162,6 +182,8 @@ export class InventoryLiteLocalDB extends Dexie {
   saleItems!: Table<LocalSaleItem, string>
   invoices!: Table<LocalInvoice, string>
   payments!: Table<LocalPayment, string>
+  expenses!: Table<LocalExpense, string>
+  settings!: Table<LocalSetting, string>
   syncQueue!: Table<SyncQueueItem, number>
   syncMetadata!: Table<SyncMetadata, string>
   authRecords!: Table<OfflineAuthRecord, string>
@@ -172,7 +194,7 @@ export class InventoryLiteLocalDB extends Dexie {
   constructor() {
     super('inventory_lite_local')
 
-    this.version(4).stores({
+    this.version(5).stores({
       products: 'id, businessId, categoryId, syncStatus',
       categories: 'id, businessId',
       customers: 'id, businessId, syncStatus',
@@ -180,6 +202,8 @@ export class InventoryLiteLocalDB extends Dexie {
       saleItems: 'id, saleId, productId',
       invoices: 'id, saleId, businessId, syncStatus',
       payments: 'id, businessId, customerId, saleId, syncStatus',
+      expenses: 'id, businessId, syncStatus, date',
+      settings: 'key, businessId',
       syncQueue: '++id, businessId, userId, entityType, status, createdAt',
       syncMetadata: 'businessId',
       authRecords: 'id, userId, email, activeBusinessId',
@@ -200,6 +224,8 @@ export class InventoryLiteLocalDB extends Dexie {
         this.saleItems,
         this.invoices,
         this.payments,
+        this.expenses,
+        this.settings,
         this.syncQueue,
         this.syncMetadata,
       ],
@@ -210,6 +236,8 @@ export class InventoryLiteLocalDB extends Dexie {
         await this.sales.where('businessId').equals(businessId).delete()
         await this.invoices.where('businessId').equals(businessId).delete()
         await this.payments.where('businessId').equals(businessId).delete()
+        await this.expenses.where('businessId').equals(businessId).delete()
+        await this.settings.where('businessId').equals(businessId).delete()
         await this.syncQueue.where('businessId').equals(businessId).delete()
         await this.syncMetadata.where('businessId').equals(businessId).delete()
       }

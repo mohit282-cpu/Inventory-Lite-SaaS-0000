@@ -51,14 +51,115 @@ export class CustomerService extends BaseService {
       totalDue: data.totalDue ?? 0,
     }
 
-    return await this.create<Customer>(customerData, businessId, userId)
+    try {
+      const created = await this.create<Customer>(customerData, businessId, userId)
+      try {
+        const { localDB } = await import('@/lib/offline/db')
+        await localDB.customers.put({
+          id: created.$id,
+          businessId,
+          name: created.name,
+          phone: created.phone,
+          email: created.email,
+          address: created.address,
+          dueAmount: created.totalDue || 0,
+          syncStatus: 'SYNCED',
+          createdAt: created.createdAt || created.$createdAt,
+        })
+      } catch {}
+      return created
+    } catch (err: any) {
+      const isOffline =
+        typeof window !== 'undefined' &&
+        (!navigator.onLine ||
+          err.message?.includes('Network') ||
+          err.message?.includes('fetch') ||
+          err.message?.includes('offline'))
+
+      if (isOffline) {
+        const { generateSecureToken } = await import('@/lib/security')
+        const { localDB } = await import('@/lib/offline/db')
+        const localId = `LOCAL-CUST-${Date.now()}-${generateSecureToken(4)}`
+        const createdAt = new Date().toISOString()
+
+        const localCustomerObj: Customer = {
+          $id: localId,
+          businessId,
+          name: data.name,
+          phone: data.phone || '',
+          email: data.email || '',
+          address: data.address || '',
+          totalDue: data.totalDue ?? 0,
+          dueAmount: data.totalDue ?? 0,
+          createdAt,
+          updatedAt: createdAt,
+          $createdAt: createdAt,
+          $updatedAt: createdAt,
+          $databaseId: '',
+          $collectionId: '',
+          $permissions: [],
+        }
+
+        await localDB.customers.put({
+          id: localId,
+          businessId,
+          name: data.name,
+          phone: data.phone || '',
+          email: data.email || '',
+          address: data.address || '',
+          dueAmount: data.totalDue ?? 0,
+          syncStatus: 'PENDING_SYNC',
+          createdAt,
+        })
+
+        await localDB.syncQueue.add({
+          businessId,
+          userId,
+          entityType: 'customer',
+          entityId: localId,
+          operation: 'CREATE',
+          payload: data,
+          retryCount: 0,
+          status: 'PENDING',
+          createdAt,
+        })
+
+        return localCustomerObj
+      }
+      throw err
+    }
   }
 
   /**
    * Get customer by ID
    */
   async getCustomer(customerId: string, businessId: string): Promise<Customer> {
-    return await this.getById<Customer>(customerId, businessId)
+    try {
+      return await this.getById<Customer>(customerId, businessId)
+    } catch (err) {
+      const { localDB } = await import('@/lib/offline/db')
+      const localCust = await localDB.customers.get(customerId)
+      if (localCust) {
+        return {
+          $id: localCust.id,
+          businessId: localCust.businessId,
+          name: localCust.name,
+          phone: localCust.phone || '',
+          email: localCust.email || '',
+          address: localCust.address || '',
+          totalDue: localCust.dueAmount || 0,
+          dueAmount: localCust.dueAmount || 0,
+          createdAt: localCust.createdAt || new Date().toISOString(),
+          updatedAt: localCust.createdAt || new Date().toISOString(),
+          $createdAt: localCust.createdAt || new Date().toISOString(),
+          $updatedAt: localCust.createdAt || new Date().toISOString(),
+          $databaseId: '',
+          $collectionId: '',
+          $permissions: [],
+        }
+      }
+      throw err
+    }
   }
 
   /**

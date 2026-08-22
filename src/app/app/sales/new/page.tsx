@@ -23,7 +23,16 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  UserPlus,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { Product, Customer, PaymentMethod } from '@/types'
 
 interface CartItem {
@@ -47,6 +56,51 @@ export default function CreateSalePage() {
   // Cart & Checkout State
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('')
+  
+  // Quick Customer Dialog State
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false)
+  const [newCustName, setNewCustName] = useState('')
+  const [newCustPhone, setNewCustPhone] = useState('')
+  const [newCustAddress, setNewCustAddress] = useState('')
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false)
+
+  const handleCreateQuickCustomer = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCustName.trim() || !activeBusiness?.$id || !user?.$id) return
+
+    setIsCreatingCustomer(true)
+    try {
+      const created = await customerService.createCustomer(
+        {
+          name: newCustName.trim(),
+          phone: newCustPhone.trim() || undefined,
+          address: newCustAddress.trim() || undefined,
+        },
+        activeBusiness.$id,
+        user.$id
+      )
+
+      setCustomers((prev) => [created, ...prev])
+      setSelectedCustomerId(created.$id)
+      setNewCustName('')
+      setNewCustPhone('')
+      setNewCustAddress('')
+      setIsCustomerDialogOpen(false)
+
+      toast({
+        title: 'Customer Added',
+        description: `Customer "${created.name}" created and selected.`,
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Error Creating Customer',
+        description: err.message || 'Failed to create customer.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsCreatingCustomer(false)
+    }
+  }
   
   // Discount Toggle State: 'rs' | 'percent'
   const [discountType, setDiscountType] = useState<'rs' | 'percent'>('rs')
@@ -396,9 +450,71 @@ export default function CreateSalePage() {
               )}
             </div>
 
-            {/* Customer Selector */}
+            {/* Customer Selector with Quick Add */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-700">Select Customer (Optional)</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold text-slate-700">Select Customer (Optional)</Label>
+                <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <UserPlus className="h-3 w-3" /> + New Customer
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md bg-white">
+                    <DialogHeader>
+                      <DialogTitle className="text-sm font-bold text-slate-900">Add New Customer</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateQuickCustomer} className="space-y-3 py-2">
+                      <div>
+                        <Label className="text-xs font-semibold">Customer Name *</Label>
+                        <Input
+                          required
+                          placeholder="e.g. Ram Prasad"
+                          value={newCustName}
+                          onChange={(e) => setNewCustName(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold">Phone Number</Label>
+                        <Input
+                          placeholder="e.g. 98XXXXXXXX"
+                          value={newCustPhone}
+                          onChange={(e) => setNewCustPhone(e.target.value)}
+                          className="h-9 text-xs font-mono"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold">Address / Location</Label>
+                        <Input
+                          placeholder="e.g. Kathmandu"
+                          value={newCustAddress}
+                          onChange={(e) => setNewCustAddress(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                      <DialogFooter className="pt-2">
+                        <Button
+                          type="submit"
+                          disabled={isCreatingCustomer || !newCustName.trim()}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs w-full"
+                        >
+                          {isCreatingCustomer ? (
+                            <>
+                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Saving Customer...
+                            </>
+                          ) : (
+                            'Create & Select Customer'
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
               <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
                 <SelectTrigger className="text-xs font-medium">
                   <SelectValue placeholder="Walk-in Guest / Select Customer" />
