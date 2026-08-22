@@ -161,7 +161,7 @@ export function Sidebar() {
         {NAVIGATION_GROUPS.map((group) => (
           <div key={group.label}>
             {!isCollapsed && (
-              <div className="px-2.5 mb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+              <div className="px-2.5 mb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
                 {group.label}
               </div>
             )}

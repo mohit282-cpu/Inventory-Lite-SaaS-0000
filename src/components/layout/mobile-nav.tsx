@@ -59,7 +59,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
         <nav className="flex-1 px-3 py-3 overflow-y-auto scrollbar-thin space-y-4">
           {NAVIGATION_GROUPS.map((group) => (
             <div key={group.label}>
-              <div className="px-2 mb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+              <div className="px-2 mb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
                 {group.label}
               </div>
               <div className="space-y-0.5">

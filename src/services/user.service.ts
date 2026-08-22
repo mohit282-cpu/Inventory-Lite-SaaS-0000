@@ -11,6 +11,8 @@ import { AppUser, UserPreferences } from '@/types'
  * extended user details and preferences are stored in this collection.
  */
 export class UserService extends BaseService {
+  private creationPromises = new Map<string, Promise<AppUser>>()
+
   constructor() {
     super(COLLECTIONS.USERS)
   }
@@ -58,6 +60,7 @@ export class UserService extends BaseService {
   /**
    * Idempotent user profile creation / retrieval
    * Prevents 404 console error on missing document and 409 conflict on concurrent creation.
+   * Employs single-flight lock so concurrent callers wait on the same promise without duplicating HTTP POST requests.
    */
   async getOrCreateUserProfile(
     userId: string,
@@ -69,20 +72,31 @@ export class UserService extends BaseService {
       preferences?: Partial<UserPreferences>
     }
   ): Promise<AppUser> {
-    const existing = await this.getUserProfile(userId)
-    if (existing) {
-      return existing
+    if (this.creationPromises.has(userId)) {
+      return await this.creationPromises.get(userId)!
     }
 
-    try {
-      return await this.createUserProfile(userId, data)
-    } catch (err: any) {
-      if (err?.code === 409 || err?.message?.includes('already exists') || err?.type === 'document_already_exists') {
-        const doc = await this.getUserProfile(userId)
-        if (doc) return doc
+    const promise = (async () => {
+      const existing = await this.getUserProfile(userId)
+      if (existing) {
+        return existing
       }
-      throw err
-    }
+
+      try {
+        return await this.createUserProfile(userId, data)
+      } catch (err: any) {
+        if (err?.code === 409 || err?.message?.includes('already exists') || err?.type === 'document_already_exists') {
+          const doc = await this.getUserProfile(userId)
+          if (doc) return doc
+        }
+        throw err
+      }
+    })().finally(() => {
+      this.creationPromises.delete(userId)
+    })
+
+    this.creationPromises.set(userId, promise)
+    return await promise
   }
 
   /**
