@@ -166,6 +166,7 @@ export function DataTable<T extends Record<string, any>>({
               size="sm"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
+              aria-label="Go to previous page"
               className="h-8 px-3 border-slate-300 bg-white text-slate-700 disabled:opacity-40 font-medium"
             >
               <ChevronLeft className="h-4 w-4 mr-1" /> Previous
@@ -180,6 +181,7 @@ export function DataTable<T extends Record<string, any>>({
               size="sm"
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
+              aria-label="Go to next page"
               className="h-8 px-3 border-slate-300 bg-white text-slate-700 disabled:opacity-40 font-medium"
             >
               Next <ChevronRight className="h-4 w-4 ml-1" />

@@ -365,6 +365,7 @@ export default function CreateSalePage() {
               <Barcode className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-600 pointer-events-none" />
               <Input
                 placeholder="Scan Barcode or SKU..."
+                aria-label="Scan Barcode or SKU"
                 value={barcodeInput}
                 onChange={(e) => setBarcodeInput(e.target.value)}
                 className="pl-10 font-mono h-11 bg-white border-slate-300"
@@ -375,6 +376,7 @@ export default function CreateSalePage() {
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
               <Input
                 placeholder="Search catalog by product name..."
+                aria-label="Search catalog by product name"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 h-11 bg-white border-slate-300"
@@ -559,6 +561,7 @@ export default function CreateSalePage() {
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.product.$id, item.quantity - 1)}
+                            aria-label="Decrease quantity"
                             className="p-1 hover:bg-slate-100 text-slate-600 rounded"
                           >
                             <Minus className="h-3 w-3" />
@@ -569,6 +572,7 @@ export default function CreateSalePage() {
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.product.$id, item.quantity + 1)}
+                            aria-label="Increase quantity"
                             className="p-1 hover:bg-slate-100 text-slate-600 rounded"
                           >
                             <Plus className="h-3 w-3" />
@@ -581,6 +585,7 @@ export default function CreateSalePage() {
                           <Input
                             type="number"
                             min="0"
+                            aria-label="Unit price rate"
                             value={item.unitPrice}
                             onChange={(e) => updateUnitPrice(item.product.$id, parseFloat(e.target.value) || 0)}
                             className="w-16 h-7 text-xs font-mono px-1.5 py-0 bg-white"
@@ -593,6 +598,7 @@ export default function CreateSalePage() {
                           <Input
                             type="number"
                             min="0"
+                            aria-label="Line discount"
                             value={item.discount}
                             onChange={(e) => updateLineDiscount(item.product.$id, parseFloat(e.target.value) || 0)}
                             className="w-14 h-7 text-xs font-mono px-1 py-0 bg-white"
@@ -603,6 +609,7 @@ export default function CreateSalePage() {
                         <button
                           type="button"
                           onClick={() => removeFromCart(item.product.$id)}
+                          aria-label="Remove item from cart"
                           className="text-slate-400 hover:text-red-600 p-1"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

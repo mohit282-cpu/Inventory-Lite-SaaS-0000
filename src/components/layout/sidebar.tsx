@@ -96,6 +96,7 @@ export function Sidebar() {
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          aria-label={isCollapsed ? 'Expand navigation' : 'Collapse navigation'}
           title={isCollapsed ? 'Expand navigation' : 'Collapse navigation'}
         >
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -108,6 +109,7 @@ export function Sidebar() {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              aria-label="Switch active business workspace"
               className={`w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100/80 transition-colors text-left ${
                 isCollapsed ? 'justify-center px-0' : ''
               }`}

@@ -1,3 +1,4 @@
+import { Query } from 'appwrite'
 import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { AppUser, UserPreferences } from '@/types'
@@ -55,11 +56,47 @@ export class UserService extends BaseService {
   }
 
   /**
+   * Idempotent user profile creation / retrieval
+   * Prevents 404 console error on missing document and 409 conflict on concurrent creation.
+   */
+  async getOrCreateUserProfile(
+    userId: string,
+    data: {
+      name: string
+      email: string
+      phone?: string
+      avatar?: string
+      preferences?: Partial<UserPreferences>
+    }
+  ): Promise<AppUser> {
+    const existing = await this.getUserProfile(userId)
+    if (existing) {
+      return existing
+    }
+
+    try {
+      return await this.createUserProfile(userId, data)
+    } catch (err: any) {
+      if (err?.code === 409 || err?.message?.includes('already exists') || err?.type === 'document_already_exists') {
+        const doc = await this.getUserProfile(userId)
+        if (doc) return doc
+      }
+      throw err
+    }
+  }
+
+  /**
    * Get user profile by user ID
+   * Uses list with Query.equal('$id', userId) to prevent browser 404 console errors.
    */
   async getUserProfile(userId: string): Promise<AppUser | null> {
     try {
-      const doc = await this.getById<any>(userId, 'system')
+      const docs = await this.list<any>('system', [Query.equal('$id', userId)])
+      if (!docs || docs.length === 0) {
+        return null
+      }
+
+      const doc = docs[0]
       let preferences: UserPreferences = {
         theme: 'system',
         language: 'en',

@@ -56,6 +56,7 @@ export function SearchInput({
       <Input
         type="text"
         placeholder={placeholder}
+        aria-label={placeholder}
         value={internalValue}
         onChange={handleChange}
         className="pl-10 pr-9 h-11 bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 text-sm font-medium rounded-lg"
@@ -64,6 +65,7 @@ export function SearchInput({
         <button
           type="button"
           onClick={handleClear}
+          aria-label="Clear search query"
           className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
         >
           <X className="h-3.5 w-3.5" />

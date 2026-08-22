@@ -275,6 +275,7 @@ export default function ProductsPage() {
               setIsDetailsOpen(true)
             }}
             className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+            aria-label="View Product Details"
             title="View Details"
           >
             <Eye className="h-4 w-4" />
@@ -287,6 +288,7 @@ export default function ProductsPage() {
               setIsFormOpen(true)
             }}
             className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+            aria-label="Edit Product"
             title="Edit Product"
           >
             <Edit className="h-4 w-4" />
@@ -299,6 +301,7 @@ export default function ProductsPage() {
               setIsDeleteOpen(true)
             }}
             className="h-8 w-8 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50"
+            aria-label="Delete Product"
             title="Delete Product"
           >
             <Trash2 className="h-4 w-4" />

@@ -38,6 +38,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close navigation menu drawer"
             className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100"
           >
             <X className="h-5 w-5" />

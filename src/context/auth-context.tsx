@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let finalProfile = profileRes
         if (!finalProfile) {
           try {
-            finalProfile = await userService.createUserProfile(currentUser.$id, {
+            finalProfile = await userService.getOrCreateUserProfile(currentUser.$id, {
               name: currentUser.name,
               email: currentUser.email,
             })
@@ -353,7 +353,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        await userService.createUserProfile(newAcc.$id, {
+        await userService.getOrCreateUserProfile(newAcc.$id, {
           name: data.name,
           email: data.email,
           phone: formattedPhone || data.phone,

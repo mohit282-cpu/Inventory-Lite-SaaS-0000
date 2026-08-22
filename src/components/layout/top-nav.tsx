@@ -71,6 +71,7 @@ export function TopNav({ onOpenMobileNav }: TopNavProps) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              aria-label="User account menu"
               className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus:outline-none border border-transparent hover:border-slate-200"
             >
               <div className="h-7 w-7 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
