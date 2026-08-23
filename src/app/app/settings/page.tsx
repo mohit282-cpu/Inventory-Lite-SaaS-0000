@@ -141,7 +141,7 @@ export default function SettingsPage() {
   // Save Business Settings
   const handleSaveBusiness = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!activeBusiness?.$id) return
+    if (!activeBusiness?.$id || !user?.$id) return
     try {
       setSavingBiz(true)
       await businessService.updateBusiness(
@@ -156,7 +156,7 @@ export default function SettingsPage() {
           currency,
           timezone,
         },
-        currentRole
+        user.$id
       )
       toast({
         title: 'Business Profile Updated',
@@ -271,9 +271,9 @@ export default function SettingsPage() {
 
   // Update Role
   const handleRoleChange = async (memberId: string, newRole: UserRole) => {
-    if (!activeBusiness?.$id) return
+    if (!activeBusiness?.$id || !user?.$id) return
     try {
-      await businessMemberService.updateMemberRole(memberId, newRole, activeBusiness.$id, currentRole)
+      await businessMemberService.updateMemberRole(memberId, newRole, activeBusiness.$id, user.$id)
       toast({
         title: 'Role Updated',
         description: 'Team member permission role has been updated.',
@@ -291,9 +291,9 @@ export default function SettingsPage() {
 
   // Remove Member
   const handleRemoveMember = async () => {
-    if (!activeBusiness?.$id || !deleteMemberId) return
+    if (!activeBusiness?.$id || !deleteMemberId || !user?.$id) return
     try {
-      await businessMemberService.removeMember(deleteMemberId, activeBusiness.$id, currentRole)
+      await businessMemberService.removeMember(deleteMemberId, activeBusiness.$id, user.$id)
       toast({
         title: 'Member Removed',
         description: 'Team member access has been revoked.',

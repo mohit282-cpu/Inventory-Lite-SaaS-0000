@@ -111,7 +111,24 @@ export async function authorizeBusinessAccess(
       memberRole = 'owner'
     }
   } else {
-    throw new ForbiddenError(`Access business '${businessId}'`, 'non-member')
+    let isDirectOwner = false
+    try {
+      const { businessService } = await import('@/services/business.service')
+      const business = await businessService.getById<any>(businessId, 'system').catch(() => null)
+      if (business && (business.ownerId === userId || business.createdBy === userId)) {
+        isDirectOwner = true
+      }
+    } catch {
+      // Ignore lookup error
+    }
+
+    if (isDirectOwner) {
+      memberRole = 'owner'
+      // Auto-heal missing owner membership record asynchronously
+      businessMemberService.createInitialOwnerMember(userId, businessId).catch(() => {})
+    } else {
+      throw new ForbiddenError(`Access business '${businessId}'`, 'non-member')
+    }
   }
 
   if (requiredRole) {

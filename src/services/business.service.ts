@@ -48,7 +48,16 @@ export class BusinessService extends BaseService {
       timezone: data.timezone || 'Asia/Kathmandu',
     }
 
-    return await this.create<Business>(businessData, 'system', userId)
+    const business = await this.create<Business>(businessData, 'system', userId)
+
+    try {
+      const { businessMemberService } = await import('./business-member.service')
+      await businessMemberService.createInitialOwnerMember(userId, business.$id)
+    } catch {
+      // Ignore if membership creation failed or already exists
+    }
+
+    return business
   }
 
   /**

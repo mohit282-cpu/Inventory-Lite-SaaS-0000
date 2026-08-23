@@ -1,7 +1,7 @@
 import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { BusinessMember, UserRole } from '@/types'
-import { Query } from 'appwrite'
+import { Query, Permission, Role } from 'appwrite'
 import { authorizeBusinessAccess } from '@/lib/authorization'
 
 /**
@@ -44,13 +44,21 @@ export class BusinessMemberService extends BaseService {
       return existing
     }
 
+    const memberPermissions = [
+      Permission.read(Role.user(data.userId)),
+      Permission.read(Role.user(creatorUserId)),
+      Permission.update(Role.user(creatorUserId)),
+      Permission.delete(Role.user(creatorUserId)),
+    ]
+
     return await this.create<BusinessMember>(
       {
         userId: data.userId,
         role: data.role,
       },
       businessId,
-      creatorUserId
+      creatorUserId,
+      memberPermissions
     )
   }
 
@@ -127,11 +135,28 @@ export class BusinessMemberService extends BaseService {
    * Get member record by user ID and business ID
    */
   async getMemberByUserAndBusiness(userId: string, businessId: string): Promise<BusinessMember | null> {
-    const members = await this.list<BusinessMember>(businessId, [
-      Query.equal('userId', userId),
-      Query.limit(1)
-    ])
-    return members.length > 0 ? members[0] : null
+    try {
+      const members = await this.list<BusinessMember>(businessId, [
+        Query.equal('userId', userId),
+        Query.limit(1)
+      ])
+      if (members.length > 0) {
+        return members[0]
+      }
+    } catch {
+      // Ignore database listing errors
+    }
+
+    // Fallback: If listing by businessId was restricted or empty, query system memberships by userId
+    try {
+      const memberships = await this.getUserMemberships(userId)
+      const matched = memberships.find((m) => m.businessId === businessId)
+      if (matched) return matched
+    } catch {
+      // Ignore database listing errors
+    }
+
+    return null
   }
 
   /**
