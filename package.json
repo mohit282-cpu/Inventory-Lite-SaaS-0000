@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node -e \"try { if (require('fs').existsSync('.next/BUILD_ID')) require('fs').rmSync('.next', { recursive: true, force: true }); } catch (e) {}\" && next dev",
     "clean": "node -e \"try { require('fs').rmSync('.next', { recursive: true, force: true }); } catch (e) {}\"",
     "build": "next build",
     "start": "next start",
