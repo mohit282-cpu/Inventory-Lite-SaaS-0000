@@ -9,7 +9,8 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { Printer, Download, ArrowLeft, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams, useParams } from 'next/navigation'
-import { formatBSDate, getSellerTaxLabel, getBillSummaryDetails } from '@/lib/localization'
+import { getSellerTaxLabel, getBillSummaryDetails } from '@/lib/localization'
+import { formatBSDateTime, getBSFinancialYear } from '@/lib/date/bs-date'
 
 interface InvoiceDetailPageProps {
   params?: { id?: string }
@@ -97,7 +98,6 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
     month: 'short',
     day: 'numeric',
   })
-  const formattedTime = issueDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
   const handlePrint = () => {
     window.print()
@@ -185,12 +185,13 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
                 <p className="text-xs uppercase text-slate-500 font-extrabold tracking-wider">Bill No</p>
                 <p className="font-mono text-lg font-bold text-slate-900 whitespace-nowrap break-keep">{invoice.invoiceNumber}</p>
                 
-                <p className="text-xs uppercase text-slate-500 font-extrabold tracking-wider mt-2">Billing Date & Time</p>
-                <p className="text-xs text-slate-700 font-bold">
-                  {formattedADDate} AD ({formattedTime})
+                <p className="text-xs uppercase text-slate-500 font-extrabold tracking-wider mt-2">Invoice Date (BS)</p>
+                <p className="text-sm text-slate-900 font-black">
+                  {formatBSDateTime(issueDateObj)}
                 </p>
-                <p className="text-xs text-indigo-700 print:text-black font-bold">
-                  मिति (B.S.): {formatBSDate(invoice.issueDate || invoice.createdAt, 'en')} ({formatBSDate(invoice.issueDate || invoice.createdAt, 'ne')})
+                <p className="text-xs text-slate-500 font-medium">
+                  Financial Year: <span className="font-bold text-slate-800">{getBSFinancialYear(issueDateObj).label}</span>
+                  <span className="text-slate-400 text-[10px] ml-1.5">({formattedADDate} AD)</span>
                 </p>
                 
                 <p className="text-xs text-slate-700 font-medium mt-2">
@@ -329,13 +330,13 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
                 <span>Bill No:</span>
                 <span className="font-bold whitespace-nowrap">{invoice.invoiceNumber}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Billing Date:</span>
-                <span>{formattedADDate} ({formattedTime})</span>
+              <div className="flex justify-between font-bold">
+                <span>Date (BS):</span>
+                <span>{formatBSDateTime(issueDateObj)}</span>
               </div>
               <div className="flex justify-between">
-                <span>B.S. Date:</span>
-                <span>{formatBSDate(invoice.issueDate || invoice.createdAt, 'en')}</span>
+                <span>Fiscal Year:</span>
+                <span>{getBSFinancialYear(issueDateObj).label}</span>
               </div>
               <div className="flex justify-between">
                 <span>Buyer Name:</span>

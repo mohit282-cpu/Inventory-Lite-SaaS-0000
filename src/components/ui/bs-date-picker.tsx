@@ -1,344 +1,176 @@
-"use client"
+'use client'
 
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { calendarService } from '@/services/calendar.service'
-import { BS_DAYS_EN, BS_MONTH_NAMES_EN } from '@/lib/nepali-calendar-data'
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BS_MONTH_NAMES_EN, BSDate } from '@/lib/nepali-calendar-data'
+import { adToBS, bsToAD, formatBSDate } from '@/lib/date/bs-date'
+import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 
-export interface BSDatePickerProps {
-  value?: string | Date
-  onChange: (formattedAD: string, bsDateString: string, dateObj: Date) => void
+export interface BsDatePickerProps {
+  value?: string | Date | null
+  onChange?: (isoDate: string, bsDateString: string) => void
   label?: string
-  disabled?: boolean
+  placeholder?: string
   className?: string
+  disabled?: boolean
 }
 
-export function BSDatePicker({
+export function BsDatePicker({
   value,
   onChange,
   label,
-  disabled = false,
+  placeholder = 'Select BS Date',
   className = '',
-}: BSDatePickerProps) {
+  disabled = false,
+}: BsDatePickerProps) {
+  const [bs, setBs] = useState<BSDate>(() => adToBS(value || new Date()))
   const [isOpen, setIsOpen] = useState(false)
-  const [mode, setMode] = useState<'BS' | 'AD'>('BS')
-  const popoverRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // Current selected date object
-  const validSelectedAD = useMemo(() => {
-    const d = value ? (typeof value === 'object' ? value : new Date(value)) : new Date()
-    return isNaN(d.getTime()) ? new Date() : d
+  useEffect(() => {
+    if (value) {
+      setBs(adToBS(value))
+    }
   }, [value])
 
-  const selectedBS = useMemo(() => {
-    return calendarService.adToBs(validSelectedAD)
-  }, [validSelectedAD])
-
-  // Calendar View state (Year & Month currently viewed)
-  const [viewBSYear, setViewBSYear] = useState(selectedBS.year)
-  const [viewBSMonth, setViewBSMonth] = useState(selectedBS.month)
-
-  const [viewADYear, setViewADYear] = useState(validSelectedAD.getFullYear())
-  const [viewADMonth, setViewADMonth] = useState(validSelectedAD.getMonth()) // 0-indexed
-
-  useEffect(() => {
-    const bs = calendarService.adToBs(validSelectedAD)
-    setViewBSYear(bs.year)
-    setViewBSMonth(bs.month)
-    setViewADYear(validSelectedAD.getFullYear())
-    setViewADMonth(validSelectedAD.getMonth())
-  }, [validSelectedAD])
-
-  // Click outside listener
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen])
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
-  // Select a day in BS mode
-  const handleSelectBSDay = (bsDay: number) => {
-    const adDate = calendarService.bsToAd(viewBSYear, viewBSMonth, bsDay)
-    const adIso = adDate.toISOString().split('T')[0]
-    const bsStr = `${viewBSYear}-${String(viewBSMonth).padStart(2, '0')}-${String(bsDay).padStart(2, '0')}`
-    onChange(adIso, bsStr, adDate)
+  const years = Array.from({ length: 21 }, (_, i) => 2075 + i) // 2075 to 2095 BS
+  const daysInMonth = calendarService.getBSMonthDays(bs.year, bs.month)
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+
+  const handleYearChange = (newYearStr: string) => {
+    const newYear = parseInt(newYearStr, 10)
+    const maxDays = calendarService.getBSMonthDays(newYear, bs.month)
+    const newDay = Math.min(bs.day, maxDays)
+    const updated = { year: newYear, month: bs.month, day: newDay }
+    setBs(updated)
+    emitChange(updated)
+  }
+
+  const handleMonthChange = (newMonthStr: string) => {
+    const newMonth = parseInt(newMonthStr, 10)
+    const maxDays = calendarService.getBSMonthDays(bs.year, newMonth)
+    const newDay = Math.min(bs.day, maxDays)
+    const updated = { year: bs.year, month: newMonth, day: newDay }
+    setBs(updated)
+    emitChange(updated)
+  }
+
+  const handleDayChange = (newDay: number) => {
+    const updated = { ...bs, day: newDay }
+    setBs(updated)
+    emitChange(updated)
     setIsOpen(false)
   }
 
-  // Select a day in AD mode
-  const handleSelectADDay = (adDay: number) => {
-    const adDate = new Date(viewADYear, viewADMonth, adDay)
-    const adIso = adDate.toISOString().split('T')[0]
-    const bs = calendarService.adToBs(adDate)
-    const bsStr = `${bs.year}-${String(bs.month).padStart(2, '0')}-${String(bs.day).padStart(2, '0')}`
-    onChange(adIso, bsStr, adDate)
-    setIsOpen(false)
+  const emitChange = (updatedBS: BSDate) => {
+    if (!onChange) return
+    const adDate = bsToAD(updatedBS.year, updatedBS.month, updatedBS.day)
+    const isoDate = adDate.toISOString()
+    const mm = String(updatedBS.month).padStart(2, '0')
+    const dd = String(updatedBS.day).padStart(2, '0')
+    const bsStr = `${updatedBS.year}/${mm}/${dd}`
+    onChange(isoDate, bsStr)
   }
 
-  // BS Month navigation
-  const prevBSMonth = () => {
-    if (viewBSMonth === 1) {
-      setViewBSMonth(12)
-      setViewBSYear((y) => y - 1)
-    } else {
-      setViewBSMonth((m) => m - 1)
-    }
-  }
-
-  const nextBSMonth = () => {
-    if (viewBSMonth === 12) {
-      setViewBSMonth(1)
-      setViewBSYear((y) => y + 1)
-    } else {
-      setViewBSMonth((m) => m + 1)
-    }
-  }
-
-  // AD Month navigation
-  const prevADMonth = () => {
-    if (viewADMonth === 0) {
-      setViewADMonth(11)
-      setViewADYear((y) => y - 1)
-    } else {
-      setViewADMonth((m) => m - 1)
-    }
-  }
-
-  const nextADMonth = () => {
-    if (viewADMonth === 11) {
-      setViewADMonth(0)
-      setViewADYear((y) => y + 1)
-    } else {
-      setViewADMonth((m) => m + 1)
-    }
-  }
-
-  // Jump to Today
-  const jumpToToday = () => {
-    const today = new Date()
-    const bs = calendarService.adToBs(today)
-    const adIso = today.toISOString().split('T')[0]
-    const bsStr = `${bs.year}-${String(bs.month).padStart(2, '0')}-${String(bs.day).padStart(2, '0')}`
-    onChange(adIso, bsStr, today)
-    setViewBSYear(bs.year)
-    setViewBSMonth(bs.month)
-    setViewADYear(today.getFullYear())
-    setViewADMonth(today.getMonth())
-    setIsOpen(false)
-  }
-
-  const gridData = calendarService.getBSMonthCalendarGrid(viewBSYear, viewBSMonth)
-
-  const formattedValueBS = calendarService.formatBSDate(validSelectedAD)
-  const formattedValueAD = calendarService.formatADDate(validSelectedAD)
+  const formattedDisplay = value ? formatBSDate(value, { format: 'YYYY/MM/DD' }) : placeholder
 
   return (
-    <div className={`relative inline-block w-full ${className}`} ref={popoverRef}>
-      {label && <label className="block text-xs font-bold text-slate-700 mb-1">{label}</label>}
-
-      <button
+    <div className={`space-y-1.5 relative ${className}`} ref={containerRef}>
+      {label && <label className="text-xs font-medium text-slate-700 dark:text-slate-300">{label}</label>}
+      
+      <Button
         type="button"
+        variant="outline"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-900 shadow-xs hover:bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 text-left min-h-[42px]"
+        className="w-full justify-between text-left font-normal h-10 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
       >
-        <div className="flex items-center gap-2 truncate">
-          <CalendarIcon className="h-4 w-4 text-indigo-600 shrink-0" />
-          <span className="font-bold text-slate-900 truncate">{formattedValueBS}</span>
-          <span className="text-slate-500 text-[11px] truncate">({formattedValueAD})</span>
+        <div className="flex items-center">
+          <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{formattedDisplay}</span>
         </div>
-        <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 uppercase ml-2 shrink-0">
-          BS
-        </span>
-      </button>
+        <ChevronDown className="h-4 w-4 text-slate-400" />
+      </Button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 left-0 sm:left-auto sm:right-0 w-[310px] bg-white rounded-xl shadow-xl border border-slate-200 p-3 space-y-3 animate-in fade-in-50 zoom-in-95">
-          {/* Calendar Mode Switcher & Today */}
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setMode('BS')}
-                className={`px-3 py-1 rounded-md transition-all ${
-                  mode === 'BS' ? 'bg-white text-indigo-700 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                BS
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('AD')}
-                className={`px-3 py-1 rounded-md transition-all ${
-                  mode === 'AD' ? 'bg-white text-indigo-700 shadow-xs font-black' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                AD
-              </button>
+        <div className="absolute z-50 mt-1 w-80 p-4 border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900 rounded-xl left-0">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                Bikram Sambat (B.S.)
+              </span>
+              <span className="text-xs text-slate-500">
+                {formatBSDate(bsToAD(bs.year, bs.month, bs.day), { includeAD: true })}
+              </span>
             </div>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={jumpToToday}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-bold h-7 px-2"
-            >
-              Today
-            </Button>
-          </div>
-
-          {/* BS Calendar Grid View */}
-          {mode === 'BS' ? (
-            <div>
-              {/* Header Navigation */}
-              <div className="flex items-center justify-between mb-2">
-                <button
-                  type="button"
-                  onClick={prevBSMonth}
-                  className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 min-h-[36px] min-w-[36px] flex items-center justify-center"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <div className="font-extrabold text-sm text-slate-900 font-mono">
-                  {viewBSYear} {BS_MONTH_NAMES_EN[viewBSMonth - 1]}
-                </div>
-                <button
-                  type="button"
-                  onClick={nextBSMonth}
-                  className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 min-h-[36px] min-w-[36px] flex items-center justify-center"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Year Select */}
+              <div>
+                <label className="text-[10px] text-slate-500 uppercase font-semibold">BS Year</label>
+                <Select value={String(bs.year)} onValueChange={handleYearChange}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue>{bs.year}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent max-height="200px">
+                    {years.map((y) => (
+                      <SelectItem key={y} value={String(y)} className="text-xs">
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-slate-500 uppercase mb-1">
-                {BS_DAYS_EN.map((day) => (
-                  <div key={day} className="py-1">
-                    {day}
-                  </div>
+              {/* Month Select */}
+              <div>
+                <label className="text-[10px] text-slate-500 uppercase font-semibold">BS Month</label>
+                <Select value={String(bs.month)} onValueChange={handleMonthChange}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue>{BS_MONTH_NAMES_EN[bs.month - 1]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BS_MONTH_NAMES_EN.map((m, idx) => (
+                      <SelectItem key={idx} value={String(idx + 1)} className="text-xs">
+                        {m} ({idx + 1})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Days Grid */}
+            <div>
+              <label className="text-[10px] text-slate-500 uppercase font-semibold mb-1 block">BS Day</label>
+              <div className="grid grid-cols-7 gap-1">
+                {days.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => handleDayChange(d)}
+                    className={`h-8 w-8 text-xs rounded-md transition-colors font-medium flex items-center justify-center ${
+                      d === bs.day
+                        ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                    }`}
+                  >
+                    {d}
+                  </button>
                 ))}
               </div>
-
-              {/* Days Grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {gridData.days.map((cell, idx) => {
-                  const isSelected =
-                    cell.isCurrentMonth &&
-                    viewBSYear === selectedBS.year &&
-                    viewBSMonth === selectedBS.month &&
-                    cell.bsDay === selectedBS.day
-
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      disabled={!cell.isCurrentMonth}
-                      onClick={() => cell.isCurrentMonth && handleSelectBSDay(cell.bsDay)}
-                      className={`h-9 w-full rounded-lg text-xs font-bold flex flex-col items-center justify-center transition-all ${
-                        !cell.isCurrentMonth
-                          ? 'text-slate-300 opacity-40 cursor-not-allowed'
-                          : isSelected
-                          ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-600'
-                          : 'text-slate-800 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span>{cell.bsDay}</span>
-                      <span className={`text-[8px] ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
-                        {cell.adDay}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ) : (
-            /* AD Calendar Grid View */
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <button
-                  type="button"
-                  onClick={prevADMonth}
-                  className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 min-h-[36px] min-w-[36px] flex items-center justify-center"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <div className="font-extrabold text-sm text-slate-900 font-mono">
-                  {new Date(viewADYear, viewADMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
-                </div>
-                <button
-                  type="button"
-                  onClick={nextADMonth}
-                  className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 min-h-[36px] min-w-[36px] flex items-center justify-center"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-slate-500 uppercase mb-1">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                  <div key={day} className="py-1">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-7 gap-1">
-                {(() => {
-                  const daysInADMonth = new Date(viewADYear, viewADMonth + 1, 0).getDate()
-                  const firstDay = new Date(viewADYear, viewADMonth, 1).getDay()
-                  const cells = []
-
-                  for (let i = 0; i < firstDay; i++) {
-                    cells.push(<div key={`empty-${i}`} className="h-9" />)
-                  }
-
-                  for (let d = 1; d <= daysInADMonth; d++) {
-                    const isSelected =
-                      viewADYear === validSelectedAD.getFullYear() &&
-                      viewADMonth === validSelectedAD.getMonth() &&
-                      d === validSelectedAD.getDate()
-
-                    cells.push(
-                      <button
-                        key={d}
-                        type="button"
-                        onClick={() => handleSelectADDay(d)}
-                        className={`h-9 w-full rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
-                          isSelected
-                            ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-600'
-                            : 'text-slate-800 hover:bg-slate-100'
-                        }`}
-                      >
-                        {d}
-                      </button>
-                    )
-                  }
-                  return cells
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* Selected Date Summary Footer */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-[11px] space-y-0.5">
-            <div className="flex justify-between font-bold text-slate-900">
-              <span>BS:</span>
-              <span className="text-indigo-700">{formattedValueBS}</span>
-            </div>
-            <div className="flex justify-between font-medium text-slate-600">
-              <span>AD:</span>
-              <span>{formattedValueAD}</span>
             </div>
           </div>
         </div>

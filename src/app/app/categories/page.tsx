@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
 import { Plus, Edit, Trash2 } from 'lucide-react'
 import { Category } from '@/types'
+import { formatBSDate } from '@/lib/date/bs-date'
 
 export default function CategoriesPage() {
   const { activeBusiness, user } = useAuth()
@@ -131,7 +132,7 @@ export default function CategoriesPage() {
       header: 'Created Date',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-500 font-medium">{new Date(item.createdAt).toLocaleDateString()}</span>
+        <span className="text-xs text-slate-700 font-mono font-bold">{formatBSDate(item.createdAt)}</span>
       ),
     },
     {

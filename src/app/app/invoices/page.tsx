@@ -16,6 +16,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { Invoice, Sale, Customer } from '@/types'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { formatBSDate } from '@/lib/date/bs-date'
 
 interface EnrichedInvoice extends Invoice {
   saleNumber: string
@@ -148,8 +149,8 @@ export default function InvoicesPage() {
       header: 'Date',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-500 font-medium">
-          {new Date(item.issueDate || item.createdAt).toLocaleDateString()}
+        <span className="text-xs text-slate-700 font-bold font-mono">
+          {formatBSDate(item.issueDate || item.createdAt)}
         </span>
       ),
     },

@@ -17,6 +17,7 @@ import {
 import { saleService } from '@/services/sale.service'
 import { productService } from '@/services/product.service'
 import { Sale, Product } from '@/types'
+import { formatBSDate } from '@/lib/date/bs-date'
 import {
   Package,
   ShoppingCart,
@@ -376,7 +377,7 @@ export default function DashboardPage() {
                       <StatusBadge status={sale.status} />
                     </td>
                     <td className="py-3 px-3 text-right text-[11px] text-slate-500 font-medium">
-                      {new Date(sale.createdAt || '').toLocaleDateString()}
+                      {formatBSDate(sale.createdAt)}
                     </td>
                   </tr>
                 ))}

@@ -8,6 +8,8 @@ import { DataTable, Column } from '@/components/ui/data-table'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { stockMovementService } from '@/services/stock-movement.service'
 import { productService } from '@/services/product.service'
 import { useAuth } from '@/hooks/use-auth'
@@ -18,8 +20,14 @@ import {
   ArrowUpRight,
   RefreshCw,
   AlertTriangle,
+  FileText,
+  Loader2,
+  Calendar,
+  FilterX,
 } from 'lucide-react'
 import { StockMovement, Product } from '@/types'
+import { generateStockLedgerPdf, sanitizeFilename } from '@/lib/pdf/stock-ledger-pdf'
+import { formatBSDateTime } from '@/lib/date/bs-date'
 
 // Dynamic Dialog Imports for Bundle Optimization
 const StockInDialog = dynamic(
@@ -35,6 +43,48 @@ const StockAdjustmentDialog = dynamic(
   { ssr: false }
 )
 
+type DatePreset = 'ALL' | 'TODAY' | 'YESTERDAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'LAST_MONTH' | 'CUSTOM'
+
+function getDateRangeFromPreset(preset: DatePreset): { dateFrom: string; dateTo: string } {
+  const now = new Date()
+  const todayStr = now.toISOString().split('T')[0]
+
+  if (preset === 'TODAY') {
+    return { dateFrom: todayStr, dateTo: todayStr }
+  }
+
+  if (preset === 'YESTERDAY') {
+    const y = new Date(now)
+    y.setDate(y.getDate() - 1)
+    const yStr = y.toISOString().split('T')[0]
+    return { dateFrom: yStr, dateTo: yStr }
+  }
+
+  if (preset === 'THIS_WEEK') {
+    const startOfWeek = new Date(now)
+    const day = startOfWeek.getDay()
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1)
+    startOfWeek.setDate(diff)
+    return { dateFrom: startOfWeek.toISOString().split('T')[0], dateTo: todayStr }
+  }
+
+  if (preset === 'THIS_MONTH') {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    return { dateFrom: startOfMonth.toISOString().split('T')[0], dateTo: todayStr }
+  }
+
+  if (preset === 'LAST_MONTH') {
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    return {
+      dateFrom: startOfLastMonth.toISOString().split('T')[0],
+      dateTo: endOfLastMonth.toISOString().split('T')[0],
+    }
+  }
+
+  return { dateFrom: '', dateTo: '' }
+}
+
 export default function StockMovementsPage() {
   const { activeBusiness, user } = useAuth()
   const { toast } = useToast()
@@ -42,11 +92,18 @@ export default function StockMovementsPage() {
   const [movements, setMovements] = useState<StockMovement[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([])
+
+  // Search & Filters State
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
-
+  const [selectedProductFilter, setSelectedProductFilter] = useState<string>('ALL')
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('ALL')
+  const [datePreset, setDatePreset] = useState<DatePreset>('ALL')
+  const [dateFrom, setDateFrom] = useState<string>('')
+  const [dateTo, setDateTo] = useState<string>('')
+
   const [isLoading, setIsLoading] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
 
   // Dialog States
   const [isStockInOpen, setIsStockInOpen] = useState(false)
@@ -84,9 +141,51 @@ export default function StockMovementsPage() {
     fetchData()
   }, [fetchData])
 
-  // Memoized Filter & Search Logic
+  // Preset Date Selection Change
+  const handleDatePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset)
+    if (preset !== 'CUSTOM') {
+      const range = getDateRangeFromPreset(preset)
+      setDateFrom(range.dateFrom)
+      setDateTo(range.dateTo)
+    }
+  }
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setSearchQuery('')
+    setSelectedProductFilter('ALL')
+    setSelectedTypeFilter('ALL')
+    setDatePreset('ALL')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  // Memoized Filter & Search Logic for Active UI Table View
   const filteredMovements = useMemo(() => {
     let result = [...movements]
+
+    if (selectedProductFilter !== 'ALL') {
+      result = result.filter((m) => m.productId === selectedProductFilter)
+    }
+
+    if (selectedTypeFilter !== 'ALL') {
+      result = result.filter((m) => m.type === selectedTypeFilter)
+    }
+
+    if (dateFrom) {
+      const fromTime = new Date(dateFrom).getTime()
+      result = result.filter((m) => new Date(m.createdAt).getTime() >= fromTime)
+    }
+
+    if (dateTo) {
+      const toDate = new Date(dateTo)
+      if (dateTo.length <= 10) {
+        toDate.setHours(23, 59, 59, 999)
+      }
+      const toTime = toDate.getTime()
+      result = result.filter((m) => new Date(m.createdAt).getTime() <= toTime)
+    }
 
     if (debouncedSearchQuery.trim()) {
       const q = debouncedSearchQuery.toLowerCase()
@@ -100,12 +199,84 @@ export default function StockMovementsPage() {
       })
     }
 
-    if (selectedTypeFilter !== 'ALL') {
-      result = result.filter((m) => m.type === selectedTypeFilter)
-    }
-
     return result
-  }, [debouncedSearchQuery, selectedTypeFilter, movements, products])
+  }, [debouncedSearchQuery, selectedTypeFilter, selectedProductFilter, dateFrom, dateTo, movements, products])
+
+  // PDF Export Handler (READ-ONLY)
+  const handleExportPdf = async () => {
+    if (!activeBusiness?.$id) return
+    setIsExporting(true)
+
+    try {
+      // 1. Fetch complete matching dataset using chunked query with tenant isolation
+      const exportMovements = await stockMovementService.fetchAllMovements(
+        activeBusiness.$id,
+        {
+          productId: selectedProductFilter,
+          type: selectedTypeFilter as any,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+        },
+        user?.$id
+      )
+
+      // Apply search query filter if active
+      let finalMovements = exportMovements
+      if (debouncedSearchQuery.trim()) {
+        const q = debouncedSearchQuery.toLowerCase()
+        finalMovements = finalMovements.filter((m) => {
+          const prod = products.find((p) => p.$id === m.productId)
+          return (
+            (prod && (prod.name.toLowerCase().includes(q) || prod.sku.toLowerCase().includes(q))) ||
+            (m.reason && m.reason.toLowerCase().includes(q)) ||
+            (m.referenceId && m.referenceId.toLowerCase().includes(q))
+          )
+        })
+      }
+
+      // 2. Generate PDF document using read-only pdf engine
+      const doc = generateStockLedgerPdf({
+        business: activeBusiness,
+        movements: finalMovements,
+        products,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        selectedProductId: selectedProductFilter,
+        selectedTypeFilter,
+        searchQuery: debouncedSearchQuery,
+        generatedBy: user?.name || user?.email || 'Authorized User',
+      })
+
+      // 3. Generate sanitized filename
+      const targetProduct =
+        selectedProductFilter !== 'ALL'
+          ? products.find((p) => p.$id === selectedProductFilter)
+          : null
+
+      const scopeName = targetProduct
+        ? sanitizeFilename(targetProduct.name)
+        : sanitizeFilename(activeBusiness.name || 'Inventory')
+
+      const dateTag = `${dateFrom || 'all'}-to-${dateTo || 'present'}`
+      const fileName = `Inventory-Ledger-${scopeName}-${dateTag}.pdf`
+
+      // 4. Download PDF file
+      doc.save(fileName)
+
+      toast({
+        title: 'PDF Export Complete',
+        description: `Successfully exported ${finalMovements.length} stock movement records to ${fileName}.`,
+      })
+    } catch (err: any) {
+      toast({
+        title: 'PDF Export Failed',
+        description: err.message || 'Failed to generate stock ledger PDF.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   // Stock In Handler
   const handleStockIn = async (data: {
@@ -262,12 +433,20 @@ export default function StockMovementsPage() {
       header: 'Date & Time',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-500 font-medium">
-          {new Date(item.createdAt).toLocaleString()}
+        <span className="text-xs text-slate-800 font-mono font-bold">
+          {formatBSDateTime(item.createdAt)}
         </span>
       ),
     },
   ]
+
+  const isFiltered =
+    selectedProductFilter !== 'ALL' ||
+    selectedTypeFilter !== 'ALL' ||
+    datePreset !== 'ALL' ||
+    searchQuery.trim() !== '' ||
+    Boolean(dateFrom) ||
+    Boolean(dateTo)
 
   return (
     <div className="space-y-6 text-slate-900">
@@ -275,7 +454,25 @@ export default function StockMovementsPage() {
         title="Stock Movements & Ledger"
         description="Audit stock intakes, sales deductions, damages, and manual count adjustments."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={handleExportPdf}
+              disabled={isExporting}
+              variant="outline"
+              className="border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-950 font-bold h-10 px-3.5 shadow-sm"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin text-indigo-700" />
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  <FileText className="mr-1.5 h-4 w-4 text-indigo-700" />
+                  Export PDF
+                </>
+              )}
+            </Button>
             <Button
               onClick={() => {
                 setPreselectedProductId(undefined)
@@ -308,7 +505,7 @@ export default function StockMovementsPage() {
         }
       />
 
-      {/* Low Stock & Out of Stock Alert Summary Banner */}
+      {/* Low Stock Banner */}
       {lowStockProducts.length > 0 && (
         <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
           <div className="flex items-start gap-3">
@@ -341,26 +538,124 @@ export default function StockMovementsPage() {
         </div>
       )}
 
-      {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <SearchInput
-          placeholder="Search ledger by product, SKU, or reference #..."
-          value={searchQuery}
-          onChange={setSearchQuery}
-          className="w-full sm:max-w-md"
-        />
+      {/* Filter Controls Bar */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-4 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          {/* Search Input */}
+          <div className="space-y-1 md:col-span-1">
+            <Label className="text-xs font-bold text-slate-700">Search</Label>
+            <SearchInput
+              placeholder="Search product, SKU, ref #..."
+              value={searchQuery}
+              onChange={setSearchQuery}
+              className="w-full h-9 text-xs"
+            />
+          </div>
 
-        <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="All Movement Types" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Movements</SelectItem>
-            <SelectItem value="stock_in">Stock In (Purchase)</SelectItem>
-            <SelectItem value="stock_out">Stock Out (Deduction)</SelectItem>
-            <SelectItem value="adjustment">Stock Adjustment</SelectItem>
-          </SelectContent>
-        </Select>
+          {/* Product Filter */}
+          <div className="space-y-1">
+            <Label className="text-xs font-bold text-slate-700">Product</Label>
+            <Select value={selectedProductFilter} onValueChange={setSelectedProductFilter}>
+              <SelectTrigger className="h-9 text-xs bg-white border-slate-300">
+                <SelectValue placeholder="All Products" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-slate-200">
+                <SelectItem value="ALL">All Products</SelectItem>
+                {products.map((p) => (
+                  <SelectItem key={p.$id} value={p.$id}>
+                    {p.name} ({p.sku})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Movement Type Filter */}
+          <div className="space-y-1">
+            <Label className="text-xs font-bold text-slate-700">Movement Type</Label>
+            <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
+              <SelectTrigger className="h-9 text-xs bg-white border-slate-300">
+                <SelectValue placeholder="All Movements" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-slate-200">
+                <SelectItem value="ALL">All Movements</SelectItem>
+                <SelectItem value="stock_in">Stock In (Purchase)</SelectItem>
+                <SelectItem value="stock_out">Stock Out (Deduction)</SelectItem>
+                <SelectItem value="adjustment">Stock Adjustment</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Date Presets */}
+          <div className="space-y-1">
+            <Label className="text-xs font-bold text-slate-700">Date Range Preset</Label>
+            <Select value={datePreset} onValueChange={(val) => handleDatePresetChange(val as DatePreset)}>
+              <SelectTrigger className="h-9 text-xs bg-white border-slate-300">
+                <SelectValue placeholder="All History" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border-slate-200">
+                <SelectItem value="ALL">All History</SelectItem>
+                <SelectItem value="TODAY">Today</SelectItem>
+                <SelectItem value="YESTERDAY">Yesterday</SelectItem>
+                <SelectItem value="THIS_WEEK">This Week</SelectItem>
+                <SelectItem value="THIS_MONTH">This Month</SelectItem>
+                <SelectItem value="LAST_MONTH">Last Month</SelectItem>
+                <SelectItem value="CUSTOM">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Custom Date Inputs & Clear Filters Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-3">
+            {(datePreset === 'CUSTOM' || dateFrom || dateTo) && (
+              <>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                  <span className="font-bold text-slate-700">From:</span>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value)
+                      setDatePreset('CUSTOM')
+                    }}
+                    className="h-8 text-xs w-36"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="font-bold text-slate-700">To:</span>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => {
+                      setDateTo(e.target.value)
+                      setDatePreset('CUSTOM')
+                    }}
+                    className="h-8 text-xs w-36"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="text-xs text-slate-500 font-medium">
+              Showing <span className="font-bold text-slate-900">{filteredMovements.length}</span> of {movements.length} records
+            </div>
+          </div>
+
+          {isFiltered && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearFilters}
+              className="h-8 text-xs text-slate-600 hover:text-slate-900 font-semibold"
+            >
+              <FilterX className="h-3.5 w-3.5 mr-1" /> Reset Filters
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Stock Ledger Table */}
@@ -368,18 +663,28 @@ export default function StockMovementsPage() {
         data={filteredMovements}
         columns={columns}
         isLoading={isLoading}
-        emptyTitle="No stock movements recorded"
-        emptyDescription="Record your first stock-in transaction or stock movement to populate the ledger."
+        emptyTitle="No stock movements found"
+        emptyDescription="No inventory records match your selected search query or date range filters."
         emptyAction={
-          <Button
-            onClick={() => {
-              setPreselectedProductId(undefined)
-              setIsStockInOpen(true)
-            }}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-          >
-            <ArrowDownRight className="mr-1.5 h-4 w-4" /> Record First Stock In
-          </Button>
+          isFiltered ? (
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              className="border-slate-300 text-slate-800 font-bold"
+            >
+              Clear Search & Filters
+            </Button>
+          ) : (
+            <Button
+              onClick={() => {
+                setPreselectedProductId(undefined)
+                setIsStockInOpen(true)
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+            >
+              <ArrowDownRight className="mr-1.5 h-4 w-4" /> Record First Stock In
+            </Button>
+          )
         }
       />
 

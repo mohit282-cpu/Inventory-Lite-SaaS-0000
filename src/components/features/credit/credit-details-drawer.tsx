@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { formatBSDate } from '@/lib/date/bs-date'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -264,8 +265,8 @@ export function CreditDetailsDrawer({
                     <tbody className="divide-y divide-slate-100">
                       {item.payments.map((p) => (
                         <tr key={p.$id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-3 py-2 text-slate-600 font-medium">
-                            {new Date(p.paymentDate || p.createdAt).toLocaleDateString()}
+                          <td className="px-3 py-2 text-slate-800 font-mono font-bold">
+                            {formatBSDate(p.paymentDate || p.createdAt)}
                           </td>
                           <td className="px-3 py-2 font-mono font-bold text-emerald-700">
                             Rs. {p.amount.toFixed(2)}

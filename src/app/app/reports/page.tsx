@@ -14,6 +14,7 @@ import { customerService } from '@/services/customer.service'
 import { saleService } from '@/services/sale.service'
 import { expenseService } from '@/services/expense.service'
 import { Product, Sale, Customer, Expense } from '@/types'
+import { formatBSDate } from '@/lib/date/bs-date'
 import {
   TrendingUp,
   Download,
@@ -221,7 +222,7 @@ export default function ReportsPage() {
                         <td className="py-3 px-3 font-mono font-bold text-emerald-700">Rs. {s.total.toFixed(2)}</td>
                         <td className="py-3 px-3 uppercase text-xs font-bold text-slate-700">{s.paymentMethod}</td>
                         <td className="py-3 px-3"><StatusBadge status={s.status} /></td>
-                        <td className="py-3 px-3 text-right text-xs text-slate-500 font-medium">{new Date(s.createdAt || '').toLocaleDateString()}</td>
+                        <td className="py-3 px-3 text-right text-xs text-slate-800 font-mono font-bold">{formatBSDate(s.createdAt)}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -353,7 +354,7 @@ export default function ReportsPage() {
                       <td className="py-3 px-3 font-bold text-slate-900">{e.title}</td>
                       <td className="py-3 px-3 uppercase text-xs font-mono text-slate-600">{e.category}</td>
                       <td className="py-3 px-3 text-right font-mono font-bold text-rose-700">Rs. {e.amount.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right text-xs text-slate-500 font-medium">{e.date || e.createdAt?.slice(0, 10)}</td>
+                      <td className="py-3 px-3 text-right text-xs text-slate-800 font-mono font-bold">{formatBSDate(e.date || e.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>

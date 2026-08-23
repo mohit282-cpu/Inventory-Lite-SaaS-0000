@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Plus, Eye, ShoppingCart } from 'lucide-react'
 import { Sale, Customer } from '@/types'
+import { formatBSDateTime } from '@/lib/date/bs-date'
 
 export default function SalesPage() {
   const router = useRouter()
@@ -137,8 +138,8 @@ export default function SalesPage() {
       header: 'Date & Time',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-500 font-medium">
-          {new Date(item.createdAt).toLocaleString()}
+        <span className="text-xs text-slate-800 font-mono font-bold">
+          {formatBSDateTime(item.createdAt)}
         </span>
       ),
     },

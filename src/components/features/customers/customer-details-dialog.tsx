@@ -11,6 +11,7 @@ import { customerService } from '@/services/customer.service'
 import { useAuth } from '@/hooks/use-auth'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Customer } from '@/types'
+import { formatBSDate } from '@/lib/date/bs-date'
 import { User, Phone, Mail, MapPin, ShoppingBag, CreditCard, AlertCircle, Loader2 } from 'lucide-react'
 
 interface CustomerDetailsDialogProps {
@@ -169,7 +170,7 @@ export function CustomerDetailsDialog({
                           <td className="px-3 py-2 font-mono font-bold text-indigo-700">{s.saleNumber}</td>
                           <td className="px-3 py-2 font-mono text-emerald-700 font-bold">Rs. {(s.total ?? s.totalAmount ?? 0).toFixed(2)}</td>
                           <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
-                          <td className="px-3 py-2 text-slate-500 font-medium">{new Date(s.createdAt).toLocaleDateString()}</td>
+                          <td className="px-3 py-2 text-slate-800 font-mono font-bold">{formatBSDate(s.createdAt)}</td>
                         </tr>
                       ))}
                     </tbody>

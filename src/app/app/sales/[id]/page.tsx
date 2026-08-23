@@ -13,7 +13,8 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
 import { ArrowLeft, Printer, Loader2, Building, User, Calendar, CreditCard } from 'lucide-react'
 import { Sale, Customer, SaleItem } from '@/types'
-import { getSellerTaxLabel, getBillSummaryDetails, formatBSDate } from '@/lib/localization'
+import { getSellerTaxLabel, getBillSummaryDetails } from '@/lib/localization'
+import { formatBSDateTime, getBSFinancialYear } from '@/lib/date/bs-date'
 
 export default function SaleDetailPage() {
   const params = useParams()
@@ -168,14 +169,15 @@ export default function SaleDetailPage() {
                   <span className="font-bold text-slate-700">Bill No:</span>
                   <span className="font-bold text-indigo-700">{sale.saleNumber || sale.$id}</span>
                 </div>
-                <div className="text-xs text-slate-500 font-mono flex items-center sm:justify-end gap-1.5 mt-1 font-medium">
-                  <Calendar className="h-3.5 w-3.5 text-indigo-600" />
-                  <span className="font-bold text-slate-700">Billing Date (AD):</span>
-                  {new Date(sale.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} ({new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                <div className="text-xs text-emerald-800 dark:text-emerald-400 font-mono flex items-center sm:justify-end gap-1.5 mt-1 font-bold">
+                  <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Billing Date (BS):</span>
+                  <span>{formatBSDateTime(sale.createdAt)}</span>
                 </div>
-                <div className="text-xs text-indigo-700 font-bold flex items-center sm:justify-end gap-1.5">
-                  <span className="font-bold">मिति (B.S.):</span>
-                  {formatBSDate(sale.createdAt, 'en')} ({formatBSDate(sale.createdAt, 'ne')})
+                <div className="text-xs text-slate-500 font-mono flex items-center sm:justify-end gap-1.5 text-[11px]">
+                  <span className="font-semibold text-slate-600">Financial Year:</span>
+                  <span>{getBSFinancialYear(sale.createdAt).label}</span>
+                  <span className="text-slate-400 ml-1">({new Date(sale.createdAt).toLocaleDateString('en-US')} AD)</span>
                 </div>
                 <div className="text-xs text-slate-600 flex items-center sm:justify-end gap-1.5">
                   <CreditCard className="h-3.5 w-3.5 text-indigo-600" />
@@ -298,13 +300,13 @@ export default function SaleDetailPage() {
                 <span>Bill No:</span>
                 <span className="font-bold whitespace-nowrap">{sale.saleNumber || sale.$id}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Billing Date:</span>
-                <span>{new Date(sale.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} ({new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>
+              <div className="flex justify-between font-bold">
+                <span>Date (BS):</span>
+                <span>{formatBSDateTime(sale.createdAt)}</span>
               </div>
               <div className="flex justify-between">
-                <span>B.S. Date:</span>
-                <span>{formatBSDate(sale.createdAt, 'en')}</span>
+                <span>Fiscal Year:</span>
+                <span>{getBSFinancialYear(sale.createdAt).label}</span>
               </div>
               <div className="flex justify-between">
                 <span>Buyer Name:</span>

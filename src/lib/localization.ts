@@ -86,7 +86,6 @@ export function validatePAN(pan: string): boolean {
 // ==================== Bikram Sambat (B.S.) Date Conversion ====================
 
 import { calendarService } from '@/services/calendar.service'
-import { BS_MONTH_NAMES_EN, BS_MONTH_NAMES_NE } from '@/lib/nepali-calendar-data'
 
 const NEPALI_NUMERALS = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९']
 
@@ -104,23 +103,21 @@ export function convertADToBS(dateInput: string | Date): { year: number; month: 
   return calendarService.adToBs(dateInput)
 }
 
+import { formatBSDate as formatBSDateCentral } from '@/lib/date/bs-date'
+
 /**
  * Format a date string into displayable Bikram Sambat (B.S.) representation
- * Example: "2026-08-22" -> "2083 Bhadra 6 B.S." (English) or "२०८३ भदौ ६" (Nepali)
+ * Example: "2026-08-22" -> "2083/05/06" or "2083 Bhadra 6"
  */
 export function formatBSDate(
   dateInput: string | Date,
   language: 'en' | 'ne' = 'en'
 ): string {
-  const { year, month, day } = calendarService.adToBs(dateInput)
-
   if (language === 'ne') {
-    const monthName = BS_MONTH_NAMES_NE[month - 1] || 'वैशाख'
-    return `${toNepaliNumerals(year)} ${monthName} ${toNepaliNumerals(day)}`
+    return formatBSDateCentral(dateInput, { format: 'MEDIUM', language: 'ne' })
   }
-
-  const monthName = BS_MONTH_NAMES_EN[month - 1] || 'Baisakh'
-  return `${year} ${monthName} ${day} B.S.`
+  const formattedStr = formatBSDateCentral(dateInput, { format: 'YYYY/MM/DD', language: 'en' })
+  return `${formattedStr} B.S.`
 }
 
 // ==================== Structured Nepal Address Helper ====================

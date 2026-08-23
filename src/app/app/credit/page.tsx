@@ -22,6 +22,7 @@ import {
   FilterX,
 } from 'lucide-react'
 import { Customer } from '@/types'
+import { formatBSDate } from '@/lib/date/bs-date'
 
 // Dynamic Dialog Imports for Bundle Optimization
 const RecordPaymentDialog = dynamic(
@@ -133,8 +134,8 @@ export default function CreditPage() {
       sortable: true,
       width: '12%',
       render: (item) => (
-        <span className="text-slate-600 text-xs font-medium">
-          {new Date(item.saleDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+        <span className="text-slate-800 text-xs font-mono font-bold">
+          {formatBSDate(item.saleDate)}
         </span>
       ),
     },

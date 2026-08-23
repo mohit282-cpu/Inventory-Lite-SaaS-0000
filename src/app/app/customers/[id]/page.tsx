@@ -23,6 +23,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { Customer } from '@/types'
+import { formatBSDate } from '@/lib/date/bs-date'
 
 export default function CustomerDetailPage() {
   const params = useParams()
@@ -236,7 +237,7 @@ export default function CustomerDetailPage() {
                       <td className="px-4 py-3 font-mono font-bold text-emerald-400">Rs. {(s.total ?? s.totalAmount ?? 0).toFixed(2)}</td>
                       <td className="px-4 py-3 font-mono text-slate-300">Rs. {(s.paidAmount || 0).toFixed(2)}</td>
                       <td className="px-4 py-3"><StatusBadge status={s.status} /></td>
-                      <td className="px-4 py-3 text-xs text-slate-400">{new Date(s.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-xs text-slate-300 font-mono font-bold">{formatBSDate(s.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>

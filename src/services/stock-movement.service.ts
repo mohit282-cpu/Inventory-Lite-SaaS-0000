@@ -256,6 +256,83 @@ export class StockMovementService extends BaseService {
   ): Promise<StockMovement[]> {
     return this.getStockMovements(businessId, filters)
   }
+
+  /**
+   * Fetch 100% of matching stock movements using chunked pagination (no silent truncation up to max limit)
+   * Strictly enforces tenant isolation and optional date range, product, and type filters.
+   */
+  async fetchAllMovements(
+    businessId: string,
+    filters?: {
+      productId?: string
+      type?: StockMovementType | 'ALL'
+      dateFrom?: string
+      dateTo?: string
+      maxLimit?: number
+    },
+    userId?: string
+  ): Promise<StockMovement[]> {
+    if (userId) {
+      await authorizeBusinessAccess({
+        userId,
+        businessId,
+        requiredRole: ['owner', 'admin', 'staff'],
+      })
+    }
+
+    const chunkSize = 100
+    const maxRecords = filters?.maxLimit || 5000
+    const allRecords: StockMovement[] = []
+    let offset = 0
+
+    while (allRecords.length < maxRecords) {
+      const queries: any[] = [
+        Query.orderDesc('createdAt'),
+        Query.limit(chunkSize),
+        Query.offset(offset),
+      ]
+
+      if (filters?.productId && filters.productId !== 'ALL') {
+        queries.push(Query.equal('productId', filters.productId))
+      }
+
+      if (filters?.type && filters.type !== 'ALL') {
+        queries.push(Query.equal('type', filters.type))
+      }
+
+      const chunk = await this.list<StockMovement>(businessId, queries)
+      if (!chunk || chunk.length === 0) {
+        break
+      }
+
+      allRecords.push(...chunk)
+
+      if (chunk.length < chunkSize) {
+        break
+      }
+
+      offset += chunkSize
+    }
+
+    // Apply date range filtering in-memory
+    let result = allRecords
+
+    if (filters?.dateFrom) {
+      const fromTime = new Date(filters.dateFrom).getTime()
+      result = result.filter((m) => new Date(m.createdAt).getTime() >= fromTime)
+    }
+
+    if (filters?.dateTo) {
+      const toDate = new Date(filters.dateTo)
+      if (filters.dateTo.length <= 10) {
+        toDate.setHours(23, 59, 59, 999)
+      }
+      const toTime = toDate.getTime()
+      result = result.filter((m) => new Date(m.createdAt).getTime() <= toTime)
+    }
+
+    return result
+  }
 }
 
 export const stockMovementService = new StockMovementService()

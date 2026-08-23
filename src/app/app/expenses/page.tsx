@@ -14,6 +14,7 @@ import { useAuth } from '@/context/auth-context'
 import { expenseService, ExpenseSummary } from '@/services/expense.service'
 import { ExpenseInput } from '@/lib/validations'
 import { Expense } from '@/types'
+import { formatBSDate } from '@/lib/date/bs-date'
 import { Plus, Edit, Trash2, Receipt, Calendar, CreditCard } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 
@@ -172,8 +173,8 @@ export default function ExpensesPage() {
       header: 'Date',
       sortable: true,
       render: (item) => (
-        <span className="text-xs text-slate-500 font-medium">
-          {item.date ? item.date.slice(0, 10) : item.createdAt?.slice(0, 10)}
+        <span className="text-xs text-slate-800 font-mono font-bold">
+          {formatBSDate(item.date || item.createdAt)}
         </span>
       ),
     },

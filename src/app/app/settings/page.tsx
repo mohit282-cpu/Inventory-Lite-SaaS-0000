@@ -17,6 +17,7 @@ import { authService } from '@/services/auth.service'
 import { businessMemberService } from '@/services/business-member.service'
 import { BusinessMember, UserRole, Currency, TaxRegistrationType } from '@/types'
 import { getEffectiveTaxRegistration } from '@/lib/localization'
+import { formatBSDate } from '@/lib/date/bs-date'
 import {
   Store,
   Save,
@@ -857,7 +858,7 @@ export default function SettingsPage() {
                             Active
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-xs text-slate-500 font-medium">{new Date(m.createdAt).toLocaleDateString()}</td>
+                        <td className="py-3 px-3 text-xs text-slate-700 font-mono font-bold">{formatBSDate(m.createdAt)}</td>
                         <td className="py-3 px-3 text-right">
                           {m.role !== 'owner' && (currentRole === 'owner' || currentRole === 'admin') ? (
                             <Button
