@@ -1,17 +1,29 @@
 import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Noto_Sans_Devanagari } from "next/font/google"
 import "./globals.css"
 import { AppwriteInitializer } from "@/components/AppwriteInitializer"
 import { AuthProvider } from "@/context/auth-context"
+import { LanguageProvider } from "@/context/language-context"
 import { RouteGuard } from "@/components/auth/route-guard"
 import { Toaster } from "@/components/ui/toaster"
 import { SWRegister } from "@/components/pwa/sw-register"
 
-const inter = Inter({ subsets: ["latin"], fallback: ["system-ui", "sans-serif"] })
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  fallback: ["system-ui", "sans-serif"],
+})
+
+const devanagari = Noto_Sans_Devanagari({
+  subsets: ["devanagari"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-devanagari",
+  fallback: ["Kalimati", "sans-serif"],
+})
 
 export const metadata: Metadata = {
-  title: "Inventory Lite - Multi-tenant Inventory SaaS",
-  description: "Inventory and billing management software for small businesses in Nepal",
+  title: "Inventory Lite — Simple Inventory & Billing for Small Businesses in Nepal",
+  description: "Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal.",
   applicationName: "Inventory Lite",
   manifest: "/manifest.json",
   appleWebApp: {
@@ -52,17 +64,21 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <AuthProvider>
-          <AppwriteInitializer />
-          <SWRegister />
-          <RouteGuard>
-            {children}
-          </RouteGuard>
-          <Toaster />
-        </AuthProvider>
+    <html lang="en" className={`${inter.variable} ${devanagari.variable}`}>
+      <body className="font-sans antialiased bg-background text-foreground">
+        <LanguageProvider>
+          <AuthProvider>
+            <AppwriteInitializer />
+            <SWRegister />
+            <RouteGuard>
+              {children}
+            </RouteGuard>
+            <Toaster />
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   )
 }
+
+

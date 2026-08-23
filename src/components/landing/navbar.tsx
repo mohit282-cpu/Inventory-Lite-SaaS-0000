@@ -3,13 +3,15 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/use-auth'
+import { useLanguage } from '@/context/language-context'
 import { Menu, X, ArrowRight, LayoutDashboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-
 import { AppLogo } from '@/components/ui/app-logo'
+import { LanguageSwitcher } from '@/components/ui/language-switcher'
 
 export function LandingNavbar() {
   const { user, activeBusiness } = useAuth()
+  const { t } = useLanguage()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const hasPortalAccess = !!user
@@ -23,33 +25,35 @@ export function LandingNavbar() {
         </Link>
 
         {/* Desktop Links */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+        <nav className="hidden md:flex items-center gap-5 lg:gap-8 text-sm font-medium text-slate-600">
           <a href="#product" className="hover:text-slate-900 transition-colors">
-            Product
+            {t('nav.product')}
           </a>
           <a href="#workflow" className="hover:text-slate-900 transition-colors">
-            Workflow
+            {t('nav.workflow')}
           </a>
           <a href="#features" className="hover:text-slate-900 transition-colors">
-            Features
+            {t('nav.features')}
           </a>
           <a href="#pricing" className="hover:text-slate-900 transition-colors">
-            Pricing
+            {t('nav.pricing')}
           </a>
           <a href="#faq" className="hover:text-slate-900 transition-colors">
-            FAQ
+            {t('nav.faq')}
           </a>
         </nav>
 
-        {/* Desktop Auth CTAs */}
+        {/* Desktop Controls (Language Selector + Auth CTAs) */}
         <div className="hidden md:flex items-center gap-3">
+          <LanguageSwitcher />
+
           {hasPortalAccess ? (
             <Button
               asChild
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm text-xs sm:text-sm"
             >
               <Link href={activeBusiness ? "/app/dashboard" : "/onboarding"}>
-                <LayoutDashboard className="mr-2 h-4 w-4" /> Go to Dashboard
+                <LayoutDashboard className="mr-2 h-4 w-4 shrink-0" /> {t('nav.goToDashboard')}
               </Link>
             </Button>
           ) : (
@@ -57,71 +61,76 @@ export function LandingNavbar() {
               <Button
                 variant="ghost"
                 asChild
-                className="text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium"
+                className="text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-xs sm:text-sm"
               >
-                <Link href="/auth/login">Login</Link>
+                <Link href="/auth/login">{t('nav.login')}</Link>
               </Button>
               <Button
                 asChild
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm text-xs sm:text-sm"
               >
                 <Link href="/auth/signup">
-                  Start Free <ArrowRight className="ml-1.5 h-4 w-4" />
+                  {t('nav.startFree')} <ArrowRight className="ml-1.5 h-4 w-4 shrink-0" />
                 </Link>
               </Button>
             </>
           )}
         </div>
 
-        {/* Mobile Menu Trigger */}
-        <button
-          type="button"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none"
-          aria-label="Toggle navigation menu"
-        >
-          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        {/* Mobile Controls & Trigger */}
+        <div className="flex md:hidden items-center gap-2">
+          <LanguageSwitcher align="right" />
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu"
+            aria-label={t('nav.toggleMenu')}
+          >
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-slate-200 bg-white px-4 pt-3 pb-6 space-y-4 animate-fade-in shadow-lg">
+        <div id="mobile-menu" className="md:hidden border-b border-slate-200 bg-white px-4 pt-3 pb-6 space-y-4 animate-fade-in shadow-lg">
           <nav className="flex flex-col space-y-3 text-sm font-medium text-slate-700">
             <a
               href="#product"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1.5 hover:text-indigo-600 transition-colors"
             >
-              Product
+              {t('nav.product')}
             </a>
             <a
               href="#workflow"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1.5 hover:text-indigo-600 transition-colors"
             >
-              Workflow
+              {t('nav.workflow')}
             </a>
             <a
               href="#features"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1.5 hover:text-indigo-600 transition-colors"
             >
-              Features
+              {t('nav.features')}
             </a>
             <a
               href="#pricing"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1.5 hover:text-indigo-600 transition-colors"
             >
-              Pricing
+              {t('nav.pricing')}
             </a>
             <a
               href="#faq"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1.5 hover:text-indigo-600 transition-colors"
             >
-              FAQ
+              {t('nav.faq')}
             </a>
           </nav>
 
@@ -132,7 +141,7 @@ export function LandingNavbar() {
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold min-h-[44px]"
               >
                 <Link href={activeBusiness ? "/app/dashboard" : "/onboarding"}>
-                  <LayoutDashboard className="mr-2 h-4 w-4" /> Go to Dashboard
+                  <LayoutDashboard className="mr-2 h-4 w-4 shrink-0" /> {t('nav.goToDashboard')}
                 </Link>
               </Button>
             ) : (
@@ -142,14 +151,14 @@ export function LandingNavbar() {
                   asChild
                   className="w-full border-slate-300 text-slate-800 hover:bg-slate-50 min-h-[44px]"
                 >
-                  <Link href="/auth/login">Login</Link>
+                  <Link href="/auth/login">{t('nav.login')}</Link>
                 </Button>
                 <Button
                   asChild
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold min-h-[44px]"
                 >
                   <Link href="/auth/signup">
-                    Start Free <ArrowRight className="ml-1.5 h-4 w-4" />
+                    {t('nav.startFree')} <ArrowRight className="ml-1.5 h-4 w-4 shrink-0" />
                   </Link>
                 </Button>
               </>

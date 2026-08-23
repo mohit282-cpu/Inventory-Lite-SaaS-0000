@@ -1,48 +1,51 @@
 "use client"
 
 import React from 'react'
+import { useLanguage } from '@/context/language-context'
 import { Zap, Smartphone, CheckCircle, Gift } from 'lucide-react'
 
-const TRUST_POINTS = [
-  {
-    icon: Zap,
-    title: 'Simple & Fast to Use',
-    desc: 'No complex training required for store staff',
-  },
-  {
-    icon: CheckCircle,
-    title: 'Built for Nepal Businesses',
-    desc: 'Native NPR currency & PAN/VAT invoice headers',
-  },
-  {
-    icon: Smartphone,
-    title: 'Works Desktop & Mobile',
-    desc: 'Access your store data anywhere from your browser',
-  },
-  {
-    icon: Gift,
-    title: 'Start Free Today',
-    desc: 'Get started instantly without entering credit card info',
-  },
-]
-
 export function LandingTrustStrip() {
+  const { t } = useLanguage()
+
+  const trustPoints = [
+    {
+      icon: Zap,
+      title: t('trust.simpleFastTitle'),
+      desc: t('trust.simpleFastDesc'),
+    },
+    {
+      icon: CheckCircle,
+      title: t('trust.nepalBizTitle'),
+      desc: t('trust.nepalBizDesc'),
+    },
+    {
+      icon: Smartphone,
+      title: t('trust.desktopMobileTitle'),
+      desc: t('trust.desktopMobileDesc'),
+    },
+    {
+      icon: Gift,
+      title: t('trust.startFreeTitle'),
+      desc: t('trust.startFreeDesc'),
+    },
+  ]
+
   return (
-    <section className="py-8 bg-slate-900/40 border-b border-slate-800/60">
+    <section className="py-8 bg-slate-900/40 border-b border-slate-800/60 text-left">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {TRUST_POINTS.map((pt, idx) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {trustPoints.map((pt, idx) => {
             const Icon = pt.icon
             return (
-              <div key={idx} className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+              <div key={idx} className="flex items-start gap-3 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+                <div className="h-10 w-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
                   <Icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">
+                  <h4 className="text-xs sm:text-sm font-bold text-white leading-snug">
                     {pt.title}
                   </h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                     {pt.desc}
                   </p>
                 </div>

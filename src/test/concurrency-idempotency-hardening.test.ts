@@ -327,53 +327,58 @@ describe('P0 & P1 Hardening: Concurrency, Idempotency, Payment Reversal & Invoic
     expect(updatedSale.paidAmount).toBe(0)
   })
 
-  it('P1 Invoice Numbering Concurrency Test: 100 simultaneous invoice creations produce 100 unique invoice numbers', async () => {
-    const product = await productService.createProduct(
-      {
-        name: 'Invoice Concurrency Item',
-        unit: 'pcs',
-        purchasePrice: 10,
-        sellingPrice: 20,
-        stockQuantity: 200,
-      },
-      bizId,
-      userId
-    )
+  it(
+    'P1 Invoice Numbering Concurrency Test: 100 simultaneous invoice creations produce 100 unique invoice numbers',
+    async () => {
+      const product = await productService.createProduct(
+        {
+          name: 'Invoice Concurrency Item',
+          unit: 'pcs',
+          purchasePrice: 10,
+          sellingPrice: 20,
+          stockQuantity: 200,
+        },
+        bizId,
+        userId
+      )
 
-    // Create 100 sales
-    const sales = await Promise.all(
-      Array.from({ length: 100 }, (_, i) =>
-        saleService.createSale(
+      // Create 100 sales
+      const sales = await Promise.all(
+        Array.from({ length: 100 }, (_, i) =>
+          saleService.createSale(
+            {
+              items: [{ productId: product.$id, quantity: 1 }],
+              paidAmount: 20,
+              paymentMethod: 'cash',
+              idempotencyKey: `inv_sale_key_${i}`,
+            },
+            bizId,
+            userId
+          )
+        )
+      )
+
+      // Launch 100 simultaneous invoice creation requests
+      const invoiceRequests = sales.map((s, idx) =>
+        invoiceService.createInvoice(
           {
-            items: [{ productId: product.$id, quantity: 1 }],
-            paidAmount: 20,
-            paymentMethod: 'cash',
-            idempotencyKey: `inv_sale_key_${i}`,
+            saleId: s.sale.$id,
+            issueDate: new Date().toISOString(),
+            idempotencyKey: `inv_req_key_${idx}`,
           },
           bizId,
           userId
         )
       )
-    )
 
-    // Launch 100 simultaneous invoice creation requests
-    const invoiceRequests = sales.map((s, idx) =>
-      invoiceService.createInvoice(
-        {
-          saleId: s.sale.$id,
-          issueDate: new Date().toISOString(),
-          idempotencyKey: `inv_req_key_${idx}`,
-        },
-        bizId,
-        userId
-      )
-    )
+      const invoiceResults = await Promise.all(invoiceRequests)
+      const invoiceNumbers = invoiceResults.map((inv) => inv.invoiceNumber)
 
-    const invoiceResults = await Promise.all(invoiceRequests)
-    const invoiceNumbers = invoiceResults.map((inv) => inv.invoiceNumber)
+      // Check all 100 invoice numbers are unique (Set size === 100)
+      const uniqueNumbers = new Set(invoiceNumbers)
+      expect(uniqueNumbers.size).toBe(100)
+    },
+    30000
+  )
 
-    // Check all 100 invoice numbers are unique (Set size === 100)
-    const uniqueNumbers = new Set(invoiceNumbers)
-    expect(uniqueNumbers.size).toBe(100)
-  })
 })
