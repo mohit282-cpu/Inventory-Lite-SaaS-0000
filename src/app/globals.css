@@ -104,35 +104,96 @@
 }
 
 
-/* Print styles for invoices */
+/* Production Print Engine & Media Overrides */
 @media print {
-  body {
-    background: white !important;
-    color: black !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  /* Hide app shell when printing */
+  /* 1. Hide all web application chrome, navigation, headers, footers, sidebars, buttons, and offline banners */
   aside,
   header,
   nav,
-  .no-print {
+  button,
+  .no-print,
+  .print\:hidden,
+  [data-print-hidden="true"] {
     display: none !important;
   }
 
-  /* Show only the printable content */
-  .print-area {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+  /* 2. Reset document root, body, and viewports for clean printer pagination */
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
+  /* 3. Reset Next.js app shell flex containers & scrollboxes */
+  div,
+  main,
+  article,
+  section {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .max-w-7xl,
+  .max-w-4xl {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 4. Table Pagination Hardening */
+  table {
+    page-break-inside: auto;
+    width: 100% !important;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* 5. A4 Page Defaults */
   @page {
-    margin: 10mm;
+    size: A4 portrait;
+    margin: 10mm 10mm 10mm 10mm;
+  }
+
+  /* 6. Dedicated 80mm Thermal Receipt Page Override */
+  body.print-format-thermal {
+    width: 80mm !important;
+  }
+
+  body.print-format-thermal @page {
+    size: 80mm auto;
+    margin: 0;
   }
 }
 

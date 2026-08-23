@@ -232,6 +232,8 @@ export interface BillSummaryDetails {
   paidAmount: number
   dueAmount: number
   changeAmount: number
+  invoiceTitleEn: string
+  invoiceTitleNe: string
 }
 
 /**
@@ -316,6 +318,9 @@ export function getBillSummaryDetails(sale: {
   const dueAmount = sale.dueAmount || 0
   const changeAmount = sale.changeAmount ?? Math.max(0, paidAmount - grandTotal)
 
+  const invoiceTitleEn = showVat ? 'TAX INVOICE' : 'SALES INVOICE'
+  const invoiceTitleNe = showVat ? 'कर बिजक' : 'बिजक'
+
   return {
     subtotal,
     showDiscount,
@@ -335,5 +340,7 @@ export function getBillSummaryDetails(sale: {
     paidAmount,
     dueAmount,
     changeAmount,
+    invoiceTitleEn,
+    invoiceTitleNe,
   }
 }
