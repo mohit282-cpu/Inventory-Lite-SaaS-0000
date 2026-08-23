@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { SearchInput } from '@/components/ui/search-input'
-import { LoadingPage } from '@/components/ui/loading'
+import { ReportsPageSkeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { useAuth } from '@/context/auth-context'
 import { analyticsService, ProfitEstimateReport } from '@/services/analytics.service'
@@ -68,7 +68,7 @@ export default function ReportsPage() {
   }, [fetchReportsData])
 
   if (loading) {
-    return <LoadingPage message="Generating real-time business reports..." />
+    return <ReportsPageSkeleton />
   }
 
   const currency = activeBusiness?.currency || 'NPR'

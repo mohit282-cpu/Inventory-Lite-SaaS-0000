@@ -13,11 +13,11 @@ export default function OnboardingPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // If business is already set up and active, redirect directly to dashboard
-    if (activeBusiness?.$id) {
+    // If business is already set up and active, redirect directly to dashboard once workspace is loaded
+    if (activeBusiness?.$id && !isWorkspaceLoading) {
       router.replace('/app/dashboard')
     }
-  }, [activeBusiness, router])
+  }, [activeBusiness, isWorkspaceLoading, router])
 
   if (isWorkspaceLoading) {
     return (

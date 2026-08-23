@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
@@ -11,6 +11,7 @@ import { saleService } from '@/services/sale.service'
 import { customerService } from '@/services/customer.service'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
+import { useDebounce } from '@/hooks/use-debounce'
 import { Plus, Eye, ShoppingCart } from 'lucide-react'
 import { Sale, Customer } from '@/types'
 
@@ -21,8 +22,8 @@ export default function SalesPage() {
 
   const [sales, setSales] = useState<Sale[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [filteredSales, setFilteredSales] = useState<Sale[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isLoading, setIsLoading] = useState(true)
 
   const fetchSalesData = useCallback(async () => {
@@ -34,7 +35,6 @@ export default function SalesPage() {
         customerService.listCustomers(activeBusiness.$id),
       ])
       setSales(salesData)
-      setFilteredSales(salesData)
       setCustomers(customerData)
     } catch (err: any) {
       toast({
@@ -51,25 +51,22 @@ export default function SalesPage() {
     fetchSalesData()
   }, [fetchSalesData])
 
-  // Search Filter
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredSales(sales)
-    } else {
-      const q = searchQuery.toLowerCase()
-      setFilteredSales(
-        sales.filter((s) => {
-          const cust = customers.find((c) => c.$id === s.customerId)
-          return (
-            (s.saleNumber && s.saleNumber.toLowerCase().includes(q)) ||
-            (s.$id && s.$id.toLowerCase().includes(q)) ||
-            (cust && cust.name.toLowerCase().includes(q)) ||
-            s.paymentMethod.toLowerCase().includes(q)
-          )
-        })
-      )
+  // Memoized Search Filter
+  const filteredSales = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return sales
     }
-  }, [searchQuery, sales, customers])
+    const q = debouncedSearchQuery.toLowerCase()
+    return sales.filter((s) => {
+      const cust = customers.find((c) => c.$id === s.customerId)
+      return (
+        (s.saleNumber && s.saleNumber.toLowerCase().includes(q)) ||
+        (s.$id && s.$id.toLowerCase().includes(q)) ||
+        (cust && cust.name.toLowerCase().includes(q)) ||
+        s.paymentMethod.toLowerCase().includes(q)
+      )
+    })
+  }, [debouncedSearchQuery, sales, customers])
 
   const getCustomerName = (customerId?: string) => {
     if (!customerId || customerId.trim() === '' || customerId === 'guest') return 'Walk-in Guest'

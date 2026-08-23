@@ -1,20 +1,31 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { ProductFormDialog } from '@/components/features/products/product-form-dialog'
-import { ProductDetailsDialog } from '@/components/features/products/product-details-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { productService } from '@/services/product.service'
 import { categoryService } from '@/services/category.service'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
+import { useDebounce } from '@/hooks/use-debounce'
 import { Plus, Edit, Trash2, Eye, Filter } from 'lucide-react'
 import { Product, Category } from '@/types'
+
+// Dynamic Dialog Imports for Bundle Optimization
+const ProductFormDialog = dynamic(
+  () => import('@/components/features/products/product-form-dialog').then((mod) => mod.ProductFormDialog),
+  { ssr: false }
+)
+
+const ProductDetailsDialog = dynamic(
+  () => import('@/components/features/products/product-details-dialog').then((mod) => mod.ProductDetailsDialog),
+  { ssr: false }
+)
 
 export default function ProductsPage() {
   const { activeBusiness, user } = useAuth()
@@ -22,8 +33,9 @@ export default function ProductsPage() {
 
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
+
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL')
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('ALL')
   const [isLoading, setIsLoading] = useState(true)
@@ -47,7 +59,6 @@ export default function ProductsPage() {
       ])
       setProducts(prods)
       setCategories(cats)
-      setFilteredProducts(prods)
     } catch (err: any) {
       toast({
         title: 'Error loading inventory',
@@ -63,12 +74,12 @@ export default function ProductsPage() {
     fetchData()
   }, [fetchData])
 
-  // Filter & Search Evaluation
-  useEffect(() => {
+  // Memoized Filter & Search Evaluation (Zero extra re-renders on keystrokes)
+  const filteredProducts = useMemo(() => {
     let result = [...products]
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
+    if (debouncedSearchQuery.trim()) {
+      const q = debouncedSearchQuery.toLowerCase()
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
@@ -93,8 +104,8 @@ export default function ProductsPage() {
       }
     }
 
-    setFilteredProducts(result)
-  }, [searchQuery, selectedCategoryFilter, selectedStatusFilter, products])
+    return result
+  }, [debouncedSearchQuery, selectedCategoryFilter, selectedStatusFilter, products])
 
   const handleCreateOrUpdate = async (data: any) => {
     if (!activeBusiness?.$id || !user?.$id) return

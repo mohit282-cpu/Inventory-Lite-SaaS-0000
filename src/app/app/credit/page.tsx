@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
@@ -10,6 +11,7 @@ import { paymentService, CreditLedgerItem } from '@/services/payment.service'
 import { customerService } from '@/services/customer.service'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
+import { useDebounce } from '@/hooks/use-debounce'
 import {
   Wallet,
   Users,
@@ -19,9 +21,17 @@ import {
   Eye,
   FilterX,
 } from 'lucide-react'
-import { RecordPaymentDialog } from '@/components/features/credit/record-payment-dialog'
-import { CreditDetailsDrawer } from '@/components/features/credit/credit-details-drawer'
 import { Customer } from '@/types'
+
+// Dynamic Dialog Imports for Bundle Optimization
+const RecordPaymentDialog = dynamic(
+  () => import('@/components/features/credit/record-payment-dialog').then((mod) => mod.RecordPaymentDialog),
+  { ssr: false }
+)
+const CreditDetailsDrawer = dynamic(
+  () => import('@/components/features/credit/credit-details-drawer').then((mod) => mod.CreditDetailsDrawer),
+  { ssr: false }
+)
 
 export default function CreditPage() {
   const { activeBusiness } = useAuth()
@@ -40,6 +50,7 @@ export default function CreditPage() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'UNPAID' | 'PARTIAL' | 'PAID' | 'OVERDUE'>('UNPAID')
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all')
 
@@ -56,7 +67,7 @@ export default function CreditPage() {
       const [sumData, ledgerData, custDocs] = await Promise.all([
         paymentService.getCreditSummary(activeBusiness.$id),
         paymentService.getCreditLedger(activeBusiness.$id, {
-          searchQuery,
+          searchQuery: debouncedSearchQuery,
           status: statusFilter,
           customerId: selectedCustomerId === 'all' ? undefined : selectedCustomerId,
         }),
@@ -75,7 +86,7 @@ export default function CreditPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [activeBusiness?.$id, searchQuery, statusFilter, selectedCustomerId, toast])
+  }, [activeBusiness?.$id, debouncedSearchQuery, statusFilter, selectedCustomerId, toast])
 
   useEffect(() => {
     fetchData()

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
@@ -12,6 +12,7 @@ import { useAuth } from '@/context/auth-context'
 import { invoiceService } from '@/services/invoice.service'
 import { saleService } from '@/services/sale.service'
 import { customerService } from '@/services/customer.service'
+import { useDebounce } from '@/hooks/use-debounce'
 import { Invoice, Sale, Customer } from '@/types'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -29,6 +30,7 @@ export default function InvoicesPage() {
   const { activeBusiness } = useAuth()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [invoices, setInvoices] = useState<EnrichedInvoice[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -73,14 +75,19 @@ export default function InvoicesPage() {
     fetchInvoices()
   }, [fetchInvoices])
 
-  const filteredInvoices = invoices.filter((item) => {
-    const query = searchQuery.toLowerCase()
-    return (
-      item.invoiceNumber.toLowerCase().includes(query) ||
-      item.customerName.toLowerCase().includes(query) ||
-      item.saleNumber.toLowerCase().includes(query)
-    )
-  })
+  const filteredInvoices = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return invoices
+    }
+    const query = debouncedSearchQuery.toLowerCase()
+    return invoices.filter((item) => {
+      return (
+        item.invoiceNumber.toLowerCase().includes(query) ||
+        item.customerName.toLowerCase().includes(query) ||
+        item.saleNumber.toLowerCase().includes(query)
+      )
+    })
+  }, [debouncedSearchQuery, invoices])
 
   const columns: Column<EnrichedInvoice>[] = [
     {

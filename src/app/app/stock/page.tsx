@@ -1,19 +1,18 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
-import { StockInDialog } from '@/components/features/stock/stock-in-dialog'
-import { StockOutDialog } from '@/components/features/stock/stock-out-dialog'
-import { StockAdjustmentDialog } from '@/components/features/stock/stock-adjustment-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { stockMovementService } from '@/services/stock-movement.service'
 import { productService } from '@/services/product.service'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
+import { useDebounce } from '@/hooks/use-debounce'
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -22,6 +21,20 @@ import {
 } from 'lucide-react'
 import { StockMovement, Product } from '@/types'
 
+// Dynamic Dialog Imports for Bundle Optimization
+const StockInDialog = dynamic(
+  () => import('@/components/features/stock/stock-in-dialog').then((mod) => mod.StockInDialog),
+  { ssr: false }
+)
+const StockOutDialog = dynamic(
+  () => import('@/components/features/stock/stock-out-dialog').then((mod) => mod.StockOutDialog),
+  { ssr: false }
+)
+const StockAdjustmentDialog = dynamic(
+  () => import('@/components/features/stock/stock-adjustment-dialog').then((mod) => mod.StockAdjustmentDialog),
+  { ssr: false }
+)
+
 export default function StockMovementsPage() {
   const { activeBusiness, user } = useAuth()
   const { toast } = useToast()
@@ -29,8 +42,9 @@ export default function StockMovementsPage() {
   const [movements, setMovements] = useState<StockMovement[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([])
-  const [filteredMovements, setFilteredMovements] = useState<StockMovement[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
+
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('ALL')
   const [isLoading, setIsLoading] = useState(true)
 
@@ -53,7 +67,6 @@ export default function StockMovementsPage() {
       setMovements(movs)
       setProducts(prods)
       setLowStockProducts(lowStock)
-      setFilteredMovements(movs)
     } catch (err: any) {
       if (typeof window !== 'undefined' && navigator.onLine) {
         toast({
@@ -71,12 +84,12 @@ export default function StockMovementsPage() {
     fetchData()
   }, [fetchData])
 
-  // Filter & Search Logic
-  useEffect(() => {
+  // Memoized Filter & Search Logic
+  const filteredMovements = useMemo(() => {
     let result = [...movements]
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
+    if (debouncedSearchQuery.trim()) {
+      const q = debouncedSearchQuery.toLowerCase()
       result = result.filter((m) => {
         const prod = products.find((p) => p.$id === m.productId)
         return (
@@ -91,8 +104,8 @@ export default function StockMovementsPage() {
       result = result.filter((m) => m.type === selectedTypeFilter)
     }
 
-    setFilteredMovements(result)
-  }, [searchQuery, selectedTypeFilter, movements, products])
+    return result
+  }, [debouncedSearchQuery, selectedTypeFilter, movements, products])
 
   // Stock In Handler
   const handleStockIn = async (data: {

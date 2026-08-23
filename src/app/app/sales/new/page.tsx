@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -395,8 +396,17 @@ export default function CreateSalePage() {
 
           {/* Catalog Grid */}
           {isLoading ? (
-            <div className="flex items-center justify-center p-12 text-slate-500">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mr-2" /> Loading inventory catalog...
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-10" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="p-8 text-center border border-slate-200 rounded-xl bg-white text-slate-500 text-sm">

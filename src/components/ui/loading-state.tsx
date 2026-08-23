@@ -1,5 +1,6 @@
 import React from 'react'
 import { Loader2 } from 'lucide-react'
+import { DataTableSkeleton, SkeletonKPI } from '@/components/ui/skeleton'
 
 interface LoadingStateProps {
   message?: string
@@ -13,21 +14,14 @@ export function LoadingState({
   type = 'spinner',
 }: LoadingStateProps) {
   if (type === 'table') {
-    return (
-      <div className="w-full space-y-3 p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
-        <div className="h-8 bg-slate-100 rounded-md animate-pulse w-full mb-4" />
-        {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="h-10 bg-slate-100/70 rounded-md animate-pulse w-full" />
-        ))}
-      </div>
-    )
+    return <DataTableSkeleton columns={5} rows={rows} />
   }
 
   if (type === 'cards') {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="h-28 bg-white border border-slate-200 rounded-xl shadow-xs animate-pulse p-4" />
+          <SkeletonKPI key={i} />
         ))}
       </div>
     )

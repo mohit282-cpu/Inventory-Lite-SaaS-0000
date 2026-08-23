@@ -1,27 +1,38 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { CustomerFormDialog } from '@/components/features/customers/customer-form-dialog'
-import { CustomerDetailsDialog } from '@/components/features/customers/customer-details-dialog'
 import { customerService } from '@/services/customer.service'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
+import { useDebounce } from '@/hooks/use-debounce'
 import { Plus, Edit, Trash2, Eye } from 'lucide-react'
 import { Customer } from '@/types'
+
+// Dynamic Dialog Imports for Bundle Optimization
+const CustomerFormDialog = dynamic(
+  () => import('@/components/features/customers/customer-form-dialog').then((mod) => mod.CustomerFormDialog),
+  { ssr: false }
+)
+
+const CustomerDetailsDialog = dynamic(
+  () => import('@/components/features/customers/customer-details-dialog').then((mod) => mod.CustomerDetailsDialog),
+  { ssr: false }
+)
 
 export default function CustomersPage() {
   const { activeBusiness, user } = useAuth()
   const { toast } = useToast()
 
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isLoading, setIsLoading] = useState(true)
 
   // Dialog States
@@ -39,7 +50,6 @@ export default function CustomersPage() {
       setIsLoading(true)
       const data = await customerService.listCustomers(activeBusiness.$id)
       setCustomers(data)
-      setFilteredCustomers(data)
     } catch (err: any) {
       toast({
         title: 'Error loading customers',
@@ -55,23 +65,20 @@ export default function CustomersPage() {
     fetchCustomers()
   }, [fetchCustomers])
 
-  // Search Filter
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredCustomers(customers)
-    } else {
-      const q = searchQuery.toLowerCase()
-      setFilteredCustomers(
-        customers.filter(
-          (c) =>
-            c.name.toLowerCase().includes(q) ||
-            (c.phone && c.phone.includes(q)) ||
-            (c.email && c.email.toLowerCase().includes(q)) ||
-            (c.address && c.address.toLowerCase().includes(q))
-        )
-      )
+  // Memoized Search Filter
+  const filteredCustomers = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return customers
     }
-  }, [searchQuery, customers])
+    const q = debouncedSearchQuery.toLowerCase()
+    return customers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.phone && c.phone.includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q)) ||
+        (c.address && c.address.toLowerCase().includes(q))
+    )
+  }, [debouncedSearchQuery, customers])
 
   const handleCreateOrUpdate = async (data: {
     name: string

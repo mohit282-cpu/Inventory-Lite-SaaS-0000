@@ -95,3 +95,4 @@ const LoadingOverlay = ({ isLoading, message = "Loading...", children }: Loading
 }
 
 export { LoadingSpinner, LoadingSkeleton, LoadingPage, LoadingOverlay }
+export * from "./skeleton"
