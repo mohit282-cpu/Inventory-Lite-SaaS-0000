@@ -2,6 +2,7 @@ import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { Customer } from '@/types'
 import { Query } from 'appwrite'
+import { shouldAllowOfflineFallback } from '@/lib/error-handler'
 
 /**
  * Customer Service
@@ -29,17 +30,9 @@ export class CustomerService extends BaseService {
   ): Promise<Customer> {
     // Prevent duplicate phone per business if provided
     if (data.phone && data.phone.trim() !== '') {
-      const existingPhone = await this.getCustomerByPhone(businessId, data.phone)
-      if (existingPhone) {
-        throw new Error(`Customer with phone number "${data.phone}" already exists for this business`)
-      }
-    }
-
-    // Prevent duplicate email per business if provided
-    if (data.email && data.email.trim() !== '') {
-      const existingEmail = await this.getCustomerByEmail(businessId, data.email)
-      if (existingEmail) {
-        throw new Error(`Customer with email "${data.email}" already exists for this business`)
+      const existing = await this.getCustomerByPhone(businessId, data.phone.trim())
+      if (existing) {
+        throw new Error(`Customer with phone number "${data.phone}" already exists`)
       }
     }
 
@@ -48,85 +41,64 @@ export class CustomerService extends BaseService {
       phone: data.phone || '',
       email: data.email || '',
       address: data.address || '',
-      totalDue: data.totalDue ?? 0,
+      totalDue: data.totalDue || 0,
+      dueAmount: data.totalDue || 0,
     }
 
     try {
-      const created = await this.create<Customer>(customerData, businessId, userId)
-      try {
-        const { localDB } = await import('@/lib/offline/db')
-        await localDB.customers.put({
-          id: created.$id,
-          businessId,
-          name: created.name,
-          phone: created.phone,
-          email: created.email,
-          address: created.address,
-          dueAmount: created.totalDue || 0,
-          syncStatus: 'SYNCED',
-          createdAt: created.createdAt || created.$createdAt,
-        })
-      } catch {}
-      return created
+      return await this.create<Customer>(customerData, businessId, userId)
     } catch (err: any) {
-      const isOffline =
-        typeof window !== 'undefined' &&
-        (!navigator.onLine ||
-          err.message?.includes('Network') ||
-          err.message?.includes('fetch') ||
-          err.message?.includes('offline'))
-
-      if (isOffline) {
-        const { generateSecureToken } = await import('@/lib/security')
-        const { localDB } = await import('@/lib/offline/db')
-        const localId = `LOCAL-CUST-${Date.now()}-${generateSecureToken(4)}`
-        const createdAt = new Date().toISOString()
-
-        const localCustomerObj: Customer = {
-          $id: localId,
-          businessId,
-          name: data.name,
-          phone: data.phone || '',
-          email: data.email || '',
-          address: data.address || '',
-          totalDue: data.totalDue ?? 0,
-          dueAmount: data.totalDue ?? 0,
-          createdAt,
-          updatedAt: createdAt,
-          $createdAt: createdAt,
-          $updatedAt: createdAt,
-          $databaseId: '',
-          $collectionId: '',
-          $permissions: [],
-        }
-
-        await localDB.customers.put({
-          id: localId,
-          businessId,
-          name: data.name,
-          phone: data.phone || '',
-          email: data.email || '',
-          address: data.address || '',
-          dueAmount: data.totalDue ?? 0,
-          syncStatus: 'PENDING_SYNC',
-          createdAt,
-        })
-
-        await localDB.syncQueue.add({
-          businessId,
-          userId,
-          entityType: 'customer',
-          entityId: localId,
-          operation: 'CREATE',
-          payload: data,
-          retryCount: 0,
-          status: 'PENDING',
-          createdAt,
-        })
-
-        return localCustomerObj
+      if (!shouldAllowOfflineFallback(err)) {
+        throw err
       }
-      throw err
+      console.warn('[CustomerService] Appwrite create customer offline fallback activated...')
+      const { generateSecureToken } = await import('@/lib/security')
+      const { localDB } = await import('@/lib/offline/db')
+      const localId = `LOCAL-CUST-${Date.now()}-${generateSecureToken(4)}`
+      const createdAt = new Date().toISOString()
+      const localCustomerObj: Customer = {
+        $id: localId,
+        businessId,
+        name: data.name,
+        phone: data.phone || '',
+        email: data.email || '',
+        address: data.address || '',
+        totalDue: data.totalDue || 0,
+        dueAmount: data.totalDue || 0,
+        createdAt,
+        updatedAt: createdAt,
+        $createdAt: createdAt,
+        $updatedAt: createdAt,
+        $databaseId: '',
+        $collectionId: '',
+        $permissions: [],
+      }
+
+      await localDB.customers.put({
+        id: localId,
+        businessId,
+        name: data.name,
+        phone: data.phone || '',
+        email: data.email || '',
+        address: data.address || '',
+        dueAmount: data.totalDue || 0,
+        syncStatus: 'PENDING_SYNC',
+        createdAt,
+      })
+
+      await localDB.syncQueue.add({
+        businessId,
+        userId,
+        entityType: 'customer',
+        entityId: localId,
+        operation: 'CREATE',
+        payload: data,
+        retryCount: 0,
+        status: 'PENDING',
+        createdAt,
+      })
+
+      return localCustomerObj
     }
   }
 
@@ -137,6 +109,9 @@ export class CustomerService extends BaseService {
     try {
       return await this.getById<Customer>(customerId, businessId)
     } catch (err) {
+      if (!shouldAllowOfflineFallback(err)) {
+        throw err
+      }
       const { localDB } = await import('@/lib/offline/db')
       const localCust = await localDB.customers.get(customerId)
       if (localCust) {
@@ -178,6 +153,7 @@ export class CustomerService extends BaseService {
       const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
 
       if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+
         queries.push(Query.search('name', filters.searchTerm.trim()))
       }
 

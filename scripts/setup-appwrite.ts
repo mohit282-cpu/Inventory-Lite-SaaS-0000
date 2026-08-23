@@ -195,6 +195,10 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'saleNumber', type: 'string', size: 100, required: false },
       { key: 'customerId', type: 'string', size: 100, required: false },
       { key: 'invoiceId', type: 'string', size: 100, required: false },
+      { key: 'invoiceStatus', type: 'string', size: 50, required: false },
+      { key: 'idempotencyKey', type: 'string', size: 255, required: false },
+      { key: 'requestHash', type: 'string', size: 255, required: false },
+      { key: 'notes', type: 'string', size: 1000, required: false },
       { key: 'subtotal', type: 'double', required: true },
       { key: 'discount', type: 'double', required: true },
       { key: 'tax', type: 'double', required: true },
@@ -208,6 +212,7 @@ export const COLLECTIONS_SCHEMA = [
     ],
     indexes: [
       { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_idemp', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'idempotencyKey'] },
       { key: 'idx_business_customerId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'customerId'] },
       { key: 'idx_business_status', type: INDEX_TYPES.KEY, attributes: ['businessId', 'status'] },
       { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },

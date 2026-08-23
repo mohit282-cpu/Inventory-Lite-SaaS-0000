@@ -247,13 +247,13 @@ export class SaleService extends BaseService {
             businessId,
             userId
           )
-          await this.update<Sale>(sale.$id, { invoiceId: invoice.$id, invoiceStatus: 'GENERATED' } as any, businessId)
+          await this.update<Sale>(sale.$id, { invoiceId: invoice.$id, invoiceStatus: 'GENERATED' }, businessId)
         } catch (invErr: any) {
           console.warn('Invoice creation warning:', invErr)
           try {
             await this.update<Sale>(
               sale.$id,
-              { invoiceStatus: 'FAILED', notes: `[Invoice Generation Failed: ${invErr.message || 'Error'}]` } as any,
+              { invoiceStatus: 'FAILED', notes: `[Invoice Generation Failed: ${invErr.message || 'Error'}]` },
               businessId
             )
           } catch {}

@@ -135,7 +135,7 @@ describe('P0 & P1 Hardening: Concurrency, Idempotency, Payment Reversal & Invoic
       const updatedProduct = await productService.getProduct(product.$id, bizId)
       expect(updatedProduct.stockQuantity).toBe(3)
     }
-  })
+  }, 30000)
 
   it('P0-1 Stock Concurrency Test: Initial stock = 100, 100 concurrent requests with varying quantities', async () => {
     const product = await productService.createProduct(

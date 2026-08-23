@@ -257,6 +257,11 @@ This document defines the complete database schema for Inventory Lite, a multi-t
 - `businessId`: string (references businesses.$id)
 - `customerId`: string (references customers.$id, optional)
 - `invoiceId`: string (references invoices.$id, optional)
+- `invoiceStatus`: 'PENDING' | 'GENERATED' | 'FAILED' (optional, invoice generation lifecycle)
+- `saleNumber`: string (optional, sequential per financial year, e.g. `SALE-83/84-000001`)
+- `idempotencyKey`: string (optional, duplicate-transaction prevention)
+- `requestHash`: string (optional, idempotency payload hash for key-reuse detection)
+- `notes`: string (optional, e.g. cancellation / invoice-failure annotations)
 - `subtotal`: number
 - `discount`: number
 - `tax`: number
@@ -270,6 +275,7 @@ This document defines the complete database schema for Inventory Lite, a multi-t
 
 **Indexes**:
 - `businessId` + `customerId` (for customer sales history)
+- `businessId` + `idempotencyKey` (unique, enforces sale idempotency)
 - `businessId` + `invoiceId` (for invoice lookup)
 - `businessId` + `status` (for status filtering)
 - `businessId` + `createdAt` (for recent sales)

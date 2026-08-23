@@ -123,12 +123,123 @@ export function handleApiError(error: any): AppError {
 }
 
 /**
+ * Error Categories for strict offline fallback classification (P1 Issue #5)
+ */
+export type ErrorCategory =
+  | 'NETWORK_OFFLINE'
+  | 'TIMEOUT'
+  | 'AUTHENTICATION'
+  | 'AUTHORIZATION'
+  | 'VALIDATION'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'SERVER_ERROR'
+  | 'CONFIGURATION'
+  | 'UNKNOWN'
+
+/**
+ * Classify any error into a deterministic ErrorCategory
+ */
+export function classifyError(error: unknown): ErrorCategory {
+  if (!error) return 'UNKNOWN'
+
+  if (typeof error === 'object' && error !== null) {
+    const err = error as any
+    const message = (err.message || String(err)).toLowerCase()
+    const code = err.code || err.statusCode || err.status || 0
+    const name = err.name || ''
+
+    if (
+      name === 'NetworkError' ||
+      message.includes('network') ||
+      message.includes('failed to fetch') ||
+      message.includes('offline') ||
+      message.includes('net::err') ||
+      (typeof window !== 'undefined' && !navigator.onLine)
+    ) {
+      return 'NETWORK_OFFLINE'
+    }
+
+    if (name === 'TimeoutError' || message.includes('timeout') || message.includes('timed out')) {
+      return 'TIMEOUT'
+    }
+
+    if (
+      name === 'AuthenticationError' ||
+      code === 401 ||
+      message.includes('unauthorized') ||
+      message.includes('invalid credentials') ||
+      message.includes('session')
+    ) {
+      return 'AUTHENTICATION'
+    }
+
+    if (
+      name === 'AuthorizationError' ||
+      code === 403 ||
+      message.includes('permission') ||
+      message.includes('forbidden') ||
+      message.includes('tenant isolation') ||
+      message.includes('access denied')
+    ) {
+      return 'AUTHORIZATION'
+    }
+
+    if (
+      name === 'ValidationError' ||
+      code === 400 ||
+      message.includes('validation') ||
+      message.includes('invalid input') ||
+      message.includes('cannot be negative')
+    ) {
+      return 'VALIDATION'
+    }
+
+    if (name === 'NotFoundError' || code === 404 || message.includes('not found')) {
+      return 'NOT_FOUND'
+    }
+
+    if (
+      name === 'ConflictError' ||
+      code === 409 ||
+      message.includes('already exists') ||
+      message.includes('conflict') ||
+      message.includes('duplicate') ||
+      message.includes('idempotency_key_reuse_mismatch')
+    ) {
+      return 'CONFLICT'
+    }
+
+    if (message.includes('configuration warning') || message.includes('next_public_appwrite')) {
+      return 'CONFIGURATION'
+    }
+
+    if (code >= 500) {
+      return 'SERVER_ERROR'
+    }
+  }
+
+  return 'UNKNOWN'
+}
+
+/**
+ * P1 Issue #5: Explicit Offline Fallback Authorization Check
+ * Returns true ONLY if the error is explicitly classified as NETWORK_OFFLINE or TIMEOUT.
+ * 401/403/400/500 errors will return false and propagate directly without showing stale offline data.
+ */
+export function shouldAllowOfflineFallback(error: unknown): boolean {
+  const category = classifyError(error)
+  return category === 'NETWORK_OFFLINE' || category === 'TIMEOUT'
+}
+
+/**
  * Log error for debugging
  */
 export function logError(error: unknown, context?: string): void {
   const errorInfo = {
     timestamp: new Date().toISOString(),
     context,
+    category: classifyError(error),
     error: error instanceof Error ? {
       name: error.name,
       message: error.message,
@@ -140,3 +251,4 @@ export function logError(error: unknown, context?: string): void {
     console.error('Error:', errorInfo)
   }
 }
+

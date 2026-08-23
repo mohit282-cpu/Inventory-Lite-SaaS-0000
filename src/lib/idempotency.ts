@@ -104,7 +104,7 @@ export class IdempotencyManager {
   }
 
   /**
-   * Process a transaction idempotently with persistent storage and payload hash validation (P0-2).
+   * Process a transaction idempotently with persistent storage, stale lock recovery, and payload hash validation (P0-2).
    * Prevents duplicate financial transactions across serverless processes, tabs, and network retries.
    */
   async executeIdempotentTransaction<T>(
@@ -141,7 +141,7 @@ export class IdempotencyManager {
     }
 
     const taskPromise = (async (): Promise<T> => {
-      // 2. Check in-memory persistent store
+      // 2. Check in-memory persistent store for completed or active record
       const memRecord = this.persistentRecords.get(compositeKey)
       if (memRecord) {
         if (memRecord.requestHash !== requestHash) {
@@ -152,9 +152,16 @@ export class IdempotencyManager {
         if (memRecord.status === 'COMPLETED' && memRecord.result !== undefined) {
           return memRecord.result as T
         }
+        // Stale PROCESSING lock recovery: if stuck in PROCESSING for over 60s, allow retry
+        if (memRecord.status === 'PROCESSING') {
+          const createdAt = new Date(memRecord.createdAt).getTime()
+          if (now - createdAt < 60000) {
+            throw new Error(`IDEMPOTENCY_TRANSACTION_IN_PROGRESS: Transaction with key '${key}' is currently being processed`)
+          }
+        }
       }
 
-      // 3. Check IndexedDB persistent store fallback
+      // 3. Check IndexedDB persistent store (Local Offline Idempotency Cache)
       try {
         const dbRecord = await localDB.idempotencyRecords.get(compositeKey)
         if (dbRecord) {
@@ -172,7 +179,7 @@ export class IdempotencyManager {
         // Dexie lookup failure non-fatal
       }
 
-      // 4. Run application persistent check (e.g. check DB if sale/payment exists with key)
+      // 4. Run application persistent check (e.g. check backend DB if sale/payment exists with key)
       try {
         const existingDoc = await persistentCheck()
         if (existingDoc) {
@@ -201,7 +208,10 @@ export class IdempotencyManager {
           return existingDoc
         }
       } catch (err: any) {
-        if (err.message?.includes('IDEMPOTENCY_KEY_REUSE_MISMATCH')) {
+        if (
+          err.message?.includes('IDEMPOTENCY_KEY_REUSE_MISMATCH') ||
+          err.message?.includes('IDEMPOTENCY_TRANSACTION_IN_PROGRESS')
+        ) {
           throw err
         }
       }
@@ -295,4 +305,6 @@ export class IdempotencyManager {
 }
 
 export const idempotencyManager = new IdempotencyManager()
+export const serverIdempotencyManager = idempotencyManager
+
 
