@@ -30,26 +30,23 @@ export class SaleItemService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<SaleItem[]> {
-    const createdItems: SaleItem[] = []
-
-    for (const item of items) {
-      const created = await this.create<SaleItem>(
-        {
-          saleId: item.saleId,
-          productId: item.productId,
-          productNameSnapshot: item.productNameSnapshot,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount,
-          total: item.total,
-        },
-        businessId,
-        userId
+    return await Promise.all(
+      items.map((item) =>
+        this.create<SaleItem>(
+          {
+            saleId: item.saleId,
+            productId: item.productId,
+            productNameSnapshot: item.productNameSnapshot,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+            total: item.total,
+          },
+          businessId,
+          userId
+        )
       )
-      createdItems.push(created)
-    }
-
-    return createdItems
+    )
   }
 
   /**

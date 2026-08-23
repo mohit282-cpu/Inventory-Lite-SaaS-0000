@@ -117,24 +117,59 @@ export default function CreateSalePage() {
 
   const fetchData = useCallback(async () => {
     if (!activeBusiness?.$id) return
+    const bId = activeBusiness.$id
+
+    // Fast-path: Load cached products from Dexie IndexedDB instantly (<10ms)
     try {
-      setIsLoading(true)
+      const { localDB } = await import('@/lib/offline/db')
+      const localProducts = await localDB.products.where('businessId').equals(bId).toArray()
+      if (localProducts && localProducts.length > 0) {
+        setProducts(
+          localProducts.map((p) => ({
+            $id: p.id,
+            businessId: p.businessId,
+            name: p.name,
+            sku: p.sku || '',
+            barcode: p.barcode || '',
+            unit: p.unit || 'pcs',
+            purchasePrice: p.purchasePrice || 0,
+            sellingPrice: p.price,
+            stockQuantity: p.quantity,
+            lowStockThreshold: p.minStock || 5,
+            isActive: true,
+            createdAt: p.updatedAt || new Date().toISOString(),
+            updatedAt: p.updatedAt || new Date().toISOString(),
+            $createdAt: p.updatedAt || new Date().toISOString(),
+            $updatedAt: p.updatedAt || new Date().toISOString(),
+            $databaseId: '',
+            $collectionId: '',
+            $permissions: [],
+          }))
+        )
+        setIsLoading(false)
+      }
+    } catch {}
+
+    // Network-path: Refresh fresh catalog and customers from Appwrite
+    try {
       const [prods, custs] = await Promise.all([
-        productService.listProducts(activeBusiness.$id, { isActive: true }),
-        customerService.listCustomers(activeBusiness.$id),
+        productService.listProducts(bId, { isActive: true, limit: 200 }),
+        customerService.listCustomers(bId),
       ])
       setProducts(prods)
       setCustomers(custs)
     } catch (err: any) {
-      toast({
-        title: 'Error loading POS catalog',
-        description: err.message || 'Failed to fetch catalog.',
-        variant: 'destructive',
-      })
+      if (products.length === 0) {
+        toast({
+          title: 'Error loading POS catalog',
+          description: err.message || 'Failed to fetch catalog.',
+          variant: 'destructive',
+        })
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [activeBusiness?.$id, toast])
+  }, [activeBusiness?.$id, toast, products.length])
 
   useEffect(() => {
     fetchData()

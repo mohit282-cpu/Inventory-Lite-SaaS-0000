@@ -107,12 +107,18 @@ export class SaleService extends BaseService {
         productName: string
       }> = []
 
-      for (const item of data.items) {
-        if (typeof item.quantity !== 'number' || isNaN(item.quantity) || !isFinite(item.quantity) || item.quantity <= 0) {
-          throw new Error('Item quantity must be a positive number greater than zero')
-        }
+      // 2. Fetch trusted product data in parallel & validate stock and selling prices
+      const fetchedProducts = await Promise.all(
+        data.items.map(async (item) => {
+          if (typeof item.quantity !== 'number' || isNaN(item.quantity) || !isFinite(item.quantity) || item.quantity <= 0) {
+            throw new Error('Item quantity must be a positive number greater than zero')
+          }
+          const product = await productService.getProduct(item.productId, businessId)
+          return { item, product }
+        })
+      )
 
-        const product = await productService.getProduct(item.productId, businessId)
+      for (const { item, product } of fetchedProducts) {
         if (!product) {
           throw new Error(`Product not found: ${item.productId}`)
         }
@@ -217,18 +223,20 @@ export class SaleService extends BaseService {
 
         createdItems = await saleItemService.createSaleItems(processedItemsPayload, businessId, userId)
 
-        // 6. Record stock movement (stock_out) and deduct stock
-        for (const item of validatedItems) {
-          await stockMovementService.processStockOut(
-            item.productId,
-            item.quantity,
-            businessId,
-            userId,
-            `Sale #${sale.saleNumber || sale.$id}`,
-            sale.$id
-          )
-          processedDeductions.push({ productId: item.productId, quantity: item.quantity })
-        }
+        // 6. Record stock movement (stock_out) and deduct stock in parallel
+        await Promise.all(
+          validatedItems.map(async (item) => {
+            await stockMovementService.processStockOut(
+              item.productId,
+              item.quantity,
+              businessId,
+              userId,
+              `Sale #${sale.saleNumber || sale.$id}`,
+              sale.$id
+            )
+            processedDeductions.push({ productId: item.productId, quantity: item.quantity })
+          })
+        )
 
         // 7. Update customer due amount if sale has remaining due balance
         if (data.customerId && data.customerId.trim() !== '' && totals.dueAmount > 0) {
