@@ -280,10 +280,10 @@ export class ProductService extends BaseService {
   }
 
   /**
-   * Delete product
+   * Delete product (soft-archiving to maintain historical financial and sales reporting integrity)
    */
   async deleteProduct(productId: string, businessId: string): Promise<void> {
-    await this.delete(productId, businessId)
+    await this.update<Product>(productId, { isActive: false }, businessId)
   }
 
   /**

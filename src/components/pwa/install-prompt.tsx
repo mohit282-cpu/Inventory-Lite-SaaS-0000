@@ -52,6 +52,7 @@ export function InstallAppButton({ className = '' }: { className?: string }) {
               <button
                 type="button"
                 onClick={() => setShowIOSModal(false)}
+                aria-label="Close modal"
                 className="text-slate-400 hover:text-slate-600 p-1"
               >
                 <X className="w-4 h-4" />

@@ -13,7 +13,16 @@ export function SyncIndicator() {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Trigger data sync"
       onClick={() => syncNow()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          syncNow()
+        }
+      }}
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors cursor-pointer select-none"
       title={`Network Status: ${isOnline ? 'Online' : 'Offline'}. Last synced: ${formattedLastSynced}`}
     >

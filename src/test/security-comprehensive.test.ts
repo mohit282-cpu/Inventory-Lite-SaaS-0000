@@ -437,7 +437,7 @@ describe('32 Mandatory Production Security Tests', () => {
   })
 
   // 22. Manipulated unit price
-  it('TEST 22: Manipulated unit price -> DENIED OR AUTHORIZED LOG', async () => {
+  it('TEST 22: Manipulated unit price -> ALLOWED FOR OWNER, REJECTED FOR STAFF', async () => {
     const prod = await productService.createProduct(
       { name: 'Catalog Item', unit: 'pcs', purchasePrice: 100, sellingPrice: 200, stockQuantity: 10 },
       bizA,
@@ -451,6 +451,15 @@ describe('32 Mandatory Production Security Tests', () => {
     )
 
     expect(saleRes.sale.total).toBe(150)
+
+    // Staff role price override must be rejected
+    await expect(
+      saleService.createSale(
+        { items: [{ productId: prod.$id, quantity: 1, unitPrice: 150 }], taxRate: 0, paidAmount: 150, paymentMethod: 'cash' },
+        bizA,
+        staffA
+      )
+    ).rejects.toThrow(/PRICE_OVERRIDE_NOT_AUTHORIZED/)
   })
 
   // 23. Customer mismatch

@@ -105,6 +105,7 @@ export function DataTable<T extends Record<string, any>>({
                       <button
                         type="button"
                         onClick={() => handleSort(col.key)}
+                        aria-label={`Sort table by ${col.header}`}
                         className={`inline-flex items-center gap-1.5 hover:text-slate-900 transition-colors focus:outline-none ${
                           col.align === 'right' ? 'flex-row-reverse' : ''
                         }`}

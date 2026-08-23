@@ -103,10 +103,12 @@ export class SaleService extends BaseService {
           )
         }
 
-        // Cashier price override audit logic (Option B)
+        // Cashier price override security & audit logic
         let effectiveUnitPrice = product.sellingPrice
         if (item.unitPrice !== undefined && item.unitPrice >= 0 && item.unitPrice !== product.sellingPrice) {
-          // If cashier overrides price, verify role permission or audit log
+          if (authCtx.memberRole === 'staff') {
+            throw new Error('PRICE_OVERRIDE_NOT_AUTHORIZED: Staff role is not authorized to override catalog selling price')
+          }
           effectiveUnitPrice = item.unitPrice
           await auditLogService.logEvent(
             businessId,
