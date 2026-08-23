@@ -6,7 +6,6 @@ import { saleService } from './sale.service'
 import { saleItemService } from './sale-item.service'
 import { customerService } from './customer.service'
 import { businessService } from './business.service'
-import { offlineNumberPoolService } from './offline-number-pool.service'
 import { authorizeBusinessAccess } from '@/lib/authorization'
 import { idempotencyManager } from '@/lib/idempotency'
 
@@ -17,6 +16,8 @@ export interface InvoiceFullDetails {
   customer: Customer | null
   business: Business
 }
+
+import { numberingService } from './numbering.service'
 
 /**
  * Invoice Service
@@ -32,7 +33,7 @@ export class InvoiceService extends BaseService {
    * Helper to generate a unique sequential invoice number per business starting from 1 every financial year (INV-83/84-000001)
    */
   async generateNextInvoiceNumber(businessId: string, dateInput?: string | Date): Promise<string> {
-    const allocated = await offlineNumberPoolService.allocateDocumentNumber(businessId, 'INVOICE', dateInput)
+    const allocated = await numberingService.allocateNextNumber(businessId, 'INVOICE', dateInput)
     return allocated.formattedNumber
   }
 

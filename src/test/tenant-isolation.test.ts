@@ -165,7 +165,7 @@ describe('Multi-Tenant Data Isolation & Service Layer Tests', () => {
         businessA,
         user1
       )
-    ).rejects.toThrow('Product with SKU "OIL-1L" already exists for this business')
+    ).rejects.toThrow('Product with SKU "OIL-1L" already exists in this business')
   })
 
   it('enforces category name uniqueness per business', async () => {

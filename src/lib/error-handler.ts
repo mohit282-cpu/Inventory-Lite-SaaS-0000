@@ -222,15 +222,7 @@ export function classifyError(error: unknown): ErrorCategory {
   return 'UNKNOWN'
 }
 
-/**
- * P1 Issue #5: Explicit Offline Fallback Authorization Check
- * Returns true ONLY if the error is explicitly classified as NETWORK_OFFLINE or TIMEOUT.
- * 401/403/400/500 errors will return false and propagate directly without showing stale offline data.
- */
-export function shouldAllowOfflineFallback(error: unknown): boolean {
-  const category = classifyError(error)
-  return category === 'NETWORK_OFFLINE' || category === 'TIMEOUT'
-}
+
 
 /**
  * Log error for debugging

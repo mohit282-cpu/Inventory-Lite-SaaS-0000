@@ -8,11 +8,11 @@ import { productService } from './product.service'
 import { customerService } from './customer.service'
 import { invoiceService } from './invoice.service'
 import { calculateSaleTotals, validateFinancialInvariants } from '@/lib/money'
-import { generateSecureToken } from '@/lib/security'
 import { authorizeBusinessAccess } from '@/lib/authorization'
 import { auditLogService } from './audit-log.service'
 import { idempotencyManager, computePayloadHash } from '@/lib/idempotency'
-import { offlineNumberPoolService } from './offline-number-pool.service'
+
+import { numberingService } from './numbering.service'
 
 export class SaleService extends BaseService {
   constructor() {
@@ -24,7 +24,7 @@ export class SaleService extends BaseService {
    * Format: SALE-83/84-000001
    */
   async generateNextSaleNumber(businessId: string, dateInput?: string | Date): Promise<string> {
-    const allocated = await offlineNumberPoolService.allocateDocumentNumber(businessId, 'SALE', dateInput)
+    const allocated = await numberingService.allocateNextNumber(businessId, 'SALE', dateInput)
     return allocated.formattedNumber
   }
 
@@ -273,15 +273,6 @@ export class SaleService extends BaseService {
           invoice,
         }
       } catch (err: any) {
-
-        // Check if error is network/offline error
-        const isOffline = typeof window !== 'undefined' && (!navigator.onLine || err.message?.includes('Network') || err.message?.includes('fetch') || err.message?.includes('Failed to fetch'))
-
-        if (isOffline) {
-          console.warn('[SaleService] Network offline. Saving sale locally to IndexedDB transaction queue...')
-          return await this.createOfflineSale(data, businessId, userId, data.idempotencyKey)
-        }
-
         // COMPENSATING TRANSACTION ROLLBACK
         console.error('Sale transaction failed. Executing compensating rollback:', err)
 
@@ -322,136 +313,14 @@ export class SaleService extends BaseService {
   }
 
   /**
-   * Internal helper for processing offline sales via Dexie IndexedDB
-   */
-  private async createOfflineSale(
-    data: any,
-    businessId: string,
-    userId: string,
-    customId?: string
-  ): Promise<{ sale: any; items: any[]; invoice?: any }> {
-    const { localDB } = await import('@/lib/offline/db')
-
-    const localSaleId = customId || `LOCAL-SALE-${Date.now()}-${generateSecureToken(6)}`
-    const saleNumber = await this.generateNextSaleNumber(businessId, data.createdAt)
-
-    // Calculate totals locally
-    const itemsWithDetails: any[] = []
-    for (const item of data.items) {
-      const localProd = await localDB.products.get(item.productId)
-      const unitPrice = item.unitPrice !== undefined ? item.unitPrice : localProd?.price || 0
-      itemsWithDetails.push({
-        ...item,
-        unitPrice,
-        productName: localProd?.name || 'Item',
-      })
-    }
-
-    const totals = calculateSaleTotals({
-      items: itemsWithDetails,
-      discount: data.discount || 0,
-      taxRate: data.taxRate ?? 13,
-      paidAmount: data.paidAmount || 0,
-    })
-
-    const status: SaleStatus = totals.dueAmount > 0 ? 'pending' : 'completed'
-
-    const localSale = {
-      id: localSaleId,
-      $id: localSaleId,
-      saleNumber,
-      businessId,
-      customerId: data.customerId || '',
-      subtotal: totals.subtotal,
-      discount: totals.overallDiscount,
-      tax: totals.taxAmount,
-      total: totals.total,
-      paidAmount: totals.paidAmount,
-      dueAmount: totals.dueAmount,
-      changeAmount: totals.changeAmount,
-      status,
-      paymentMethod: data.paymentMethod,
-      syncStatus: 'PENDING_SYNC' as const,
-      createdAt: new Date().toISOString(),
-      createdBy: userId,
-    }
-
-    // Update local product stock and save local sale items
-    const createdLocalItems: any[] = []
-    for (const item of totals.processedItems) {
-      const itemId = `LOCAL-ITEM-${Date.now()}-${generateSecureToken(4)}`
-      const localItem = {
-        id: itemId,
-        $id: itemId,
-        saleId: localSaleId,
-        productId: item.productId,
-        productName: itemsWithDetails.find((i) => i.productId === item.productId)?.productName || 'Item',
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discount: item.discount,
-        total: item.total,
-      }
-      createdLocalItems.push(localItem)
-      await localDB.saleItems.put(localItem)
-
-      // Deduct local stock
-      const prod = await localDB.products.get(item.productId)
-      if (prod) {
-        await localDB.products.update(item.productId, {
-          quantity: Math.max(0, prod.quantity - item.quantity),
-          syncStatus: 'PENDING_SYNC',
-        })
-      }
-    }
-
-    // Update local customer due amount if credit sale
-    if (data.customerId && totals.dueAmount > 0) {
-      const cust = await localDB.customers.get(data.customerId)
-      if (cust) {
-        await localDB.customers.update(data.customerId, {
-          dueAmount: (cust.dueAmount || 0) + totals.dueAmount,
-          syncStatus: 'PENDING_SYNC',
-        })
-      }
-    }
-
-    await localDB.sales.put(localSale as any)
-
-    // Push to sync queue
-    await localDB.syncQueue.add({
-      businessId,
-      userId,
-      entityType: 'sale',
-      entityId: localSaleId,
-      operation: 'CREATE',
-      payload: data,
-      retryCount: 0,
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-    })
-
-    return {
-      sale: localSale as any,
-      items: createdLocalItems,
-    }
-  }
-
-  /**
    * Get sale by ID
    */
   async getSale(saleId: string, businessId: string): Promise<Sale> {
-    try {
-      return await this.getById<Sale>(saleId, businessId)
-    } catch (err) {
-      const { localDB } = await import('@/lib/offline/db')
-      const localSale = await localDB.sales.get(saleId)
-      if (localSale) return localSale as any
-      throw err
-    }
+    return await this.getById<Sale>(saleId, businessId)
   }
 
   /**
-   * List sales for a business with pagination and offline fallback
+   * List sales for a business with pagination
    */
   async listSales(
     businessId: string,
@@ -462,38 +331,20 @@ export class SaleService extends BaseService {
       limit?: number
     }
   ): Promise<Sale[]> {
-    try {
-      const limit = filters?.limit || 200
-      const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
+    const limit = filters?.limit || 200
+    const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
 
-      if (filters?.customerId) {
-        queries.push(Query.equal('customerId', filters.customerId))
-      }
-      if (filters?.status) {
-        queries.push(Query.equal('status', filters.status))
-      }
-      if (filters?.paymentMethod) {
-        queries.push(Query.equal('paymentMethod', filters.paymentMethod))
-      }
-
-      return await this.list<Sale>(businessId, queries)
-    } catch (err) {
-      console.warn('[SaleService] Appwrite listSales failed. Falling back to local IndexedDB store...')
-      const { localDB } = await import('@/lib/offline/db')
-      let localSales = await localDB.sales.where('businessId').equals(businessId).toArray()
-
-      if (filters?.customerId) {
-        localSales = localSales.filter((s) => s.customerId === filters.customerId)
-      }
-      if (filters?.status) {
-        localSales = localSales.filter((s) => s.status === filters.status)
-      }
-      if (filters?.paymentMethod) {
-        localSales = localSales.filter((s) => s.paymentMethod === filters.paymentMethod)
-      }
-
-      return localSales.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1)) as any[]
+    if (filters?.customerId) {
+      queries.push(Query.equal('customerId', filters.customerId))
     }
+    if (filters?.status) {
+      queries.push(Query.equal('status', filters.status))
+    }
+    if (filters?.paymentMethod) {
+      queries.push(Query.equal('paymentMethod', filters.paymentMethod))
+    }
+
+    return await this.list<Sale>(businessId, queries)
   }
 
   /**

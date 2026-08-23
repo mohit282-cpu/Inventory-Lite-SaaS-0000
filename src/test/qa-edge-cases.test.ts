@@ -3,6 +3,7 @@ import { saleService } from '@/services/sale.service'
 import { invoiceService } from '@/services/invoice.service'
 import { customerService } from '@/services/customer.service'
 import { analyticsService } from '@/services/analytics.service'
+import { numberingService } from '@/services/numbering.service'
 import { productSchema, customerSchema } from '@/lib/validations'
 import { databases } from '@/config/appwrite'
 
@@ -32,6 +33,7 @@ describe('Comprehensive QA - Edge Cases & Calculations Test Suite', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    numberingService.resetInMemorySequences()
   })
 
   describe('1. Calculations Verification (Totals, Discounts, 13% VAT, Dues, Profit)', () => {
@@ -139,6 +141,8 @@ describe('Comprehensive QA - Edge Cases & Calculations Test Suite', () => {
       const inv1 = await invoiceService.generateNextInvoiceNumber(businessId)
       expect(inv1).toMatch(/^INV-\d{2}\/\d{2}-000001$/)
 
+      numberingService.resetInMemorySequences()
+
       vi.mocked(databases.listDocuments).mockResolvedValueOnce({
         total: 1,
         documents: [{ invoiceNumber: inv1 }],
@@ -149,10 +153,10 @@ describe('Comprehensive QA - Edge Cases & Calculations Test Suite', () => {
     })
   })
 
-    it('should handle Appwrite network connection errors gracefully', async () => {
-      vi.mocked(databases.listDocuments).mockRejectedValueOnce(new Error('Network error: Failed to fetch'))
+  it('should propagate Appwrite network connection errors for caller UI handling', async () => {
+    vi.mocked(databases.listDocuments).mockReset()
+    vi.mocked(databases.listDocuments).mockRejectedValueOnce(new Error('Network error: Failed to fetch'))
 
-      const res = await customerService.listCustomers(businessId)
-      expect(Array.isArray(res)).toBe(true)
-    })
+    await expect(customerService.listCustomers(businessId)).rejects.toThrow('Network error: Failed to fetch')
+  })
 })

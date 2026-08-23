@@ -108,16 +108,7 @@ export class AccountDeletionService {
       // Fallback silently if API key is not configured or user already deleted
     }
 
-    // 7. Purge local offline auth records & IndexedDB cached identity
-    try {
-      const { offlineAuthService } = await import('@/lib/offline/offline-auth.service')
-      await offlineAuthService.clearOfflineRecord(userId)
-      if (userEmail) {
-        await offlineAuthService.clearOfflineRecord(userEmail)
-      }
-    } catch {
-      // Fallback silently if offline DB is unavailable
-    }
+
 
     // 8. Destroy all active Appwrite sessions cleanly (Logout caller)
     try {

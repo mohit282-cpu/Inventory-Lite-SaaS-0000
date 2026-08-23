@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { LogOut, Settings, ChevronDown, Menu } from 'lucide-react'
 import { InstallAppButton } from '@/components/pwa/install-prompt'
-import { SyncIndicator } from '@/components/pwa/sync-indicator'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,9 +61,8 @@ export function TopNav({ onOpenMobileNav }: TopNavProps) {
         </div>
       </div>
 
-      {/* Right PWA Install Button, Sync Indicator & User Profile Dropdown */}
+      {/* Right PWA Install Button & User Profile Dropdown */}
       <div className="flex items-center gap-3">
-        <SyncIndicator />
         <InstallAppButton />
 
         <DropdownMenu>

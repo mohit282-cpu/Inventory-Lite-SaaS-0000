@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { invoiceService } from '@/services/invoice.service'
+import { numberingService } from '@/services/numbering.service'
 import { databases } from '@/config/appwrite'
 
 vi.mock('@/config/appwrite', () => ({
@@ -21,6 +22,21 @@ vi.mock('@/config/appwrite', () => ({
   },
 }))
 
+vi.mock('@/lib/authorization', () => ({
+  authorizeBusinessAccess: vi.fn().mockResolvedValue({
+    role: 'owner',
+    permissions: {
+      canManageBusiness: true,
+      canManageUsers: true,
+      canManageInventory: true,
+      canProcessSales: true,
+      canViewReports: true,
+      canManageSettings: true,
+    },
+  }),
+  hasPermission: vi.fn().mockReturnValue(true),
+}))
+
 describe('Invoices & Billing System', () => {
   const businessA = 'bus_tenant_alpha'
   const businessB = 'bus_tenant_beta'
@@ -28,6 +44,7 @@ describe('Invoices & Billing System', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    numberingService.resetInMemorySequences()
   })
 
   describe('Sequential Invoice Numbering', () => {

@@ -8,7 +8,6 @@ import { BS_MONTH_NAMES_EN, BS_DAYS_EN } from '@/lib/nepali-calendar-data'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatNPR } from '@/lib/localization'
-import { localDB } from '@/lib/offline/db'
 import { saleService } from '@/services/sale.service'
 import { invoiceService } from '@/services/invoice.service'
 import { expenseService } from '@/services/expense.service'
@@ -71,60 +70,30 @@ export default function CalendarPage() {
         }
       }
 
-      // 1. Fetch sales from local IndexedDB
-      const localSales = await localDB.sales.where('businessId').equals(businessId).toArray()
-      for (const sale of localSales) {
-        const adIso = new Date(sale.createdAt).toISOString().split('T')[0]
+      const [salesRes, invRes, expRes] = await Promise.all([
+        saleService.listSales(businessId).catch(() => []),
+        invoiceService.listInvoices(businessId).catch(() => []),
+        expenseService.listExpenses(businessId).catch(() => []),
+      ])
+
+      for (const s of salesRes) {
+        const adIso = new Date(s.createdAt).toISOString().split('T')[0]
         initKey(adIso)
         map[adIso].salesCount += 1
-        map[adIso].salesTotal += sale.total || 0
+        map[adIso].salesTotal += s.total || 0
       }
 
-      // 2. Fetch invoices
-      const localInvoices = await localDB.invoices.where('businessId').equals(businessId).toArray()
-      for (const inv of localInvoices) {
+      for (const inv of invRes) {
         const adIso = new Date(inv.createdAt).toISOString().split('T')[0]
         initKey(adIso)
         map[adIso].invoicesCount += 1
       }
 
-      // 3. Fetch payments
-      const localPayments = await localDB.payments.where('businessId').equals(businessId).toArray()
-      for (const p of localPayments) {
-        const adIso = new Date(p.createdAt).toISOString().split('T')[0]
+      for (const e of expRes) {
+        const adIso = new Date(e.createdAt).toISOString().split('T')[0]
         initKey(adIso)
-        map[adIso].paymentsCount += 1
-        map[adIso].paymentsTotal += p.amount || 0
-      }
-
-      // Attempt Appwrite online data fetch if online
-      if (typeof window !== 'undefined') {
-        try {
-          const salesRes = await saleService.listSales(businessId)
-          for (const s of salesRes) {
-            const adIso = new Date(s.createdAt).toISOString().split('T')[0]
-            initKey(adIso)
-            map[adIso].salesCount = Math.max(map[adIso].salesCount, 1)
-            map[adIso].salesTotal = Math.max(map[adIso].salesTotal, s.total || 0)
-          }
-
-          const invRes = await invoiceService.listInvoices(businessId)
-          for (const inv of invRes) {
-            const adIso = new Date(inv.createdAt).toISOString().split('T')[0]
-            initKey(adIso)
-            map[adIso].invoicesCount = Math.max(map[adIso].invoicesCount, 1)
-          }
-
-          const expRes = await expenseService.listExpenses(businessId)
-          for (const e of expRes) {
-            const adIso = new Date(e.createdAt).toISOString().split('T')[0]
-            initKey(adIso)
-            map[adIso].expensesCount = Math.max(map[adIso].expensesCount, 1)
-            map[adIso].expensesTotal = Math.max(map[adIso].expensesTotal, e.amount || 0)
-          }
-        } catch (err) {
-          // Fallback gracefully to IndexedDB offline data
-        }
+        map[adIso].expensesCount += 1
+        map[adIso].expensesTotal += e.amount || 0
       }
 
       setEventsMap(map)

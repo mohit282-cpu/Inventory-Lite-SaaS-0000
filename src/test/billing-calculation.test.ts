@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { calculateSaleTotals, validateFinancialInvariants } from '@/lib/money'
-import { saleService } from '@/services/sale.service'
-import { localDB } from '@/lib/offline/db'
 
 vi.mock('@/config/appwrite', () => ({
   client: {},
@@ -45,15 +43,8 @@ vi.mock('@/lib/authorization', () => ({
 }))
 
 describe('Mandatory Billing & POS Calculation Regression Tests', () => {
-  const businessId = 'biz_billing_test'
-  const userId = 'user_cashier_1'
-
   beforeEach(async () => {
     vi.clearAllMocks()
-    await localDB.sales.clear()
-    await localDB.saleItems.clear()
-    await localDB.customers.clear()
-    await localDB.syncQueue.clear()
   })
 
   // TEST 1: Subtotal 1000, Discount 10%, Paid 900
@@ -242,98 +233,5 @@ describe('Mandatory Billing & POS Calculation Regression Tests', () => {
     expect(res.dueAmount).toBe(0)
     expect(res.changeAmount).toBe(0)
     validateFinancialInvariants(res)
-  })
-
-  // TEST 11: Offline sale + discount + payment
-  it('TEST 11: Offline sale + discount + payment', async () => {
-    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })
-
-    const items = [
-      { productId: 'p_off_1', productName: 'Hammer', quantity: 2, unitPrice: 500, discount: 0 },
-    ] // Subtotal = 1000
-    // Discount = 100 -> Final Total = 900, Customer pays 1000 -> Change = 100, Due = 0
-
-    await localDB.products.put({
-      id: 'p_off_1',
-      businessId,
-      name: 'Hammer',
-      sku: 'HMR',
-      unit: 'pcs',
-      purchasePrice: 300,
-      price: 500,
-      quantity: 100,
-      syncStatus: 'SYNCED',
-      updatedAt: new Date().toISOString(),
-    })
-
-    const result = await saleService.createSale(
-      {
-        items,
-        discount: 100,
-        taxRate: 0,
-        paidAmount: 1000,
-        paymentMethod: 'cash',
-      },
-      businessId,
-      userId
-    )
-
-    expect(result.sale.subtotal).toBe(1000)
-    expect(result.sale.discount).toBe(100)
-    expect(result.sale.total).toBe(900)
-    expect(result.sale.paidAmount).toBe(1000)
-    expect(result.sale.dueAmount).toBe(0)
-    expect(result.sale.changeAmount).toBe(100)
-
-    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true })
-  })
-
-  // TEST 12: Offline sale + discount + Udhaar + later synchronization
-  it('TEST 12: Offline sale + discount + Udhaar + later synchronization', async () => {
-    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })
-
-    const items = [
-      { productId: 'p_off_2', productName: 'Cement', quantity: 1, unitPrice: 1000, discount: 0 },
-    ] // Subtotal = 1000, Discount = 100 -> Final Total = 900. Paid = 700 -> Udhaar = 200
-
-    await localDB.products.put({
-      id: 'p_off_2',
-      businessId,
-      name: 'Cement',
-      sku: 'CMT',
-      unit: 'pcs',
-      purchasePrice: 700,
-      price: 1000,
-      quantity: 100,
-      syncStatus: 'SYNCED',
-      updatedAt: new Date().toISOString(),
-    })
-
-    const result = await saleService.createSale(
-      {
-        customerId: 'cust_udhaar_12',
-        items,
-        discount: 100,
-        taxRate: 0,
-        paidAmount: 700,
-        paymentMethod: 'cash',
-      },
-      businessId,
-      userId
-    )
-
-    expect(result.sale.total).toBe(900)
-    expect(result.sale.paidAmount).toBe(700)
-    expect(result.sale.dueAmount).toBe(200)
-    expect(result.sale.changeAmount).toBe(0)
-
-    // Verify stored local record in Dexie IndexedDB
-    const savedLocal = await localDB.sales.get(result.sale.$id)
-    expect(savedLocal).toBeDefined()
-    expect(savedLocal?.total).toBe(900)
-    expect(savedLocal?.dueAmount).toBe(200)
-    expect(savedLocal?.changeAmount).toBe(0)
-
-    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true })
   })
 })

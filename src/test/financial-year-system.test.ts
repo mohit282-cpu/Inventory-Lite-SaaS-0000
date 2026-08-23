@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { getCurrentFinancialYear } from '@/lib/financial-year'
 import { numberingService } from '@/services/numbering.service'
-import { offlineNumberPoolService } from '@/services/offline-number-pool.service'
-import { localDB } from '@/lib/offline/db'
 import { databases } from '@/config/appwrite'
 
 vi.mock('@/config/appwrite', () => ({
@@ -37,10 +35,7 @@ describe('Production Financial Year Based Numbering System', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    await localDB.numberBlocks.clear()
-    await localDB.sales.clear()
-    await localDB.invoices.clear()
-    await localDB.syncQueue.clear()
+    numberingService.resetInMemorySequences()
   })
 
   describe('1. Nepal Bikram Sambat (BS) Financial Year Calculation', () => {
@@ -115,35 +110,7 @@ describe('Production Financial Year Based Numbering System', () => {
     })
   })
 
-  describe('4. Collision-Proof Offline Block Reservation', () => {
-    it('generates persistent device ID and reserves number block for offline use', async () => {
-      const deviceId = await offlineNumberPoolService.getOrCreateDeviceId()
-      expect(deviceId).toBeDefined()
-      expect(deviceId.startsWith('dev_')).toBe(true)
-
-      // Reserve block 1..50
-      vi.mocked(databases.listDocuments).mockResolvedValue({ total: 0, documents: [] } as any)
-      await offlineNumberPoolService.replenishLocalBlock(bizA, 'SALE', '2026-08-15', 50)
-
-      const block = await localDB.numberBlocks.get(`${bizA}_SALE_2083/84`)
-      expect(block).toBeDefined()
-      expect(block?.startNumber).toBe(1)
-      expect(block?.endNumber).toBe(50)
-    })
-  })
-
-  describe('5. Immutability & FY Boundary Preservation', () => {
-    it('preserves assigned FY number when an old offline sale synchronizes after a new FY has started', async () => {
-      // Sale created on last day of FY 2083/84
-      const oldSaleDate = '2027-06-15' // Asar 2084 (FY 2083/84)
-      const allocatedOld = await offlineNumberPoolService.allocateDocumentNumber(bizA, 'SALE', oldSaleDate)
-      expect(allocatedOld.formattedNumber).toContain('83/84')
-
-      // Sync occurs in FY 2084/85 (Shrawan 2084 / Aug 2027)
-      const syncedSaleNumber = oldSaleDate ? allocatedOld.formattedNumber : ''
-      expect(syncedSaleNumber).toBe(allocatedOld.formattedNumber)
-    })
-
+  describe('4. Immutability & FY Boundary Preservation', () => {
     it('strictly ignores legacy 13-digit timestamps (e.g. SALE-83/84-1787332825957) and generates clean 6-digit sequence numbers', async () => {
       vi.mocked(databases.listDocuments).mockResolvedValueOnce({
         total: 1,

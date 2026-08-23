@@ -1,5 +1,3 @@
-import { localDB } from './offline/db'
-
 /**
  * Idempotency Record Interface
  * 
@@ -161,25 +159,7 @@ export class IdempotencyManager {
         }
       }
 
-      // 3. Check IndexedDB persistent store (Local Offline Idempotency Cache)
-      try {
-        const dbRecord = await localDB.idempotencyRecords.get(compositeKey)
-        if (dbRecord) {
-          if (dbRecord.requestHash !== requestHash) {
-            throw new Error(
-              `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${key}' was already used for a different payload in ${operationType}`
-            )
-          }
-          if (dbRecord.status === 'COMPLETED' && dbRecord.result !== undefined) {
-            this.persistentRecords.set(compositeKey, dbRecord as any)
-            return dbRecord.result as T
-          }
-        }
-      } catch {
-        // Dexie lookup failure non-fatal
-      }
-
-      // 4. Run application persistent check (e.g. check backend DB if sale/payment exists with key)
+      // 3. Run application persistent check (e.g. check backend DB if sale/payment exists with key)
       try {
         const existingDoc = await persistentCheck()
         if (existingDoc) {
@@ -202,9 +182,6 @@ export class IdempotencyManager {
             completedAt: new Date().toISOString(),
           }
           this.persistentRecords.set(compositeKey, completedRec)
-          try {
-            await localDB.idempotencyRecords.put({ ...completedRec, id: compositeKey })
-          } catch {}
           return existingDoc
         }
       } catch (err: any) {
@@ -216,7 +193,7 @@ export class IdempotencyManager {
         }
       }
 
-      // 5. Reserve 'PROCESSING' record atomically
+      // 4. Reserve 'PROCESSING' record atomically in memory
       const processingRecord: IdempotencyRecord = {
         idempotencyKey: key,
         businessId,
@@ -227,11 +204,8 @@ export class IdempotencyManager {
         createdAt: new Date().toISOString(),
       }
       this.persistentRecords.set(compositeKey, processingRecord)
-      try {
-        await localDB.idempotencyRecords.put({ ...processingRecord, id: compositeKey })
-      } catch {}
 
-      // 6. Execute operation
+      // 5. Execute operation
       try {
         const result = await operation()
         const completedRec: IdempotencyRecord = {
@@ -247,9 +221,6 @@ export class IdempotencyManager {
           completedAt: new Date().toISOString(),
         }
         this.persistentRecords.set(compositeKey, completedRec)
-        try {
-          await localDB.idempotencyRecords.put({ ...completedRec, id: compositeKey })
-        } catch {}
         return result
       } catch (err: any) {
         const failedRec: IdempotencyRecord = {
@@ -264,9 +235,6 @@ export class IdempotencyManager {
           completedAt: new Date().toISOString(),
         }
         this.persistentRecords.set(compositeKey, failedRec)
-        try {
-          await localDB.idempotencyRecords.put({ ...failedRec, id: compositeKey })
-        } catch {}
         throw err
       }
     })()

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { saleService } from '@/services/sale.service'
 import { invoiceService } from '@/services/invoice.service'
+import { numberingService } from '@/services/numbering.service'
 import { getFiscalYearCode } from '@/lib/localization'
 import { databases } from '@/config/appwrite'
 
@@ -28,6 +29,7 @@ describe('Financial Year Sequential Numbering (Starts from 1 every FY)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    numberingService.resetInMemorySequences()
   })
 
   it('calculates correct Nepalese Fiscal Year code for given dates', () => {
@@ -47,6 +49,8 @@ describe('Financial Year Sequential Numbering (Starts from 1 every FY)', () => {
 
     const saleNum1 = await saleService.generateNextSaleNumber(businessId, '2026-08-22')
     expect(saleNum1).toBe('SALE-83/84-000001')
+
+    numberingService.resetInMemorySequences()
 
     vi.mocked(databases.listDocuments).mockResolvedValueOnce({
       total: 2,

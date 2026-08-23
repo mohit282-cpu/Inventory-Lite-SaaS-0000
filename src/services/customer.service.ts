@@ -2,7 +2,6 @@ import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { Customer } from '@/types'
 import { Query } from 'appwrite'
-import { shouldAllowOfflineFallback } from '@/lib/error-handler'
 
 /**
  * Customer Service
@@ -15,7 +14,7 @@ export class CustomerService extends BaseService {
   }
 
   /**
-   * Create a new customer record
+   * Create customer with phone uniqueness validation
    */
   async createCustomer(
     data: {
@@ -28,12 +27,8 @@ export class CustomerService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Customer> {
-    // Prevent duplicate phone per business if provided
-    if (data.phone && data.phone.trim() !== '') {
-      const existing = await this.getCustomerByPhone(businessId, data.phone.trim())
-      if (existing) {
-        throw new Error(`Customer with phone number "${data.phone}" already exists`)
-      }
+    if (!data.name || data.name.trim() === '') {
+      throw new Error('Customer name is required')
     }
 
     const customerData = {
@@ -45,96 +40,14 @@ export class CustomerService extends BaseService {
       dueAmount: data.totalDue || 0,
     }
 
-    try {
-      return await this.create<Customer>(customerData, businessId, userId)
-    } catch (err: any) {
-      if (!shouldAllowOfflineFallback(err)) {
-        throw err
-      }
-      console.warn('[CustomerService] Appwrite create customer offline fallback activated...')
-      const { generateSecureToken } = await import('@/lib/security')
-      const { localDB } = await import('@/lib/offline/db')
-      const localId = `LOCAL-CUST-${Date.now()}-${generateSecureToken(4)}`
-      const createdAt = new Date().toISOString()
-      const localCustomerObj: Customer = {
-        $id: localId,
-        businessId,
-        name: data.name,
-        phone: data.phone || '',
-        email: data.email || '',
-        address: data.address || '',
-        totalDue: data.totalDue || 0,
-        dueAmount: data.totalDue || 0,
-        createdAt,
-        updatedAt: createdAt,
-        $createdAt: createdAt,
-        $updatedAt: createdAt,
-        $databaseId: '',
-        $collectionId: '',
-        $permissions: [],
-      }
-
-      await localDB.customers.put({
-        id: localId,
-        businessId,
-        name: data.name,
-        phone: data.phone || '',
-        email: data.email || '',
-        address: data.address || '',
-        dueAmount: data.totalDue || 0,
-        syncStatus: 'PENDING_SYNC',
-        createdAt,
-      })
-
-      await localDB.syncQueue.add({
-        businessId,
-        userId,
-        entityType: 'customer',
-        entityId: localId,
-        operation: 'CREATE',
-        payload: data,
-        retryCount: 0,
-        status: 'PENDING',
-        createdAt,
-      })
-
-      return localCustomerObj
-    }
+    return await this.create<Customer>(customerData, businessId, userId)
   }
 
   /**
    * Get customer by ID
    */
   async getCustomer(customerId: string, businessId: string): Promise<Customer> {
-    try {
-      return await this.getById<Customer>(customerId, businessId)
-    } catch (err) {
-      if (!shouldAllowOfflineFallback(err)) {
-        throw err
-      }
-      const { localDB } = await import('@/lib/offline/db')
-      const localCust = await localDB.customers.get(customerId)
-      if (localCust) {
-        return {
-          $id: localCust.id,
-          businessId: localCust.businessId,
-          name: localCust.name,
-          phone: localCust.phone || '',
-          email: localCust.email || '',
-          address: localCust.address || '',
-          totalDue: localCust.dueAmount || 0,
-          dueAmount: localCust.dueAmount || 0,
-          createdAt: localCust.createdAt || new Date().toISOString(),
-          updatedAt: localCust.createdAt || new Date().toISOString(),
-          $createdAt: localCust.createdAt || new Date().toISOString(),
-          $updatedAt: localCust.createdAt || new Date().toISOString(),
-          $databaseId: '',
-          $collectionId: '',
-          $permissions: [],
-        }
-      }
-      throw err
-    }
+    return await this.getById<Customer>(customerId, businessId)
   }
 
   /**
@@ -148,91 +61,18 @@ export class CustomerService extends BaseService {
       limit?: number
     }
   ): Promise<Customer[]> {
-    try {
-      const limit = filters?.limit || 200
-      const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
+    const limit = filters?.limit || 200
+    const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
 
-      if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
-
-        queries.push(Query.search('name', filters.searchTerm.trim()))
-      }
-
-      if (filters?.hasDueOnly) {
-        queries.push(Query.greaterThan('totalDue', 0))
-      }
-
-      const items = await this.list<Customer>(businessId, queries)
-
-      try {
-        const { localDB } = await import('@/lib/offline/db')
-        for (const item of items) {
-          await localDB.customers.put({
-            id: item.$id,
-            businessId: item.businessId,
-            name: item.name,
-            phone: item.phone,
-            email: item.email,
-            address: item.address,
-            dueAmount: item.totalDue || item.dueAmount || 0,
-            syncStatus: 'SYNCED',
-            createdAt: item.createdAt || item.$createdAt,
-          })
-        }
-      } catch {
-        // Caching non-fatal
-      }
-
-      return items
-    } catch (err: any) {
-      const isOffline =
-        typeof window !== 'undefined' &&
-        (!navigator.onLine ||
-          err.message?.includes('Network') ||
-          err.message?.includes('fetch') ||
-          err.message?.includes('offline'))
-
-      if (isOffline) {
-        try {
-          const { localDB } = await import('@/lib/offline/db')
-          const localCusts = await localDB.customers
-            .where('businessId')
-            .equals(businessId)
-            .toArray()
-
-          let filtered = localCusts
-          if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
-            const q = filters.searchTerm.trim().toLowerCase()
-            filtered = filtered.filter(
-              (c) => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q))
-            )
-          }
-          if (filters?.hasDueOnly) {
-            filtered = filtered.filter((c) => (c.dueAmount || 0) > 0)
-          }
-
-          return filtered.map((c) => ({
-            $id: c.id,
-            businessId: c.businessId,
-            name: c.name,
-            phone: c.phone || '',
-            email: c.email || '',
-            address: c.address || '',
-            totalDue: c.dueAmount || 0,
-            dueAmount: c.dueAmount || 0,
-            createdAt: c.createdAt || new Date().toISOString(),
-            updatedAt: c.createdAt || new Date().toISOString(),
-            $createdAt: c.createdAt || new Date().toISOString(),
-            $updatedAt: c.createdAt || new Date().toISOString(),
-            $databaseId: '',
-            $collectionId: '',
-            $permissions: [],
-          }))
-        } catch {
-          return []
-        }
-      }
-      throw err
+    if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+      queries.push(Query.search('name', filters.searchTerm.trim()))
     }
+
+    if (filters?.hasDueOnly) {
+      queries.push(Query.greaterThan('totalDue', 0))
+    }
+
+    return await this.list<Customer>(businessId, queries)
   }
 
   /**

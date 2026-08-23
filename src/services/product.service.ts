@@ -2,7 +2,6 @@ import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { Product } from '@/types'
 import { Query } from 'appwrite'
-import { shouldAllowOfflineFallback } from '@/lib/error-handler'
 
 /**
  * Product Service
@@ -11,16 +10,28 @@ import { shouldAllowOfflineFallback } from '@/lib/error-handler'
  * backend-authoritative SKU/barcode uniqueness, and auditable stock mutations.
  */
 export class ProductService extends BaseService {
+  private stockLockMap = new Map<string, Promise<any>>()
+
   constructor() {
     super(COLLECTIONS.PRODUCTS)
   }
 
   /**
-   * Helper wrapper for backward compatibility.
-   * Executes a task under ProductService supervision.
+   * Executes a task under strict per-product async queue lock to prevent race conditions.
    */
-  async withStockLock<T>(_productId: string, task: () => Promise<T>): Promise<T> {
-    return await task()
+  async withStockLock<T>(productId: string, task: () => Promise<T>): Promise<T> {
+    const existingLock = this.stockLockMap.get(productId) || Promise.resolve()
+    const nextLock = existingLock.then(async () => {
+      try {
+        return await task()
+      } finally {
+        if (this.stockLockMap.get(productId) === nextLock) {
+          this.stockLockMap.delete(productId)
+        }
+      }
+    })
+    this.stockLockMap.set(productId, nextLock)
+    return await nextLock
   }
 
   /**
@@ -43,44 +54,47 @@ export class ProductService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Product> {
-    if (!data.name || data.name.trim() === '') {
-      throw new Error('Product name is required')
+    if (!businessId) {
+      throw new Error('Business ID is required to create a product')
     }
+
+    const name = data.name.trim()
+    const sku = data.sku ? data.sku.trim().toUpperCase() : ''
+    const barcode = data.barcode ? data.barcode.trim() : ''
+
+    if (!name) {
+      throw new Error('Product name cannot be empty')
+    }
+
     if (data.purchasePrice < 0 || data.sellingPrice < 0) {
       throw new Error('Prices cannot be negative')
     }
+
     if (data.stockQuantity < 0) {
       throw new Error('Stock quantity cannot be negative')
     }
 
-    // Normalize SKU (P1 Issue #3)
-    const finalSku = data.sku && data.sku.trim() !== ''
-      ? data.sku.trim().toUpperCase()
-      : `SKU-${Date.now().toString(36).toUpperCase()}`
-
-    // Normalize Barcode (P1 Issue #4)
-    const finalBarcode = data.barcode && data.barcode.trim() !== '' ? data.barcode.trim() : ''
-
-    // Prevent duplicate SKU within the business
-    const existingSku = await this.getProductBySku(businessId, finalSku)
-    if (existingSku) {
-      throw new Error(`Product with SKU "${finalSku}" already exists for this business`)
-    }
-
-    // Prevent duplicate barcode if provided
-    if (finalBarcode !== '') {
-      const existingBarcode = await this.getProductByBarcode(businessId, finalBarcode)
-      if (existingBarcode) {
-        throw new Error(`Product with Barcode "${finalBarcode}" already exists for this business`)
+    // Uniqueness validation across active business products
+    if (sku) {
+      const existingSku = await this.list<Product>(businessId, [Query.equal('sku', sku)])
+      if (existingSku.length > 0) {
+        throw new Error(`Product with SKU "${sku}" already exists in this business`)
       }
     }
 
-    const productData = {
+    if (barcode) {
+      const existingBarcode = await this.list<Product>(businessId, [Query.equal('barcode', barcode)])
+      if (existingBarcode.length > 0) {
+        throw new Error(`Product with Barcode "${barcode}" already exists in this business`)
+      }
+    }
+
+    const payload = {
+      name,
+      sku,
+      barcode,
       categoryId: data.categoryId || '',
-      name: data.name.trim(),
-      sku: finalSku,
-      barcode: finalBarcode,
-      unit: data.unit,
+      unit: data.unit || 'pcs',
       purchasePrice: data.purchasePrice,
       sellingPrice: data.sellingPrice,
       stockQuantity: data.stockQuantity,
@@ -89,7 +103,7 @@ export class ProductService extends BaseService {
       isActive: data.isActive ?? true,
     }
 
-    const createdProduct = await this.create<Product>(productData, businessId, userId)
+    const createdProduct = await this.create<Product>(payload, businessId, userId)
 
     // Record initial stock movement for opening stock (with transaction rollback on failure)
     if (data.stockQuantity > 0) {
@@ -123,45 +137,14 @@ export class ProductService extends BaseService {
   }
 
   /**
-   * Get product by ID (P1 Issue #5: Explicit Offline Fallback Classification)
+   * Get product by ID
    */
   async getProduct(productId: string, businessId: string): Promise<Product> {
-    try {
-      return await this.getById<Product>(productId, businessId)
-    } catch (err) {
-      if (!shouldAllowOfflineFallback(err)) {
-        throw err
-      }
-      const { localDB } = await import('@/lib/offline/db')
-      const localProd = await localDB.products.get(productId)
-      if (localProd && localProd.businessId === businessId) {
-        return {
-          $id: localProd.id,
-          businessId: localProd.businessId,
-          name: localProd.name,
-          sku: localProd.sku || '',
-          barcode: localProd.barcode || '',
-          unit: localProd.unit || 'pcs',
-          purchasePrice: localProd.purchasePrice || 0,
-          sellingPrice: localProd.price,
-          stockQuantity: localProd.quantity,
-          lowStockThreshold: localProd.minStock || 5,
-          isActive: true,
-          createdAt: localProd.updatedAt || new Date().toISOString(),
-          updatedAt: localProd.updatedAt || new Date().toISOString(),
-          $createdAt: localProd.updatedAt || new Date().toISOString(),
-          $updatedAt: localProd.updatedAt || new Date().toISOString(),
-          $databaseId: '',
-          $collectionId: '',
-          $permissions: [],
-        }
-      }
-      throw err
-    }
+    return await this.getById<Product>(productId, businessId)
   }
 
   /**
-   * List all products for a business with optional filters (P1 Issue #5: Explicit Offline Fallback Classification)
+   * List products for a business with optional filters
    */
   async listProducts(
     businessId: string,
@@ -172,65 +155,22 @@ export class ProductService extends BaseService {
       limit?: number
     }
   ): Promise<Product[]> {
-    try {
-      const limit = filters?.limit || 200
-      const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
+    const limit = filters?.limit || 200
+    const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
 
-      if (filters?.categoryId) {
-        queries.push(Query.equal('categoryId', filters.categoryId))
-      }
-
-      if (filters?.isActive !== undefined) {
-        queries.push(Query.equal('isActive', filters.isActive))
-      }
-
-      if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
-        queries.push(Query.search('name', filters.searchTerm.trim()))
-      }
-
-      return await this.list<Product>(businessId, queries)
-    } catch (err) {
-      if (!shouldAllowOfflineFallback(err)) {
-        throw err
-      }
-      console.warn('[ProductService] Appwrite listProducts offline fallback activated...')
-      const { localDB } = await import('@/lib/offline/db')
-      let localProducts = await localDB.products.where('businessId').equals(businessId).toArray()
-
-      if (filters?.categoryId) {
-        localProducts = localProducts.filter((p) => p.categoryId === filters.categoryId)
-      }
-      if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
-        const term = filters.searchTerm.trim().toLowerCase()
-        localProducts = localProducts.filter(
-          (p) =>
-            p.name.toLowerCase().includes(term) ||
-            p.sku?.toLowerCase().includes(term) ||
-            p.barcode?.toLowerCase().includes(term)
-        )
-      }
-
-      return localProducts.map((p) => ({
-        $id: p.id,
-        businessId: p.businessId,
-        name: p.name,
-        sku: p.sku || '',
-        barcode: p.barcode || '',
-        unit: p.unit || 'pcs',
-        purchasePrice: p.purchasePrice || 0,
-        sellingPrice: p.price,
-        stockQuantity: p.quantity,
-        lowStockThreshold: p.minStock || 5,
-        isActive: true,
-        createdAt: p.updatedAt || new Date().toISOString(),
-        updatedAt: p.updatedAt || new Date().toISOString(),
-        $createdAt: p.updatedAt || new Date().toISOString(),
-        $updatedAt: p.updatedAt || new Date().toISOString(),
-        $databaseId: '',
-        $collectionId: '',
-        $permissions: [],
-      }))
+    if (filters?.categoryId) {
+      queries.push(Query.equal('categoryId', filters.categoryId))
     }
+
+    if (filters?.isActive !== undefined) {
+      queries.push(Query.equal('isActive', filters.isActive))
+    }
+
+    if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+      queries.push(Query.search('name', filters.searchTerm.trim()))
+    }
+
+    return await this.list<Product>(businessId, queries)
   }
 
   /**

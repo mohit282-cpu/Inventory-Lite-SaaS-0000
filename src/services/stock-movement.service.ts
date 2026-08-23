@@ -222,8 +222,30 @@ export class StockMovementService extends BaseService {
   }
 
   /**
-   * List stock movements for a business with pagination limit
+   * Get stock movements for a business
    */
+  async getStockMovements(
+    businessId: string,
+    filters?: {
+      productId?: string
+      type?: StockMovementType
+      limit?: number
+    }
+  ): Promise<StockMovement[]> {
+    const limit = filters?.limit || 200
+    const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
+
+    if (filters?.productId) {
+      queries.push(Query.equal('productId', filters.productId))
+    }
+
+    if (filters?.type) {
+      queries.push(Query.equal('type', filters.type))
+    }
+
+    return await this.list<StockMovement>(businessId, queries)
+  }
+
   async listMovements(
     businessId: string,
     filters?: {
@@ -232,97 +254,7 @@ export class StockMovementService extends BaseService {
       limit?: number
     }
   ): Promise<StockMovement[]> {
-    try {
-      const limit = filters?.limit || 200
-      const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
-
-      if (filters?.productId) {
-        queries.push(Query.equal('productId', filters.productId))
-      }
-
-      if (filters?.type) {
-        queries.push(Query.equal('type', filters.type))
-      }
-
-      const items = await this.list<StockMovement>(businessId, queries)
-
-      // Caching locally in Dexie
-      try {
-        const { localDB } = await import('@/lib/offline/db')
-        for (const item of items) {
-          await localDB.stockMovements.put({
-            id: item.$id,
-            businessId: item.businessId,
-            productId: item.productId,
-            type: item.type,
-            quantity: item.quantity,
-            previousQuantity: item.previousQuantity,
-            newQuantity: item.newQuantity,
-            reason: item.reason,
-            referenceId: item.referenceId,
-            createdBy: item.createdBy,
-            syncStatus: 'SYNCED',
-            createdAt: item.createdAt || item.$createdAt,
-          })
-        }
-      } catch {
-        // Caching non-fatal
-      }
-
-      return items
-    } catch (err: any) {
-      const isOffline =
-        typeof window !== 'undefined' &&
-        (!navigator.onLine ||
-          err.message?.includes('Network') ||
-          err.message?.includes('fetch') ||
-          err.message?.includes('offline'))
-
-      if (isOffline) {
-        try {
-          const { localDB } = await import('@/lib/offline/db')
-          const localMovs = await localDB.stockMovements
-            .where('businessId')
-            .equals(businessId)
-            .toArray()
-
-          localMovs.sort(
-            (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-          )
-
-          let filtered = localMovs
-          if (filters?.productId) {
-            filtered = filtered.filter((m) => m.productId === filters.productId)
-          }
-          if (filters?.type) {
-            filtered = filtered.filter((m) => m.type === filters.type)
-          }
-
-          return filtered.map((m) => ({
-            $id: m.id,
-            businessId: m.businessId,
-            productId: m.productId,
-            type: m.type,
-            quantity: m.quantity,
-            previousQuantity: m.previousQuantity,
-            newQuantity: m.newQuantity,
-            reason: m.reason || '',
-            referenceId: m.referenceId || '',
-            createdBy: m.createdBy || '',
-            createdAt: m.createdAt,
-            updatedAt: m.createdAt,
-            $createdAt: m.createdAt,
-            $updatedAt: m.createdAt,
-            $databaseId: '',
-            $collectionId: '',
-            $permissions: [],
-          }))
-        } catch {
-          return []
-        }
-      }
-      throw err
-    }
+    return this.getStockMovements(businessId, filters)
   }
 }
 
