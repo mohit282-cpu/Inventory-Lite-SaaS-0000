@@ -71,22 +71,17 @@ export default function DashboardPage() {
 
   const fetchDashboardData = useCallback(async () => {
     if (!activeBusiness?.$id) return
-    try {
-      const bId = activeBusiness.$id
+    const bId = activeBusiness.$id
 
-      const [m, trend, topProds, payMethods, recentSalesList, prodsList] = await Promise.all([
+    // Stage 1: Critical KPIs & Recent Activity (Immediate Render)
+    try {
+      const [m, recentSalesList, prodsList] = await Promise.all([
         analyticsService.getDashboardMetrics(bId),
-        analyticsService.getSalesChartData(bId, 7),
-        analyticsService.getTopSellingProducts(bId, 5),
-        analyticsService.getSalesByPaymentMethod(bId),
         saleService.listSales(bId, { limit: 5 }),
         productService.listProducts(bId, { limit: 50 }),
       ])
 
       setMetrics(m)
-      setSalesTrend(trend)
-      setTopProducts(topProds)
-      setPaymentMethods(payMethods)
       setRecentSales(recentSalesList)
 
       const alerts = prodsList.filter(
@@ -94,7 +89,22 @@ export default function DashboardPage() {
       )
       setLowStockList(alerts.slice(0, 5))
     } catch (err) {
-      console.error('Failed to load dashboard data:', err)
+      console.error('Failed to load critical dashboard metrics:', err)
+    }
+
+    // Stage 2: Secondary Analytics & Charts (Progressive Background Load)
+    try {
+      const [trend, topProds, payMethods] = await Promise.all([
+        analyticsService.getSalesChartData(bId, 7),
+        analyticsService.getTopSellingProducts(bId, 5),
+        analyticsService.getSalesByPaymentMethod(bId),
+      ])
+
+      setSalesTrend(trend)
+      setTopProducts(topProds)
+      setPaymentMethods(payMethods)
+    } catch (err) {
+      console.error('Failed to load secondary dashboard charts:', err)
     }
   }, [activeBusiness?.$id])
 
