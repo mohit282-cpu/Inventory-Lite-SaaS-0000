@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ProductService } from './product.service'
-import { CategoryService } from './category.service'
-import { ExpenseService } from './expense.service'
+import { ProductService } from '@/services/product.service'
+import { CategoryService } from '@/services/category.service'
+import { ExpenseService } from '@/services/expense.service'
+
 
 // Mock Appwrite databases client
 vi.mock('@/config/appwrite', () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { cn, formatCurrency, formatDate, truncate } from './utils'
+import { cn, formatCurrency, formatDate, truncate } from '@/lib/utils'
+
 
 describe('cn utility', () => {
   it('merges class names correctly', () => {

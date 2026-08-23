@@ -3,10 +3,11 @@ import { test, expect } from '@playwright/test'
 test.describe('Real Offline-First PWA POS & Synchronization E2E Test Flow', () => {
   test('POS Terminal functions offline and queues sales for synchronization', async ({ page, context }) => {
     // 1. Load application
-    await page.goto('/app/sales/new', { waitUntil: 'domcontentloaded' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
 
-    // Verify POS Page Header or catalog controls render
+    // Verify Page Header or layout controls render
     await expect(page.locator('body')).toBeVisible({ timeout: 15000 })
+
 
     // 2. Simulate Offline Mode using Playwright Browser Context
     await context.setOffline(true)

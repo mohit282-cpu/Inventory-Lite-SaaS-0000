@@ -187,35 +187,20 @@ flowchart LR
     subgraph Client["🌐 Browser / Installed PWA"]
         UI["Next.js 14 App Router<br/>React 18 + Tailwind + shadcn/ui"]
         SW["Service Worker<br/>app-shell cache"]
-        IDB[("Dexie<br/>IndexedDB")]
-        UI --- IDB
-        SW --- UI
-    end
-
-    subgraph Services["⚙️ Service Layer (TypeScript)"]
-        BASE["BaseService<br/>tenant-isolated CRUD"]
-        SVC["Product · Sale · Payment ·<br/>Invoice · Customer · Expense …"]
-        SYNC["SyncEngine +<br/>Idempotency + Number Pool"]
-        BASE --- SVC
-    end
-
-    subgraph Backend["☁️ Appwrite Cloud"]
-        AUTH["Auth"]
-        DB[("Databases<br/>inventory_lite_db")]
-        ST["Storage buckets"]
-    end
-
-    UI --> SVC
-    SVC --> DB
-    SYNC -. offline queue drain .-> DB
-    UI --> AUTH
+graph TD
+    UI[Next.js App Router UI] --> BASE[Service Layer - BaseService]
+    BASE -->|Tenant Filter & CAS Stock Lock| APPWRITE[(Appwrite Cloud Database)]
+    UI -->|Offline Fallback| DEXIE[(IndexedDB Local Store)]
+    DEXIE -. Offline Sync Queue .-> SYNC[Sync Engine]
+    SYNC -. offline queue drain .-> DB[(Appwrite Cloud Database)]
+    UI --> AUTH[Appwrite Auth & Session]
 ```
 
 - **Frontend**: Next.js 14 (App Router), client-side rendered dashboard shell
 - **Backend**: Appwrite Cloud (Auth, Databases, Storage) — no custom server required
 - **Data access**: typed service classes extending `BaseService` (`src/services/`)
 - **State**: React Context (`auth-context.tsx`) for session/business switching
-- **Zero-cost design**: see [ZERO_COST_ARCHITECTURE.md](ZERO_COST_ARCHITECTURE.md)
+- **Zero-cost design**: see [ZERO_COST_ARCHITECTURE.md](docs/architecture/ZERO_COST_ARCHITECTURE.md)
 
 ---
 
@@ -246,7 +231,7 @@ Staff   → day-to-day operations (POS, stock, customers)
 - ✅ Structured error taxonomy — `AppError`, `ValidationError`, `AuthenticationError`, `AuthorizationError`, etc. (`src/lib/error-handler.ts`)
 - ✅ Dedicated security test suites: RBAC/tenant, P0 security, concurrency/idempotency, financial integrity
 
-> ℹ️ This is a self-hostable project using *your own* Appwrite project. Security guarantees depend on correct configuration — follow [APPWRITE_CONSOLE_SETUP.md](APPWRITE_CONSOLE_SETUP.md) and [PRODUCTION_CONFIGURATION_CHECKLIST.md](PRODUCTION_CONFIGURATION_CHECKLIST.md).
+> ℹ️ This is a self-hostable project using *your own* Appwrite project. Security guarantees depend on correct configuration — follow [APPWRITE_SETUP.md](docs/APPWRITE_SETUP.md) and [PRODUCTION_CONFIGURATION_CHECKLIST.md](docs/deployment/PRODUCTION_CONFIGURATION_CHECKLIST.md).
 
 ---
 
@@ -258,12 +243,10 @@ Staff   → day-to-day operations (POS, stock, customers)
 | Styling / UI | Tailwind CSS · shadcn/ui-style components on Radix primitives · Lucide icons |
 | Forms & validation | React Hook Form + Zod |
 | Charts | Recharts (lazy-loaded) |
-| Backend | Appwrite (Auth, Databases, Storage, SDK v15) |
-| Offline | Dexie 4 (IndexedDB) + dexie-react-hooks · Service Worker PWA |
-| Dates | date-fns · custom Nepali BS calendar engine |
-| Unit/integration tests | Vitest + Testing Library (+ jsdom, fake-indexeddb) |
-| E2E tests | Playwright (Chromium, Firefox, WebKit) |
-| Deployment | Vercel |
+| Offline Storage | Dexie.js (IndexedDB wrapper) + custom sync engine |
+| Backend | Appwrite Cloud (Auth, Databases, Storage) |
+| Unit Testing | Vitest + Testing Library + fake-indexeddb |
+| E2E Testing | Playwright |
 
 ---
 
@@ -302,7 +285,7 @@ Staff   → day-to-day operations (POS, stock, customers)
 │   ├── context/                # Auth state machine incl. offline states
 │   ├── config/                 # Appwrite client, collection IDs, i18n
 │   └── types/                  # TypeScript definitions
-└── *.md                        # Schema, permissions, tenant isolation, deployment & audit docs
+└── docs/                       # Architecture, security, setup & deployment docs
 ```
 
 ---
@@ -311,14 +294,11 @@ Staff   → day-to-day operations (POS, stock, customers)
 
 ### Prerequisites
 
-| Requirement | Version |
-|---|---|
-| Node.js | 18+ |
-| npm | 9+ |
-| Appwrite account | [Appwrite Cloud](https://cloud.appwrite.io/) or self-hosted instance |
-| Git | any recent version |
+- **Node.js**: v18.17+ or v20+
+- **npm**: v9+
+- **Appwrite Project**: free account on [cloud.appwrite.io](https://cloud.appwrite.io) (or self-hosted Appwrite instance)
 
-### 1. Clone & install
+### 1. Clone & install dependencies
 
 ```bash
 git clone https://github.com/mohit282-cpu/Inventory-Lite-SaaS-0000.git
@@ -326,7 +306,9 @@ cd Inventory-Lite-SaaS-0000
 npm install
 ```
 
-### 2. Configure environment variables
+### 2. Environment variables
+
+Copy `.env.example` to `.env.local`:
 
 ```bash
 cp .env.example .env.local
@@ -343,7 +325,7 @@ cp .env.example .env.local
 
 ### 3. Set up Appwrite
 
-Two options — both are documented in detail in [APPWRITE_CONSOLE_SETUP.md](APPWRITE_CONSOLE_SETUP.md):
+Two options — both are documented in detail in [APPWRITE_SETUP.md](docs/APPWRITE_SETUP.md):
 
 <details>
 <summary><b>Option A — Automated provisioning (recommended)</b></summary>
@@ -352,7 +334,7 @@ Two options — both are documented in detail in [APPWRITE_CONSOLE_SETUP.md](APP
 npx tsx scripts/setup-appwrite.ts
 ```
 
-Requires an admin API key with scopes: `databases.*`, `collections.*`, `attributes.*`, `indexes.*`, `teams.*`, `users.*`. Creates the database, collections, attributes and indexes defined in [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md).
+Requires an admin API key with scopes: `databases.*`, `collections.*`, `attributes.*`, `indexes.*`, `teams.*`, `users.*`. Creates the database, collections, attributes and indexes defined in [DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md).
 *(Verify the script's exact usage flags before running — requires configuration/verification.)*
 
 </details>
@@ -381,7 +363,7 @@ Create database **`inventory_lite_db`** with these collections (all enforce docu
 
 Plus storage buckets: `product_images`, `business_logos`, `documents`.
 
-Full attribute/index specifications: **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** · permission matrix: **[PERMISSIONS.md](PERMISSIONS.md)**.
+Full attribute/index specifications: **[DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md)** · permission matrix: **[PERMISSIONS.md](docs/security/PERMISSIONS.md)**.
 
 </details>
 
@@ -414,7 +396,7 @@ Sign up, complete the onboarding wizard, and start adding products.
 
 The project ships substantial automated coverage focused on the areas where bugs cost money:
 
-### Unit & integration (Vitest — 35 suites, jsdom + fake-indexeddb)
+### Unit & integration (Vitest — 36 suites, jsdom + fake-indexeddb)
 
 | Area | Suites (examples) |
 |---|---|
@@ -442,7 +424,7 @@ npm run test:e2e        # config auto-starts the dev server on :3000
 npx playwright install  # first time only — download browsers
 ```
 
-> The pre-deployment gate (typecheck → lint → unit tests → E2E → build) is documented in [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md). CI pipeline configuration is **not yet present** in this repository.
+> The pre-deployment gate (typecheck → lint → unit tests → E2E → build) is documented in [DEPLOYMENT.md](docs/DEPLOYMENT.md). CI pipeline configuration is **not yet present** in this repository.
 
 ---
 
@@ -455,7 +437,7 @@ The app is deployed on **Vercel** with GitHub as source control.
 3. Add environment variables from the table above in **Project → Settings → Environment Variables**
 4. Deploy — production URL: [inventory-lite-saa-s-0000.vercel.app](https://inventory-lite-saa-s-0000.vercel.app/)
 
-Pre-release verification steps, Appwrite production checks, index requirements and rollback procedure are documented in [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md) and [ROLLBACK_RUNBOOK.md](ROLLBACK_RUNBOOK.md). A configuration checklist lives in [PRODUCTION_CONFIGURATION_CHECKLIST.md](PRODUCTION_CONFIGURATION_CHECKLIST.md).
+Pre-release verification steps, Appwrite production checks, index requirements and rollback procedure are documented in [DEPLOYMENT.md](docs/DEPLOYMENT.md) and [ROLLBACK_RUNBOOK.md](docs/deployment/ROLLBACK_RUNBOOK.md). A configuration checklist lives in [PRODUCTION_CONFIGURATION_CHECKLIST.md](docs/deployment/PRODUCTION_CONFIGURATION_CHECKLIST.md).
 
 ---
 
@@ -463,14 +445,15 @@ Pre-release verification steps, Appwrite production checks, index requirements a
 
 | Document | Contents |
 |---|---|
-| [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) | Every collection, attribute, index and permission |
-| [PERMISSIONS.md](PERMISSIONS.md) | Role hierarchy and operation-by-operation permission matrix |
-| [TENANT_ISOLATION.md](TENANT_ISOLATION.md) | How multi-tenant isolation is enforced and verified |
-| [APPWRITE_CONSOLE_SETUP.md](APPWRITE_CONSOLE_SETUP.md) | Step-by-step backend provisioning guide |
-| [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md) | Pre-deploy gates and production release process |
-| [ROLLBACK_RUNBOOK.md](ROLLBACK_RUNBOOK.md) | Incident rollback procedure |
-| [ZERO_COST_ARCHITECTURE.md](ZERO_COST_ARCHITECTURE.md) | How the stack runs at zero infrastructure cost |
+| [DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) | Every collection, attribute, index and permission |
+| [PERMISSIONS.md](docs/security/PERMISSIONS.md) | Role hierarchy and operation-by-operation permission matrix |
+| [TENANT_ISOLATION.md](docs/architecture/TENANT_ISOLATION.md) | How multi-tenant isolation is enforced and verified |
+| [APPWRITE_SETUP.md](docs/APPWRITE_SETUP.md) | Step-by-step backend provisioning guide |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Pre-deploy gates and production release process |
+| [ROLLBACK_RUNBOOK.md](docs/deployment/ROLLBACK_RUNBOOK.md) | Incident rollback procedure |
+| [ZERO_COST_ARCHITECTURE.md](docs/architecture/ZERO_COST_ARCHITECTURE.md) | How the stack runs at zero infrastructure cost |
 | [AGENTS.md](AGENTS.md) | Coding standards and contribution conventions |
+
 
 ---
 

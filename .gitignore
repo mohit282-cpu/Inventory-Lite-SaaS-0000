@@ -36,9 +36,11 @@ next-env.d.ts
 # IDE
 .vscode/
 .idea/
+.devin/
 *.swp
 *.swo
 *~
+
 
 # Testing
 /playwright-report/
