@@ -173,12 +173,80 @@ export function getFiscalYearCode(dateInput?: string | Date): string {
   return `${startYearShort}/${endYearShort}`
 }
 
+import type { TaxRegistrationType } from '@/types'
+export type { TaxRegistrationType }
+
+export const DEFAULT_VAT_RATE = 13
+
+/**
+ * Derives effective tax registration type and number from business configuration with backward compatibility.
+ */
+export function getEffectiveTaxRegistration(business?: {
+  taxRegistrationType?: TaxRegistrationType | string
+  taxRegistrationNumber?: string
+  vatNumber?: string
+  panNumber?: string
+} | null): {
+  type: TaxRegistrationType
+  number: string
+} {
+  if (!business) {
+    return { type: 'NONE', number: '' }
+  }
+
+  if (
+    business.taxRegistrationType === 'VAT' ||
+    business.taxRegistrationType === 'PAN' ||
+    business.taxRegistrationType === 'NONE'
+  ) {
+    const type = business.taxRegistrationType as TaxRegistrationType
+    const number =
+      business.taxRegistrationNumber ||
+      (type === 'VAT' ? business.vatNumber : type === 'PAN' ? business.panNumber : '') ||
+      ''
+    return { type, number: number.trim() }
+  }
+
+  // Legacy fallback if taxRegistrationType is not explicitly set
+  const vat = business.vatNumber?.trim()
+  const pan = business.panNumber?.trim()
+
+  if (vat) {
+    return { type: 'VAT', number: vat }
+  }
+  if (pan) {
+    return { type: 'PAN', number: pan }
+  }
+  return { type: 'NONE', number: '' }
+}
+
+/**
+ * Determines default invoice VAT state based on business tax registration configuration.
+ * VAT Business -> Default ON (13%)
+ * PAN / NONE Business -> Default OFF
+ */
+export function getDefaultVatState(business?: {
+  taxRegistrationType?: TaxRegistrationType | string
+  taxRegistrationNumber?: string
+  vatNumber?: string
+  panNumber?: string
+} | null): { vatEnabled: boolean; vatRate: number } {
+  const { type } = getEffectiveTaxRegistration(business)
+  if (type === 'VAT') {
+    return { vatEnabled: true, vatRate: DEFAULT_VAT_RATE }
+  }
+  return { vatEnabled: false, vatRate: DEFAULT_VAT_RATE }
+}
+
 /**
  * Format seller Tax Registration label according to Nepal IRD bill requirements.
- * Displays PAN of the seller if PAN is entered, VAT of the seller if VAT is entered,
- * or both if both PAN and VAT numbers are configured.
  */
-export function getSellerTaxLabel(business?: { panNumber?: string; vatNumber?: string } | null): {
+export function getSellerTaxLabel(business?: {
+  taxRegistrationType?: TaxRegistrationType | string
+  taxRegistrationNumber?: string
+  panNumber?: string
+  vatNumber?: string
+} | null): {
   pan?: string
   vat?: string
   formattedText: string
@@ -186,7 +254,7 @@ export function getSellerTaxLabel(business?: { panNumber?: string; vatNumber?: s
   const pan = business?.panNumber?.trim()
   const vat = business?.vatNumber?.trim()
 
-  if (pan && vat) {
+  if (pan && vat && !business?.taxRegistrationType) {
     return {
       pan,
       vat,
@@ -194,22 +262,26 @@ export function getSellerTaxLabel(business?: { panNumber?: string; vatNumber?: s
     }
   }
 
-  if (vat) {
+  const { type, number } = getEffectiveTaxRegistration(business)
+
+  if (type === 'VAT') {
     return {
-      vat,
-      formattedText: `VAT of the seller: ${vat}`,
+      vat: number,
+      pan: pan || undefined,
+      formattedText: `VAT of the seller: ${number}`,
     }
   }
 
-  if (pan) {
+  if (type === 'PAN') {
     return {
-      pan,
-      formattedText: `PAN of the seller: ${pan}`,
+      pan: number,
+      vat: vat || undefined,
+      formattedText: `PAN of the seller: ${number}`,
     }
   }
 
   return {
-    formattedText: 'PAN of the seller: N/A',
+    formattedText: 'PAN/VAT of the seller: N/A',
   }
 }
 

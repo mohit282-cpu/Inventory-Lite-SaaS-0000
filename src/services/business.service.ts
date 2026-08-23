@@ -1,6 +1,6 @@
 import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
-import { Business, Currency } from '@/types'
+import { Business, Currency, TaxRegistrationType } from '@/types'
 import { Query } from 'appwrite'
 import { authorizeBusinessAccess } from '@/lib/authorization'
 
@@ -25,6 +25,8 @@ export class BusinessService extends BaseService {
       address?: string
       panNumber?: string
       vatNumber?: string
+      taxRegistrationType?: TaxRegistrationType
+      taxRegistrationNumber?: string
       logoUrl?: string
       currency?: Currency
       timezone?: string
@@ -35,14 +37,20 @@ export class BusinessService extends BaseService {
       throw new Error('Business name is required')
     }
 
+    const regType: TaxRegistrationType =
+      data.taxRegistrationType || (data.vatNumber?.trim() ? 'VAT' : data.panNumber?.trim() ? 'PAN' : 'NONE')
+    const regNum = (data.taxRegistrationNumber || (regType === 'VAT' ? data.vatNumber : regType === 'PAN' ? data.panNumber : '') || '').trim()
+
     const businessData = {
       name: data.name,
       ownerId: userId,
       phone: data.phone || '',
       email: data.email || '',
       address: data.address || '',
-      panNumber: data.panNumber || '',
-      vatNumber: data.vatNumber || '',
+      taxRegistrationType: regType,
+      taxRegistrationNumber: regNum,
+      panNumber: regType === 'PAN' ? regNum : (data.panNumber || ''),
+      vatNumber: regType === 'VAT' ? regNum : (data.vatNumber || ''),
       logoUrl: data.logoUrl || '',
       currency: data.currency || 'NPR',
       timezone: data.timezone || 'Asia/Kathmandu',
@@ -86,6 +94,8 @@ export class BusinessService extends BaseService {
       address: string
       panNumber: string
       vatNumber: string
+      taxRegistrationType: TaxRegistrationType
+      taxRegistrationNumber: string
       logoUrl: string
       currency: Currency
       timezone: string
@@ -99,7 +109,28 @@ export class BusinessService extends BaseService {
       requiredRole: ['owner', 'admin'],
     })
 
-    return await this.update<Business>(businessId, data, 'system')
+    const payload: any = { ...data }
+
+    if (data.taxRegistrationType) {
+      const regType = data.taxRegistrationType
+      const regNum = (data.taxRegistrationNumber || (regType === 'VAT' ? data.vatNumber : regType === 'PAN' ? data.panNumber : '') || '').trim()
+
+      payload.taxRegistrationType = regType
+      payload.taxRegistrationNumber = regNum
+      if (regType === 'VAT') {
+        payload.vatNumber = regNum
+        payload.panNumber = ''
+      } else if (regType === 'PAN') {
+        payload.panNumber = regNum
+        payload.vatNumber = ''
+      } else {
+        payload.vatNumber = ''
+        payload.panNumber = ''
+        payload.taxRegistrationNumber = ''
+      }
+    }
+
+    return await this.update<Business>(businessId, payload, 'system')
   }
 
   /**

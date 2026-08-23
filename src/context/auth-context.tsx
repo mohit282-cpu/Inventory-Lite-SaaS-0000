@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { Models } from 'appwrite'
-import { AppUser, Business, BusinessMember, Currency, AuthStatus } from '@/types'
+import { AppUser, Business, BusinessMember, Currency, AuthStatus, TaxRegistrationType } from '@/types'
 import { authService } from '@/services/auth.service'
 import { userService } from '@/services/user.service'
 import { businessService } from '@/services/business.service'
@@ -35,6 +35,8 @@ interface AuthContextType {
     address?: string
     panNumber?: string
     vatNumber?: string
+    taxRegistrationType?: TaxRegistrationType
+    taxRegistrationNumber?: string
     logoUrl?: string
     currency?: Currency
     timezone?: string
@@ -316,6 +318,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     address?: string
     panNumber?: string
     vatNumber?: string
+    taxRegistrationType?: TaxRegistrationType
+    taxRegistrationNumber?: string
     logoUrl?: string
     currency?: Currency
     timezone?: string
@@ -335,6 +339,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           address: data.address,
           panNumber: data.panNumber,
           vatNumber: data.vatNumber,
+          taxRegistrationType: data.taxRegistrationType,
+          taxRegistrationNumber: data.taxRegistrationNumber,
           logoUrl: data.logoUrl,
           currency: data.currency || 'NPR',
           timezone: data.timezone || 'Asia/Kathmandu',

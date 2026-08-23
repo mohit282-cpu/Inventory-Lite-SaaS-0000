@@ -15,7 +15,8 @@ import { businessService } from '@/services/business.service'
 import { userService } from '@/services/user.service'
 import { authService } from '@/services/auth.service'
 import { businessMemberService } from '@/services/business-member.service'
-import { BusinessMember, UserRole, Currency } from '@/types'
+import { BusinessMember, UserRole, Currency, TaxRegistrationType } from '@/types'
+import { getEffectiveTaxRegistration } from '@/lib/localization'
 import {
   Store,
   Save,
@@ -45,8 +46,8 @@ export default function SettingsPage() {
   const [bizName, setBizName] = useState('')
   const [bizPhone, setBizPhone] = useState('')
   const [bizAddress, setBizAddress] = useState('')
-  const [panNumber, setPanNumber] = useState('')
-  const [vatNumber, setVatNumber] = useState('')
+  const [taxRegistrationType, setTaxRegistrationType] = useState<TaxRegistrationType>('NONE')
+  const [taxRegistrationNumber, setTaxRegistrationNumber] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
   const [currency, setCurrency] = useState<Currency>('NPR')
   const [timezone, setTimezone] = useState('Asia/Kathmandu')
@@ -105,8 +106,11 @@ export default function SettingsPage() {
       setBizName(activeBusiness.name || '')
       setBizPhone(activeBusiness.phone || '')
       setBizAddress(activeBusiness.address || '')
-      setPanNumber(activeBusiness.panNumber || '')
-      setVatNumber(activeBusiness.vatNumber || '')
+
+      const effTax = getEffectiveTaxRegistration(activeBusiness)
+      setTaxRegistrationType(effTax.type)
+      setTaxRegistrationNumber(effTax.number)
+
       setLogoUrl(activeBusiness.logoUrl || '')
       setCurrency(activeBusiness.currency || 'NPR')
       setTimezone(activeBusiness.timezone || 'Asia/Kathmandu')
@@ -144,14 +148,27 @@ export default function SettingsPage() {
     if (!activeBusiness?.$id || !user?.$id) return
     try {
       setSavingBiz(true)
+
+      if (taxRegistrationType !== 'NONE' && !taxRegistrationNumber.trim()) {
+        toast({
+          title: 'Validation Error',
+          description: `Registration number is required for ${taxRegistrationType} registered businesses.`,
+          variant: 'destructive',
+        })
+        setSavingBiz(false)
+        return
+      }
+
       await businessService.updateBusiness(
         activeBusiness.$id,
         {
           name: bizName,
           phone: bizPhone,
           address: bizAddress,
-          panNumber,
-          vatNumber,
+          taxRegistrationType,
+          taxRegistrationNumber: taxRegistrationNumber.trim(),
+          panNumber: taxRegistrationType === 'PAN' ? taxRegistrationNumber.trim() : '',
+          vatNumber: taxRegistrationType === 'VAT' ? taxRegistrationNumber.trim() : '',
           logoUrl,
           currency,
           timezone,
@@ -423,32 +440,73 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="panNumber" className="text-xs font-bold text-slate-700">
-                      PAN Number
-                    </Label>
-                    <Input
-                      id="panNumber"
-                      value={panNumber}
-                      onChange={(e) => setPanNumber(e.target.value)}
-                      placeholder="e.g. 600112233"
-                      className="font-mono"
-                    />
+                {/* Tax Registration Section */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div>
+                    <Label className="text-xs font-bold text-slate-700">Tax Registration Type</Label>
+                    <p className="text-[11px] text-slate-400">Select your shop/business tax registration type in Nepal.</p>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="vatNumber" className="text-xs font-bold text-slate-700">
-                      VAT Number
-                    </Label>
-                    <Input
-                      id="vatNumber"
-                      value={vatNumber}
-                      onChange={(e) => setVatNumber(e.target.value)}
-                      placeholder="e.g. 100223344"
-                      className="font-mono"
-                    />
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTaxRegistrationType('NONE')
+                        setTaxRegistrationNumber('')
+                      }}
+                      className={`p-3 rounded-lg border text-xs font-semibold transition-all text-center ${
+                        taxRegistrationType === 'NONE'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      None
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTaxRegistrationType('PAN')}
+                      className={`p-3 rounded-lg border text-xs font-semibold transition-all text-center ${
+                        taxRegistrationType === 'PAN'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      PAN Registered
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTaxRegistrationType('VAT')}
+                      className={`p-3 rounded-lg border text-xs font-semibold transition-all text-center ${
+                        taxRegistrationType === 'VAT'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      VAT Registered
+                    </button>
                   </div>
+
+                  {taxRegistrationType !== 'NONE' && (
+                    <div className="space-y-1.5 pt-1">
+                      <Label htmlFor="taxRegistrationNumber" className="text-xs font-bold text-slate-700">
+                        {taxRegistrationType === 'VAT' ? 'VAT Number *' : 'PAN Number *'}
+                      </Label>
+                      <Input
+                        id="taxRegistrationNumber"
+                        value={taxRegistrationNumber}
+                        onChange={(e) => setTaxRegistrationNumber(e.target.value)}
+                        placeholder={taxRegistrationType === 'VAT' ? 'e.g. 100223344' : 'e.g. 600112233'}
+                        className="font-mono text-sm h-10"
+                      />
+                      <p className="text-[11px] text-slate-400">
+                        {taxRegistrationType === 'VAT'
+                          ? 'VAT Registered: New bills will default to 13% VAT ON.'
+                          : 'PAN Registered: New bills will default to VAT OFF.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">

@@ -69,6 +69,8 @@ export interface AppUser extends Models.Document {
   updatedAt: string
 }
 
+export type TaxRegistrationType = 'NONE' | 'PAN' | 'VAT'
+
 // ==================== 2. Business Entity ====================
 
 export interface Business extends Models.Document {
@@ -80,6 +82,8 @@ export interface Business extends Models.Document {
   address?: string
   panNumber?: string
   vatNumber?: string
+  taxRegistrationType?: TaxRegistrationType
+  taxRegistrationNumber?: string
   logoUrl?: string
   currency: Currency
   timezone: string

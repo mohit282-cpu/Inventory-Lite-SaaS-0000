@@ -162,22 +162,36 @@ export abstract class BaseService {
    * List all documents for a business with tenant isolation query injection
    */
   async list<T>(businessId: string, queries: any[] = []): Promise<T[]> {
-    if (businessId === 'system') {
+    try {
+      if (businessId === 'system') {
+        const result = await databases.listDocuments(
+          DATABASE_ID,
+          this.collectionId,
+          queries
+        )
+        return this.mapDocuments<T>(result.documents)
+      }
+
+      const tenantQueries = [Query.equal('businessId', businessId), ...queries]
       const result = await databases.listDocuments(
         DATABASE_ID,
         this.collectionId,
-        queries
+        tenantQueries
       )
       return this.mapDocuments<T>(result.documents)
+    } catch (err: any) {
+      if (
+        err?.code === 404 ||
+        (err?.message &&
+          (err.message.includes('could not be found') ||
+            err.message.includes('Collection with the requested ID') ||
+            err.message.includes('collection_not_found')))
+      ) {
+        console.warn(`[BaseService] Collection '${this.collectionId}' not found in database '${DATABASE_ID}'. Returning empty array.`)
+        return []
+      }
+      throw err
     }
-
-    const tenantQueries = [Query.equal('businessId', businessId), ...queries]
-    const result = await databases.listDocuments(
-      DATABASE_ID,
-      this.collectionId,
-      tenantQueries
-    )
-    return this.mapDocuments<T>(result.documents)
   }
 
   /**

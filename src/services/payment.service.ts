@@ -375,7 +375,7 @@ export class PaymentService extends BaseService {
     const [sales, customers, payments] = await Promise.all([
       saleService.listSales(businessId),
       customerService.listCustomers(businessId),
-      this.listPayments(businessId),
+      this.listPayments(businessId).catch(() => []),
     ])
 
     const now = new Date()
@@ -433,7 +433,7 @@ export class PaymentService extends BaseService {
     const [sales, customers, allPayments] = await Promise.all([
       saleService.listSales(businessId),
       customerService.listCustomers(businessId),
-      this.listPayments(businessId),
+      this.listPayments(businessId).catch(() => []),
     ])
 
     const customerMap = new Map<string, Customer>()

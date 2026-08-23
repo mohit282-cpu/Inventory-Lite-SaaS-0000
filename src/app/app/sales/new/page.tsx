@@ -13,6 +13,7 @@ import { customerService } from '@/services/customer.service'
 import { saleService } from '@/services/sale.service'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
+import { getDefaultVatState, DEFAULT_VAT_RATE } from '@/lib/localization'
 import {
   Search,
   Plus,
@@ -109,7 +110,7 @@ export default function CreateSalePage() {
 
   // VAT Tax State & Toggle
   const [isVatEnabled, setIsVatEnabled] = useState<boolean>(true)
-  const [taxRate, setTaxRate] = useState<number>(13) // Default 13% VAT Nepal
+  const [taxRate, setTaxRate] = useState<number>(DEFAULT_VAT_RATE) // Default 13% VAT Nepal
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [paidAmountInput, setPaidAmountInput] = useState<string>('')
@@ -140,6 +141,15 @@ export default function CreateSalePage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  // Initialize default VAT state based on active business tax registration ONCE when active business changes
+  useEffect(() => {
+    if (activeBusiness) {
+      const defaultState = getDefaultVatState(activeBusiness)
+      setIsVatEnabled(defaultState.vatEnabled)
+      setTaxRate(defaultState.vatRate)
+    }
+  }, [activeBusiness])
 
   // Memoized Search Filter
   const filteredProducts = React.useMemo(() => {

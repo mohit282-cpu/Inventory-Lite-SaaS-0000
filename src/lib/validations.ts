@@ -72,6 +72,8 @@ export const resetPasswordSchema = z
 
 // ==================== Business Validations ====================
 
+export const taxRegistrationTypeSchema = z.enum(['NONE', 'PAN', 'VAT'])
+
 export const businessSchema = z.object({
   name: nameSchema,
   type: z.enum(['retail', 'hardware', 'electronics', 'clothing', 'stationery', 'cosmetics', 'other']),
@@ -79,35 +81,76 @@ export const businessSchema = z.object({
   phone: phoneSchema.optional(),
   email: emailSchema.optional(),
   taxId: z.string().optional(),
+  taxRegistrationType: taxRegistrationTypeSchema.optional(),
+  taxRegistrationNumber: z.string().optional(),
 })
 
-export const onboardingSchema = z.object({
-  name: z.string().min(2, 'Business name must be at least 2 characters'),
-  ownerName: z.string().min(2, 'Owner name must be at least 2 characters'),
-  phone: z.string().optional(),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  province: z.string().optional(),
-  panNumber: z.string().optional(),
-  vatNumber: z.string().optional(),
-  logoUrl: safeImageUrlSchema,
-  currency: z.enum(['NPR', 'USD', 'EUR', 'INR']),
-  timezone: z.string().min(1, 'Timezone is required'),
-  defaultVatRate: z.coerce.number().min(0).max(100).optional(),
-  invoicePrefix: z.string().optional(),
-  lowStockThreshold: z.coerce.number().min(0).optional(),
-  dateFormat: z.string().optional(),
-})
+export const onboardingSchema = z
+  .object({
+    name: z.string().min(2, 'Business name must be at least 2 characters'),
+    ownerName: z.string().min(2, 'Owner name must be at least 2 characters'),
+    phone: z.string().optional(),
+    email: z.string().email('Invalid email address').optional().or(z.literal('')),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    province: z.string().optional(),
+    panNumber: z.string().optional(),
+    vatNumber: z.string().optional(),
+    taxRegistrationType: taxRegistrationTypeSchema.default('NONE'),
+    taxRegistrationNumber: z.string().optional(),
+    logoUrl: safeImageUrlSchema,
+    currency: z.enum(['NPR', 'USD', 'EUR', 'INR']),
+    timezone: z.string().min(1, 'Timezone is required'),
+    defaultVatRate: z.coerce.number().min(0).max(100).optional(),
+    invoicePrefix: z.string().optional(),
+    lowStockThreshold: z.coerce.number().min(0).optional(),
+    dateFormat: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.taxRegistrationType === 'VAT' || data.taxRegistrationType === 'PAN') {
+        const num = (data.taxRegistrationNumber || (data.taxRegistrationType === 'VAT' ? data.vatNumber : data.panNumber) || '').trim()
+        return num.length > 0
+      }
+      return true
+    },
+    {
+      message: 'Tax registration number is required for PAN/VAT registered businesses',
+      path: ['taxRegistrationNumber'],
+    }
+  )
 
-export const businessSettingsSchema = z.object({
-  currency: z.enum(['NPR', 'USD', 'EUR', 'INR']),
-  timezone: z.string(),
-  dateFormat: z.string(),
-  invoicePrefix: z.string().optional(),
-  taxRate: z.number().min(0).max(100).optional(),
-  enableTax: z.boolean().optional(),
-})
+export const businessSettingsSchema = z
+  .object({
+    name: z.string().min(2, 'Business name must be at least 2 characters').optional(),
+    phone: z.string().optional(),
+    email: z.string().email('Invalid email address').optional().or(z.literal('')),
+    address: z.string().optional(),
+    currency: z.enum(['NPR', 'USD', 'EUR', 'INR']),
+    timezone: z.string(),
+    dateFormat: z.string().optional(),
+    invoicePrefix: z.string().optional(),
+    taxRate: z.number().min(0).max(100).optional(),
+    enableTax: z.boolean().optional(),
+    panNumber: z.string().optional(),
+    vatNumber: z.string().optional(),
+    logoUrl: safeImageUrlSchema,
+    taxRegistrationType: taxRegistrationTypeSchema.optional().default('NONE'),
+    taxRegistrationNumber: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.taxRegistrationType === 'VAT' || data.taxRegistrationType === 'PAN') {
+        const num = (data.taxRegistrationNumber || (data.taxRegistrationType === 'VAT' ? data.vatNumber : data.panNumber) || '').trim()
+        return num.length > 0
+      }
+      return true
+    },
+    {
+      message: 'Tax registration number is required for PAN/VAT registered businesses',
+      path: ['taxRegistrationNumber'],
+    }
+  )
 
 // ==================== Product Validations ====================
 

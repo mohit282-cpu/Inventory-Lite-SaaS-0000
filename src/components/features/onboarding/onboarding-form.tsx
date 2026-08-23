@@ -49,7 +49,7 @@ export function OnboardingForm() {
     trigger,
     formState: { errors },
   } = useForm<OnboardingFormValues>({
-    resolver: zodResolver(onboardingSchema),
+    resolver: zodResolver(onboardingSchema) as any,
     defaultValues: {
       name: '',
       ownerName: userProfile?.name || '',
@@ -60,6 +60,8 @@ export function OnboardingForm() {
       province: 'Bagmati',
       panNumber: '',
       vatNumber: '',
+      taxRegistrationType: 'NONE',
+      taxRegistrationNumber: '',
       logoUrl: '',
       currency: 'NPR',
       timezone: 'Asia/Kathmandu',
@@ -74,13 +76,14 @@ export function OnboardingForm() {
   const currentTimezone = watch('timezone')
   const currentProvince = watch('province')
   const currentDateFormat = watch('dateFormat')
+  const currentTaxRegistrationType = watch('taxRegistrationType') || 'NONE'
 
   const nextStep = async () => {
     let isValid = false
     if (step === 1) {
       isValid = await trigger(['name', 'ownerName', 'phone', 'email'])
     } else if (step === 2) {
-      isValid = await trigger(['address', 'city', 'province', 'panNumber', 'vatNumber', 'logoUrl'])
+      isValid = await trigger(['address', 'city', 'province', 'taxRegistrationType', 'taxRegistrationNumber', 'panNumber', 'vatNumber', 'logoUrl'])
     }
 
     if (isValid) {
@@ -99,13 +102,18 @@ export function OnboardingForm() {
 
     try {
       setIsSubmitting(true)
+      const regType = data.taxRegistrationType || 'NONE'
+      const regNum = (data.taxRegistrationNumber || (regType === 'VAT' ? data.vatNumber : regType === 'PAN' ? data.panNumber : '') || '').trim()
+
       await createBusinessOnboarding({
         name: data.name,
         phone: data.phone,
         email: data.email,
         address: data.address ? `${data.address}${data.city ? `, ${data.city}` : ''}${data.province ? `, ${data.province}` : ''}` : '',
-        panNumber: data.panNumber,
-        vatNumber: data.vatNumber,
+        panNumber: regType === 'PAN' ? regNum : data.panNumber,
+        vatNumber: regType === 'VAT' ? regNum : data.vatNumber,
+        taxRegistrationType: regType,
+        taxRegistrationNumber: regNum,
         logoUrl: data.logoUrl,
         currency: data.currency,
         timezone: data.timezone,
@@ -461,33 +469,84 @@ export function OnboardingForm() {
                   </div>
                 </div>
 
-                {/* Grid 2-col for PAN & VAT */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="panNumber" className="text-xs font-bold text-slate-700">
-                      PAN Number <span className="text-slate-400 font-normal">(Optional)</span>
-                    </Label>
-                    <Input
-                      id="panNumber"
-                      placeholder="e.g. 600112233"
-                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
-                      {...register('panNumber')}
-                    />
-                    <p className="text-[11px] text-slate-400">9-digit Permanent Account Number.</p>
+                {/* Tax Registration Section */}
+                <div className="space-y-3 pt-1 border-t border-slate-100">
+                  <div>
+                    <Label className="text-xs font-bold text-slate-700">Which tax registration does your shop/business have?</Label>
+                    <p className="text-[11px] text-slate-400">Determines automatic VAT defaults during billing.</p>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="vatNumber" className="text-xs font-bold text-slate-700">
-                      VAT Number <span className="text-slate-400 font-normal">(Optional)</span>
-                    </Label>
-                    <Input
-                      id="vatNumber"
-                      placeholder="e.g. 100223344"
-                      className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
-                      {...register('vatNumber')}
-                    />
-                    <p className="text-[11px] text-slate-400">Required if VAT registered in Nepal.</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <label
+                      className={`flex items-center justify-center p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                        currentTaxRegistrationType === 'NONE'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        value="NONE"
+                        className="sr-only"
+                        {...register('taxRegistrationType')}
+                      />
+                      None
+                    </label>
+
+                    <label
+                      className={`flex items-center justify-center p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                        currentTaxRegistrationType === 'PAN'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        value="PAN"
+                        className="sr-only"
+                        {...register('taxRegistrationType')}
+                      />
+                      PAN Registered
+                    </label>
+
+                    <label
+                      className={`flex items-center justify-center p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                        currentTaxRegistrationType === 'VAT'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        value="VAT"
+                        className="sr-only"
+                        {...register('taxRegistrationType')}
+                      />
+                      VAT Registered
+                    </label>
                   </div>
+
+                  {currentTaxRegistrationType !== 'NONE' && (
+                    <div className="space-y-1.5 pt-1">
+                      <Label htmlFor="taxRegistrationNumber" className="text-xs font-bold text-slate-700">
+                        {currentTaxRegistrationType === 'VAT' ? 'VAT Number *' : 'PAN Number *'}
+                      </Label>
+                      <Input
+                        id="taxRegistrationNumber"
+                        placeholder={currentTaxRegistrationType === 'VAT' ? 'e.g. 100223344' : 'e.g. 600112233'}
+                        className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20 font-mono"
+                        {...register('taxRegistrationNumber')}
+                      />
+                      <p className="text-[11px] text-slate-400">
+                        {currentTaxRegistrationType === 'VAT'
+                          ? 'VAT registered: Bills will default to 13% VAT ON.'
+                          : 'PAN registered: Bills will default to VAT OFF.'}
+                      </p>
+                      {errors.taxRegistrationNumber && (
+                        <p className="text-[11px] font-medium text-rose-500">{errors.taxRegistrationNumber.message}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Logo URL */}
