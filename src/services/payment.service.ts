@@ -74,122 +74,134 @@ export class PaymentService extends BaseService {
       return match || null
     }
 
-    return await idempotencyManager.executeWithPersistentFallback(data.idempotencyKey, persistentCheck, async () => {
-      const paymentPaisa = toMinorUnits(data.amount)
-      if (paymentPaisa <= 0) {
-        throw new Error('Payment amount must be greater than zero')
-      }
-
-      // Fetch target sale with tenant isolation verification
-      const sale = await saleService.getSale(data.saleId, businessId)
-      if (!sale) {
-        throw new Error('Associated sale transaction not found')
-      }
-
-      const saleDuePaisa = toMinorUnits(sale.dueAmount)
-      if (paymentPaisa > saleDuePaisa) {
-        throw new Error(
-          `Payment amount (Rs. ${data.amount.toFixed(
-            2
-          )}) cannot exceed remaining due balance (Rs. ${sale.dueAmount.toFixed(2)})`
-        )
-      }
-
-      // Customer integrity verification
-      if (data.customerId && sale.customerId && data.customerId.trim() !== '' && sale.customerId.trim() !== '' && data.customerId !== sale.customerId) {
-        throw new Error(`Payment customerId mismatch: Cannot credit payment to customer '${data.customerId}' for sale belonging to '${sale.customerId}'`)
-      }
-
-      const pDate = data.paymentDate || new Date().toISOString()
-      const custId = data.customerId || sale.customerId || ''
-
-      if (custId && custId.trim() !== '') {
-        await customerService.getCustomer(custId, businessId)
-      }
-
-      // Persist Payment document
-      let paymentDoc: Payment
-      try {
-        paymentDoc = await this.create<Payment>(
-          {
-            saleId: data.saleId,
-            customerId: custId,
-            invoiceId: data.invoiceId || sale.invoiceId || '',
-            amount: fromMinorUnits(paymentPaisa),
-            paymentMethod: data.paymentMethod,
-            paymentDate: pDate,
-            referenceNumber: data.referenceNumber || '',
-            notes: data.notes || '',
-            createdBy: userId,
-          },
-          businessId,
-          userId
-        )
-      } catch (err: any) {
-        const isCollectionMissingOrOffline =
-          (typeof window !== 'undefined' && !navigator.onLine) ||
-          err.message?.includes('could not be found') ||
-          err.message?.includes('404') ||
-          err.message?.includes('Collection') ||
-          err.message?.includes('Network') ||
-          err.message?.includes('fetch')
-
-        if (isCollectionMissingOrOffline) {
-          const generatedId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
-          const localPayment = {
-            id: generatedId,
-            businessId,
-            customerId: custId,
-            saleId: data.saleId,
-            amount: fromMinorUnits(paymentPaisa),
-            paymentMethod: data.paymentMethod,
-            notes: data.notes || '',
-            syncStatus: 'PENDING_SYNC' as const,
-            createdAt: pDate,
-          }
-
-          try {
-            const { localDB } = await import('@/lib/offline/db')
-            await localDB.payments.put(localPayment)
-            await localDB.syncQueue.add({
-              businessId,
-              userId,
-              entityType: 'payment',
-              entityId: generatedId,
-              operation: 'CREATE',
-              payload: localPayment,
-              retryCount: 0,
-              status: 'PENDING',
-              createdAt: pDate,
-            })
-          } catch {
-            // Local DB write non-fatal
-          }
-
-          paymentDoc = {
-            $id: generatedId,
-            businessId,
-            customerId: custId,
-            saleId: data.saleId,
-            invoiceId: data.invoiceId || sale.invoiceId || '',
-            amount: fromMinorUnits(paymentPaisa),
-            paymentMethod: data.paymentMethod,
-            paymentDate: pDate,
-            referenceNumber: data.referenceNumber || '',
-            notes: data.notes || '',
-            createdBy: userId,
-            createdAt: pDate,
-            updatedAt: pDate,
-            $createdAt: pDate,
-            $updatedAt: pDate,
-            $databaseId: '',
-            $collectionId: '',
-            $permissions: [],
-          }
-        } else {
-          throw err
+    return await idempotencyManager.executeIdempotentTransaction(
+      {
+        idempotencyKey: data.idempotencyKey,
+        businessId,
+        operationType: 'create_payment',
+        payload: data,
+        resourceType: 'payment',
+      },
+      persistentCheck,
+      async () => {
+        const paymentPaisa = toMinorUnits(data.amount)
+        if (paymentPaisa <= 0) {
+          throw new Error('Payment amount must be greater than zero')
         }
-      }
+
+        // Fetch target sale with tenant isolation verification
+        const sale = await saleService.getSale(data.saleId, businessId)
+        if (!sale) {
+          throw new Error('Associated sale transaction not found')
+        }
+
+        const saleDuePaisa = toMinorUnits(sale.dueAmount)
+        if (paymentPaisa > saleDuePaisa) {
+          throw new Error(
+            `Payment amount (Rs. ${data.amount.toFixed(
+              2
+            )}) cannot exceed remaining due balance (Rs. ${sale.dueAmount.toFixed(2)})`
+          )
+        }
+
+        // Customer integrity verification
+        if (data.customerId && sale.customerId && data.customerId.trim() !== '' && sale.customerId.trim() !== '' && data.customerId !== sale.customerId) {
+          throw new Error(`Payment customerId mismatch: Cannot credit payment to customer '${data.customerId}' for sale belonging to '${sale.customerId}'`)
+        }
+
+        const pDate = data.paymentDate || new Date().toISOString()
+        const custId = data.customerId || sale.customerId || ''
+
+        if (custId && custId.trim() !== '') {
+          await customerService.getCustomer(custId, businessId)
+        }
+
+        // Persist Payment document
+        let paymentDoc: Payment
+        try {
+          paymentDoc = await this.create<Payment>(
+            {
+              saleId: data.saleId,
+              customerId: custId,
+              invoiceId: data.invoiceId || sale.invoiceId || '',
+              amount: fromMinorUnits(paymentPaisa),
+              paymentMethod: data.paymentMethod,
+              paymentDate: pDate,
+              referenceNumber: data.referenceNumber || data.idempotencyKey || '',
+              notes: data.notes || '',
+              status: 'POSTED',
+              createdBy: userId,
+            },
+            businessId,
+            userId
+          )
+        } catch (err: any) {
+          const isCollectionMissingOrOffline =
+            (typeof window !== 'undefined' && !navigator.onLine) ||
+            err.message?.includes('could not be found') ||
+            err.message?.includes('404') ||
+            err.message?.includes('Collection') ||
+            err.message?.includes('Network') ||
+            err.message?.includes('fetch')
+
+          if (isCollectionMissingOrOffline) {
+            const generatedId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+            const localPayment = {
+              id: generatedId,
+              businessId,
+              customerId: custId,
+              saleId: data.saleId,
+              amount: fromMinorUnits(paymentPaisa),
+              paymentMethod: data.paymentMethod,
+              notes: data.notes || '',
+              status: 'POSTED',
+              syncStatus: 'PENDING_SYNC' as const,
+              createdAt: pDate,
+            }
+
+            try {
+              const { localDB } = await import('@/lib/offline/db')
+              await localDB.payments.put(localPayment)
+              await localDB.syncQueue.add({
+                businessId,
+                userId,
+                entityType: 'payment',
+                entityId: generatedId,
+                operation: 'CREATE',
+                payload: localPayment,
+                retryCount: 0,
+                status: 'PENDING',
+                createdAt: pDate,
+              })
+            } catch {
+              // Local DB write non-fatal
+            }
+
+            paymentDoc = {
+              $id: generatedId,
+              businessId,
+              customerId: custId,
+              saleId: data.saleId,
+              invoiceId: data.invoiceId || sale.invoiceId || '',
+              amount: fromMinorUnits(paymentPaisa),
+              paymentMethod: data.paymentMethod,
+              paymentDate: pDate,
+              referenceNumber: data.referenceNumber || data.idempotencyKey || '',
+              notes: data.notes || '',
+              status: 'POSTED',
+              createdBy: userId,
+              createdAt: pDate,
+              updatedAt: pDate,
+              $createdAt: pDate,
+              $updatedAt: pDate,
+              $databaseId: '',
+              $collectionId: '',
+              $permissions: [],
+            }
+          } else {
+            throw err
+          }
+        }
 
       try {
         // Recalculate Sale paid & due amount using minor units
@@ -423,12 +435,19 @@ export class PaymentService extends BaseService {
   }
 
   /**
-   * Delete a payment record and restore outstanding balance
+   * Reverse a payment record (financial record immutability - P1)
+   * Instead of deleting financial historical records, marks status as VOIDED/REVERSED
+   * and creates an auditable compensating reversal payment entry (-amount).
    */
-  async deletePayment(paymentId: string, businessId: string, deletingUserId: string): Promise<boolean> {
-    // Database-verified RBAC check: only owner or admin can delete payment records
+  async reversePayment(
+    paymentId: string,
+    businessId: string,
+    reversingUserId: string,
+    reason: string = 'Payment reversal'
+  ): Promise<Payment> {
+    // Database-verified RBAC check: only owner or admin can reverse payment records
     await authorizeBusinessAccess({
-      userId: deletingUserId,
+      userId: reversingUserId,
       businessId,
       requiredRole: ['owner', 'admin'],
     })
@@ -438,9 +457,13 @@ export class PaymentService extends BaseService {
       throw new Error('Payment record not found')
     }
 
+    if (existingPayment.status === 'VOIDED' || existingPayment.status === 'REVERSED') {
+      throw new Error('Payment record has already been reversed or voided')
+    }
+
     const amountPaisa = toMinorUnits(existingPayment.amount)
 
-    // 1. Revert sale paid amount
+    // 1. Revert sale paid amount and update status
     if (existingPayment.saleId) {
       const sale = await saleService.getSale(existingPayment.saleId, businessId)
       if (sale) {
@@ -465,8 +488,43 @@ export class PaymentService extends BaseService {
       }
     }
 
-    // 3. Delete payment doc
-    await this.delete(paymentId, businessId)
+    // 3. Mark original payment record as VOIDED (non-destructive)
+    await this.update<Payment>(
+      paymentId,
+      {
+        status: 'VOIDED',
+        notes: `${existingPayment.notes || ''} [VOIDED by ${reversingUserId}: ${reason}]`.trim(),
+      },
+      businessId
+    )
+
+    // 4. Create an explicit compensating reversal payment document (-amount) in payment history
+    const reversalDoc = await this.create<Payment>(
+      {
+        saleId: existingPayment.saleId,
+        customerId: existingPayment.customerId || '',
+        invoiceId: existingPayment.invoiceId || '',
+        amount: -existingPayment.amount,
+        paymentMethod: existingPayment.paymentMethod,
+        paymentDate: new Date().toISOString(),
+        referenceNumber: `REV_${existingPayment.$id}`,
+        notes: `Reversal of Payment #${existingPayment.$id}: ${reason}`,
+        status: 'REVERSED',
+        createdBy: reversingUserId,
+      },
+      businessId,
+      reversingUserId
+    )
+
+    return reversalDoc
+  }
+
+  /**
+   * Controlled Payment Deletion Wrapper
+   * Replaces physical document removal with non-destructive financial reversal
+   */
+  async deletePayment(paymentId: string, businessId: string, deletingUserId: string): Promise<boolean> {
+    await this.reversePayment(paymentId, businessId, deletingUserId, 'Manual payment cancellation')
     return true
   }
 

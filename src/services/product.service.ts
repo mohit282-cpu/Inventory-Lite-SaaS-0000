@@ -101,7 +101,7 @@ export class ProductService extends BaseService {
 
     const createdProduct = await this.create<Product>(productData, businessId, userId)
 
-    // Record initial stock movement for opening stock
+    // Record initial stock movement for opening stock (with transaction rollback on failure)
     if (data.stockQuantity > 0) {
       try {
         const { stockMovementService } = await import('./stock-movement.service')
@@ -115,10 +115,17 @@ export class ProductService extends BaseService {
             reason: 'Opening stock initialization',
           },
           businessId,
-          userId
+          userId,
+          true // internal authorization flag
         )
-      } catch (stockErr) {
-        console.warn('Initial stock movement log notice:', stockErr)
+      } catch (stockErr: any) {
+        // Compensating transaction rollback: Delete created product if opening stock movement fails
+        try {
+          await this.delete(createdProduct.$id, businessId)
+        } catch {
+          // Ignore deletion error during rollback
+        }
+        throw new Error(`Product creation failed: Unable to record opening stock audit trail: ${stockErr.message}`)
       }
     }
 

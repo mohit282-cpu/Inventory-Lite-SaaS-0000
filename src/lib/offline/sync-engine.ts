@@ -21,18 +21,23 @@ export class SyncEngine {
   /**
    * Initial data download from Appwrite Cloud into IndexedDB
    */
+  /**
+   * Initial data download from Appwrite Cloud into IndexedDB
+   * Strict Error Handling (P1): Preserves local Dexie cache if cloud fetch fails
+   */
   async initialSync(businessId: string, onProgress?: SyncProgressCallback): Promise<boolean> {
     if (!this.isOnline() || !businessId || businessId === 'system') return false
 
     try {
       if (onProgress) onProgress('Fetching cloud catalog...', 1, 5)
+      // REMOVED dangerous catch(() => []) wrappers to prevent erasing local data on failure
       const [products, categories, customers, sales, payments, expenses] = await Promise.all([
-        productService.listProducts(businessId).catch(() => []),
-        categoryService.listCategories(businessId).catch(() => []),
-        customerService.listCustomers(businessId).catch(() => []),
-        saleService.listSales(businessId).catch(() => []),
-        paymentService.getPayments(businessId).catch(() => []),
-        expenseService.listExpenses(businessId).catch(() => []),
+        productService.listProducts(businessId),
+        categoryService.listCategories(businessId),
+        customerService.listCustomers(businessId),
+        saleService.listSales(businessId),
+        paymentService.getPayments(businessId),
+        expenseService.listExpenses(businessId),
       ])
 
       if (onProgress) onProgress('Storing products & categories...', 2, 5)
@@ -156,8 +161,15 @@ export class SyncEngine {
 
       if (onProgress) onProgress('Initial sync complete', 5, 5)
       return true
-    } catch (error) {
-      console.error('[SyncEngine] Error downloading cloud data:', error)
+    } catch (error: any) {
+      console.error('[SyncEngine] Error downloading cloud data. Preserving local data cache:', error)
+      try {
+        const existingMeta = await localDB.syncMetadata.get(businessId)
+        await localDB.syncMetadata.put({
+          businessId,
+          lastSyncedAt: existingMeta?.lastSyncedAt || '',
+        })
+      } catch {}
       return false
     }
   }
@@ -185,7 +197,7 @@ export class SyncEngine {
   }
 
   /**
-   * Process pending transaction sync queue items in strict dependency order
+   * Process pending transaction sync queue items with Multi-Tab Queue Locking (P1)
    */
   async processSyncQueue(
     businessId: string,
@@ -237,6 +249,20 @@ export class SyncEngine {
         if (!this.isOnline()) break
         currentIndex++
 
+        // Multi-Tab Persistent Reservation Check: Claim item status atomically in Dexie
+        const claimed = await localDB.transaction('rw', localDB.syncQueue, async () => {
+          const freshItem = await localDB.syncQueue.get(item.id!)
+          if (!freshItem || freshItem.status === 'PROCESSING' || freshItem.status === 'SYNCED') {
+            return false
+          }
+          await localDB.syncQueue.update(item.id!, { status: 'PROCESSING' })
+          return true
+        })
+
+        if (!claimed) {
+          continue // Item already claimed by another tab/runtime
+        }
+
         if (onProgress) {
           onProgress(`Syncing ${item.entityType} (${currentIndex}/${totalItems})...`, currentIndex, totalItems)
         }
@@ -244,8 +270,6 @@ export class SyncEngine {
         let createdServerId: string | undefined = undefined
 
         try {
-          await localDB.syncQueue.update(item.id!, { status: 'PROCESSING' })
-
           // Replace any temporary customer ID in payload if mapped from earlier sync step
           const payload = { ...item.payload }
           if (payload.customerId && idMappings.has(payload.customerId)) {

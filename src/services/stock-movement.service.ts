@@ -115,7 +115,8 @@ export class StockMovementService extends BaseService {
   }
 
   /**
-   * Log an explicit stock movement record without mutating product stock
+   * Internal-only helper: Log an explicit stock movement record without mutating product stock
+   * Restricted for system initialization and migration logic ONLY.
    */
   async createRawMovement(
     data: {
@@ -128,8 +129,12 @@ export class StockMovementService extends BaseService {
       referenceId?: string
     },
     businessId: string,
-    userId: string
+    userId: string,
+    isInternalCall: boolean = false
   ): Promise<StockMovement> {
+    if (!isInternalCall) {
+      throw new Error('Forbidden: createRawMovement is an internal-only audit logger and cannot be called directly')
+    }
     return await this.create<StockMovement>(data, businessId, userId)
   }
 

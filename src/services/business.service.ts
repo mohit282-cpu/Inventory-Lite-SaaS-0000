@@ -52,9 +52,16 @@ export class BusinessService extends BaseService {
   }
 
   /**
-   * Get business details by ID
+   * Get business details by ID with optional database RBAC access verification (P1)
    */
-  async getBusiness(businessId: string): Promise<Business> {
+  async getBusiness(businessId: string, userId?: string): Promise<Business> {
+    if (userId) {
+      await authorizeBusinessAccess({
+        userId,
+        businessId,
+        requiredRole: ['owner', 'admin', 'staff'],
+      })
+    }
     return await this.getById<Business>(businessId, 'system')
   }
 
@@ -87,13 +94,23 @@ export class BusinessService extends BaseService {
   }
 
   /**
-   * Get businesses owned by a specific user
+   * Get businesses owned by authenticated user (derives ownerId from authenticated user ID)
    */
-  async getOwnedBusinesses(ownerId: string): Promise<Business[]> {
+  async getMyBusinesses(userId: string): Promise<Business[]> {
+    if (!userId || userId.trim() === '') {
+      throw new Error('Unauthorized: Valid userId required')
+    }
     return await this.list<Business>('system', [
-      Query.equal('ownerId', ownerId),
+      Query.equal('ownerId', userId),
       Query.orderDesc('createdAt')
     ])
+  }
+
+  /**
+   * Get businesses owned by a specific user (legacy wrapper)
+   */
+  async getOwnedBusinesses(ownerId: string): Promise<Business[]> {
+    return await this.getMyBusinesses(ownerId)
   }
 }
 

@@ -57,10 +57,24 @@ describe('Invoices & Billing System', () => {
 
   describe('Invoice Creation & Sale Linkage', () => {
     it('should create an invoice document linked to a completed sale', async () => {
-      vi.mocked(databases.listDocuments).mockResolvedValueOnce({
+      vi.mocked(databases.listDocuments).mockResolvedValue({
         total: 0,
         documents: [],
       } as any)
+
+      vi.mocked(databases.getDocument).mockImplementation(async (_db, col, id) => {
+        if (col === 'sales') {
+          return {
+            $id: id,
+            businessId: businessA,
+            status: 'completed',
+            total: 100,
+            paidAmount: 100,
+            dueAmount: 0,
+          } as any
+        }
+        return { $id: id, businessId: businessA } as any
+      })
 
       vi.mocked(databases.createDocument).mockImplementation(async (_db, col, _id, data) => {
         if (col === 'invoices') {

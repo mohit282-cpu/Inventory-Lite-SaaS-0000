@@ -6,8 +6,9 @@ import { saleService } from './sale.service'
 import { saleItemService } from './sale-item.service'
 import { customerService } from './customer.service'
 import { businessService } from './business.service'
-
 import { offlineNumberPoolService } from './offline-number-pool.service'
+import { authorizeBusinessAccess } from '@/lib/authorization'
+import { idempotencyManager } from '@/lib/idempotency'
 
 export interface InvoiceFullDetails {
   invoice: Invoice
@@ -36,7 +37,7 @@ export class InvoiceService extends BaseService {
   }
 
   /**
-   * Create an invoice for a sale
+   * Create an invoice for a sale with strict service boundary authorization (P1)
    */
   async createInvoice(
     data: {
@@ -45,22 +46,73 @@ export class InvoiceService extends BaseService {
       issueDate?: string
       dueDate?: string
       pdfUrl?: string
+      idempotencyKey?: string
     },
     businessId: string,
     userId: string
   ): Promise<Invoice> {
-    const invoiceNumber = data.invoiceNumber || (await this.generateNextInvoiceNumber(businessId, data.issueDate))
-    const issueDate = data.issueDate || new Date().toISOString()
+    // 1. RBAC authorization check
+    await authorizeBusinessAccess({
+      userId,
+      businessId,
+      requiredRole: ['owner', 'admin', 'staff'],
+    })
 
-    const invoiceData = {
-      saleId: data.saleId,
-      invoiceNumber,
-      issueDate,
-      dueDate: data.dueDate || issueDate,
-      pdfUrl: data.pdfUrl || '',
+    // 2. Persistent Idempotency check
+    const persistentCheck = async (): Promise<Invoice | null> => {
+      return await this.getInvoiceBySaleId(data.saleId, businessId)
     }
 
-    return await this.create<Invoice>(invoiceData, businessId, userId)
+    return await idempotencyManager.executeIdempotentTransaction(
+      {
+        idempotencyKey: data.idempotencyKey || `inv_${data.saleId}`,
+        businessId,
+        operationType: 'create_invoice',
+        payload: data,
+        resourceType: 'invoice',
+      },
+      persistentCheck,
+      async () => {
+        // 3. Verify sale exists and belongs to business
+        const sale = await saleService.getSale(data.saleId, businessId)
+        if (!sale) {
+          throw new Error('Associated sale transaction not found for invoice creation')
+        }
+
+        // 4. Verify invoice does not already exist for sale
+        const existingInvoice = await this.getInvoiceBySaleId(data.saleId, businessId)
+        if (existingInvoice) {
+          return existingInvoice
+        }
+
+        // 5. Generate collision-proof sequential invoice number
+        const invoiceNumber = data.invoiceNumber || (await this.generateNextInvoiceNumber(businessId, data.issueDate))
+        const issueDate = data.issueDate || new Date().toISOString()
+
+        // 6. Verify invoice number uniqueness for business
+        try {
+          const existingByNum = await this.list<Invoice>(businessId, [
+            Query.equal('invoiceNumber', invoiceNumber),
+            Query.limit(1),
+          ])
+          if (existingByNum.length > 0 && existingByNum[0].saleId !== data.saleId) {
+            throw new Error(`DUPLICATE_INVOICE_NUMBER: Invoice number '${invoiceNumber}' already exists for business '${businessId}'`)
+          }
+        } catch (err: any) {
+          if (err.message?.includes('DUPLICATE_INVOICE_NUMBER')) throw err
+        }
+
+        const invoiceData = {
+          saleId: data.saleId,
+          invoiceNumber,
+          issueDate,
+          dueDate: data.dueDate || issueDate,
+          pdfUrl: data.pdfUrl || '',
+        }
+
+        return await this.create<Invoice>(invoiceData, businessId, userId)
+      }
+    )
   }
 
   /**

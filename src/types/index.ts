@@ -213,6 +213,8 @@ export interface Invoice extends Models.Document {
   createdAt: string
 }
 
+export type PaymentStatus = 'POSTED' | 'VOIDED' | 'REVERSED' | 'REFUNDED'
+
 // ==================== 11. Payment Entity ====================
 
 export interface Payment extends Models.Document {
@@ -226,6 +228,7 @@ export interface Payment extends Models.Document {
   paymentDate: string
   referenceNumber?: string
   notes?: string
+  status?: PaymentStatus
   createdBy?: string
   createdAt: string
   updatedAt?: string

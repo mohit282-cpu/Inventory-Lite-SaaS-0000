@@ -177,6 +177,21 @@ export interface DeviceMeta {
   value: string
 }
 
+export interface LocalIdempotencyRecord {
+  id: string // composite key: `${businessId}:${operationType}:${idempotencyKey}`
+  businessId: string
+  operationType: string
+  idempotencyKey: string
+  requestHash: string
+  status: 'PROCESSING' | 'COMPLETED' | 'FAILED'
+  resourceType?: string
+  resourceId?: string
+  result?: any
+  error?: string
+  createdAt: string
+  completedAt?: string
+}
+
 export class InventoryLiteLocalDB extends Dexie {
   products!: Table<LocalProduct, string>
   categories!: Table<LocalCategory, string>
@@ -193,11 +208,12 @@ export class InventoryLiteLocalDB extends Dexie {
   stockMovements!: Table<LocalStockMovement, string>
   numberBlocks!: Table<LocalNumberBlock, string>
   deviceMeta!: Table<DeviceMeta, string>
+  idempotencyRecords!: Table<LocalIdempotencyRecord, string>
 
   constructor() {
     super('inventory_lite_local')
 
-    this.version(5).stores({
+    this.version(6).stores({
       products: 'id, businessId, categoryId, syncStatus',
       categories: 'id, businessId',
       customers: 'id, businessId, syncStatus',
@@ -213,6 +229,7 @@ export class InventoryLiteLocalDB extends Dexie {
       stockMovements: 'id, businessId, productId, type, createdAt',
       numberBlocks: 'key, businessId, documentType, financialYear',
       deviceMeta: 'key',
+      idempotencyRecords: 'id, businessId, operationType, idempotencyKey, status',
     })
   }
 
@@ -231,6 +248,7 @@ export class InventoryLiteLocalDB extends Dexie {
         this.settings,
         this.syncQueue,
         this.syncMetadata,
+        this.idempotencyRecords,
       ],
       async () => {
         await this.products.where('businessId').equals(businessId).delete()
@@ -243,9 +261,11 @@ export class InventoryLiteLocalDB extends Dexie {
         await this.settings.where('businessId').equals(businessId).delete()
         await this.syncQueue.where('businessId').equals(businessId).delete()
         await this.syncMetadata.where('businessId').equals(businessId).delete()
+        await this.idempotencyRecords.where('businessId').equals(businessId).delete()
       }
     )
   }
 }
 
 export const localDB = new InventoryLiteLocalDB()
+

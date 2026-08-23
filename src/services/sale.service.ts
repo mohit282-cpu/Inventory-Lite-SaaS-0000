@@ -11,7 +11,7 @@ import { calculateSaleTotals, validateFinancialInvariants } from '@/lib/money'
 import { generateSecureToken } from '@/lib/security'
 import { authorizeBusinessAccess } from '@/lib/authorization'
 import { auditLogService } from './audit-log.service'
-import { idempotencyManager } from '@/lib/idempotency'
+import { idempotencyManager, computePayloadHash } from '@/lib/idempotency'
 import { offlineNumberPoolService } from './offline-number-pool.service'
 
 export class SaleService extends BaseService {
@@ -68,16 +68,35 @@ export class SaleService extends BaseService {
         (s: any) => s.idempotencyKey === data.idempotencyKey || (s as any).referenceId === data.idempotencyKey
       )
       if (matchedSale) {
+        const currentHash = computePayloadHash(data)
+        if (matchedSale.requestHash && matchedSale.requestHash !== currentHash) {
+          throw new Error(
+            `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${data.idempotencyKey}' was already used for a different payload in create_sale`
+          )
+        }
         const items = await saleItemService.listSaleItems(matchedSale.$id, businessId)
-        return { sale: matchedSale, items, invoice: null }
+        let invoice = null
+        try {
+          invoice = await invoiceService.getInvoiceBySaleId(matchedSale.$id, businessId)
+        } catch {}
+        return { sale: matchedSale, items, invoice }
       }
       return null
     }
 
-    return await idempotencyManager.executeWithPersistentFallback(data.idempotencyKey, persistentCheck, async () => {
-      if (!data.items || data.items.length === 0) {
-        throw new Error('Sale must include at least one item')
-      }
+    return await idempotencyManager.executeIdempotentTransaction(
+      {
+        idempotencyKey: data.idempotencyKey,
+        businessId,
+        operationType: 'create_sale',
+        payload: data,
+        resourceType: 'sale',
+      },
+      persistentCheck,
+      async () => {
+        if (!data.items || data.items.length === 0) {
+          throw new Error('Sale must include at least one item')
+        }
 
       // 2. Fetch trusted product data & validate stock and selling prices
       const validatedItems: Array<{
@@ -157,6 +176,9 @@ export class SaleService extends BaseService {
         saleNumber,
         customerId: data.customerId || '',
         invoiceId: '',
+        invoiceStatus: 'PENDING',
+        idempotencyKey: data.idempotencyKey || '',
+        requestHash: computePayloadHash(data),
         subtotal: totals.subtotal,
         discount: totals.overallDiscount,
         discountType: data.discountType || (data.discountValue ? 'percentage' : 'fixed'),
@@ -213,20 +235,28 @@ export class SaleService extends BaseService {
           await customerService.updateDueAmount(data.customerId, totals.dueAmount, businessId)
         }
 
-        // 8. Generate invoice for sale
+        // 8. Generate invoice for sale with explicit invoiceStatus tracking
         let invoice: any = null
         try {
           invoice = await invoiceService.createInvoice(
             {
               saleId: sale.$id,
               issueDate: new Date().toISOString(),
+              idempotencyKey: data.idempotencyKey ? `inv_${data.idempotencyKey}` : undefined,
             },
             businessId,
             userId
           )
-          await this.update<Sale>(sale.$id, { invoiceId: invoice.$id }, businessId)
-        } catch (invErr) {
+          await this.update<Sale>(sale.$id, { invoiceId: invoice.$id, invoiceStatus: 'GENERATED' } as any, businessId)
+        } catch (invErr: any) {
           console.warn('Invoice creation warning:', invErr)
+          try {
+            await this.update<Sale>(
+              sale.$id,
+              { invoiceStatus: 'FAILED', notes: `[Invoice Generation Failed: ${invErr.message || 'Error'}]` } as any,
+              businessId
+            )
+          } catch {}
         }
 
         return {
@@ -235,6 +265,7 @@ export class SaleService extends BaseService {
           invoice,
         }
       } catch (err: any) {
+
         // Check if error is network/offline error
         const isOffline = typeof window !== 'undefined' && (!navigator.onLine || err.message?.includes('Network') || err.message?.includes('fetch') || err.message?.includes('Failed to fetch'))
 

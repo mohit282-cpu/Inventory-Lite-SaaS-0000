@@ -79,17 +79,9 @@ export class AuthService {
   }
 
   /**
-   * Get current user account
+   * Get current user account (authoritative check via Appwrite account.get())
    */
   async getCurrentUser(): Promise<Models.User<Models.Preferences> | null> {
-    if (typeof window !== 'undefined') {
-      const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'inventory-lite'
-      const hasCookie = document.cookie.includes('a_session') || document.cookie.includes(projectId)
-      const hasFallback = !!localStorage.getItem('cookieFallback') || !!localStorage.getItem('a_session')
-      if (!hasCookie && !hasFallback) {
-        return null
-      }
-    }
     try {
       return await account.get()
     } catch (error) {

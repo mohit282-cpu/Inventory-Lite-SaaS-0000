@@ -243,4 +243,23 @@ describe('Stock Management Module Tests', () => {
     expect(movsA.every((m) => m.businessId === bizA)).toBe(true)
     expect(movsB.every((m) => m.businessId === bizB)).toBe(true)
   })
+
+  it('rolls back product creation if opening stock movement creation fails', async () => {
+    vi.spyOn(stockMovementService, 'createRawMovement').mockRejectedValueOnce(new Error('DB failure during stock movement creation'))
+
+    await expect(
+      productService.createProduct(
+        {
+          name: 'Rollback Test Product',
+          sku: 'SKU-ROLLBACK',
+          unit: 'pcs',
+          purchasePrice: 100,
+          sellingPrice: 150,
+          stockQuantity: 50,
+        },
+        bizA,
+        user1
+      )
+    ).rejects.toThrow(/Product creation failed: Unable to record opening stock audit trail/)
+  })
 })

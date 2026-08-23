@@ -47,13 +47,13 @@ export interface ProfitEstimateReport {
 
 export class AnalyticsService {
   /**
-   * Get core real-time dashboard KPIs for a business
+   * Get core real-time dashboard KPIs for a business (P2 completeness: query full dataset)
    */
   async getDashboardMetrics(businessId: string): Promise<DashboardMetrics> {
     const [products, customers, sales, expenseSum] = await Promise.all([
-      productService.listProducts(businessId),
-      customerService.listCustomers(businessId),
-      saleService.listSales(businessId),
+      productService.listProducts(businessId, { limit: 10000 }),
+      customerService.listCustomers(businessId, { limit: 10000 }),
+      saleService.listSales(businessId, { limit: 10000 }),
       expenseService.getExpenseSummary(businessId),
     ])
 
@@ -65,6 +65,7 @@ export class AnalyticsService {
     let thisMonthSales = 0
 
     for (const sale of sales) {
+      if (sale.status === 'cancelled') continue
       const saleDate = (sale.createdAt || '').slice(0, 10)
       const saleMonth = (sale.createdAt || '').slice(0, 7)
 
@@ -92,15 +93,15 @@ export class AnalyticsService {
     const totalDue = customers.reduce((sum, c) => sum + (c.totalDue || 0), 0)
 
     return {
-      todaySales,
-      thisMonthSales,
+      todaySales: Math.round(todaySales * 100) / 100,
+      thisMonthSales: Math.round(thisMonthSales * 100) / 100,
       todayExpenses: expenseSum.todayExpenses,
       thisMonthExpenses: expenseSum.thisMonthExpenses,
       totalProducts: products.length,
       lowStockProducts,
       outOfStockProducts,
       totalCustomers: customers.length,
-      totalDue,
+      totalDue: Math.round(totalDue * 100) / 100,
     }
   }
 
@@ -108,7 +109,7 @@ export class AnalyticsService {
    * Get sales trend over time grouped by date
    */
   async getSalesChartData(businessId: string, days = 7): Promise<SalesChartPoint[]> {
-    const sales = await saleService.listSales(businessId)
+    const sales = await saleService.listSales(businessId, { limit: 10000 })
 
     // Build map for the last `days` days
     const dateMap = new Map<string, { revenue: number; count: number }>()
@@ -122,6 +123,7 @@ export class AnalyticsService {
     }
 
     for (const sale of sales) {
+      if (sale.status === 'cancelled') continue
       const key = (sale.createdAt || '').slice(0, 10)
       if (dateMap.has(key)) {
         const curr = dateMap.get(key)!
@@ -148,10 +150,11 @@ export class AnalyticsService {
    * Get top selling products aggregated from sale item snapshots
    */
   async getTopSellingProducts(businessId: string, limit = 5): Promise<TopProductPoint[]> {
-    const sales = await saleService.listSales(businessId)
+    const sales = await saleService.listSales(businessId, { limit: 10000 })
     const productAggMap = new Map<string, { name: string; quantity: number; revenue: number }>()
 
     for (const sale of sales) {
+      if (sale.status === 'cancelled') continue
       try {
         const items = await saleItemService.listSaleItems(sale.$id, businessId)
         for (const item of items) {
@@ -181,7 +184,7 @@ export class AnalyticsService {
    * Get sales distribution by payment method
    */
   async getSalesByPaymentMethod(businessId: string): Promise<PaymentMethodPoint[]> {
-    const sales = await saleService.listSales(businessId)
+    const sales = await saleService.listSales(businessId, { limit: 10000 })
 
     const methodLabels: Record<string, string> = {
       cash: 'Cash',
@@ -198,6 +201,7 @@ export class AnalyticsService {
     Object.keys(methodLabels).forEach((k) => map.set(k, { count: 0, total: 0 }))
 
     for (const sale of sales) {
+      if (sale.status === 'cancelled') continue
       const method = sale.paymentMethod || 'cash'
       const curr = map.get(method) || { count: 0, total: 0 }
       curr.count += 1
@@ -229,9 +233,9 @@ export class AnalyticsService {
     endDate?: string
   ): Promise<ProfitEstimateReport> {
     const [sales, products, expenses] = await Promise.all([
-      saleService.listSales(businessId),
-      productService.listProducts(businessId),
-      expenseService.listExpenses(businessId),
+      saleService.listSales(businessId, { limit: 10000 }),
+      productService.listProducts(businessId, { limit: 10000 }),
+      expenseService.listExpenses(businessId, { limit: 10000 }),
     ])
 
     const productPurchaseMap = new Map<string, number>()
@@ -239,7 +243,7 @@ export class AnalyticsService {
       productPurchaseMap.set(p.$id, p.purchasePrice || 0)
     }
 
-    let filteredSales = sales
+    let filteredSales = sales.filter((s) => s.status !== 'cancelled')
     let filteredExpenses = expenses
 
     if (startDate) {

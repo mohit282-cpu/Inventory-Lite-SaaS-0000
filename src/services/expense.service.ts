@@ -173,12 +173,14 @@ export class ExpenseService extends BaseService {
   }
 
   /**
-   * List expenses for a business with optional category filter
+   * List expenses for a business with optional category filter and pagination
    */
   async listExpenses(
     businessId: string,
     filters?: {
       category?: string
+      limit?: number
+      offset?: number
     }
   ): Promise<Expense[]> {
     const isOffline =
@@ -193,37 +195,45 @@ export class ExpenseService extends BaseService {
         localExps = localExps.filter((e) => e.category === filters.category)
       }
 
-      return localExps
-        .sort((a, b) => (b.date > a.date ? 1 : -1))
-        .map((exp) => ({
-          $id: exp.id,
-          businessId: exp.businessId,
-          title: exp.title,
-          description: exp.title,
-          category: exp.category,
-          amount: exp.amount,
-          date: exp.date,
-          notes: exp.notes || '',
-          createdBy: exp.createdBy || '',
-          createdAt: exp.createdAt,
-          updatedAt: exp.createdAt,
-          $createdAt: exp.createdAt,
-          $updatedAt: exp.createdAt,
-          $databaseId: '',
-          $collectionId: '',
-          $permissions: [],
-        }))
+      let sorted = localExps.sort((a, b) => (b.date > a.date ? 1 : -1))
+      if (filters?.offset) sorted = sorted.slice(filters.offset)
+      if (filters?.limit) sorted = sorted.slice(0, filters.limit)
+
+      return sorted.map((exp) => ({
+        $id: exp.id,
+        businessId: exp.businessId,
+        title: exp.title,
+        description: exp.title,
+        category: exp.category,
+        amount: exp.amount,
+        date: exp.date,
+        notes: exp.notes || '',
+        createdBy: exp.createdBy || '',
+        createdAt: exp.createdAt,
+        updatedAt: exp.createdAt,
+        $createdAt: exp.createdAt,
+        $updatedAt: exp.createdAt,
+        $databaseId: '',
+        $collectionId: '',
+        $permissions: [],
+      }))
     }
 
     try {
-      const queries: any[] = [Query.orderDesc('date')]
+      const queries: string[] = []
 
       if (filters?.category && filters.category !== 'all') {
         queries.push(Query.equal('category', filters.category))
       }
 
-      const list = await this.list<Expense>(businessId, queries)
-      return list.map((exp) => this.mapExpense(exp))
+      queries.push(Query.orderDesc('date'))
+      queries.push(Query.limit(filters?.limit ?? 5000))
+      if (filters?.offset) {
+        queries.push(Query.offset(filters.offset))
+      }
+
+      const response = await this.list<Expense>(businessId, queries)
+      return response.map((doc) => this.mapExpense(doc))
     } catch (err) {
       const { localDB } = await import('@/lib/offline/db')
       let localExps = await localDB.expenses.where('businessId').equals(businessId).toArray()
@@ -232,26 +242,28 @@ export class ExpenseService extends BaseService {
         localExps = localExps.filter((e) => e.category === filters.category)
       }
 
-      return localExps
-        .sort((a, b) => (b.date > a.date ? 1 : -1))
-        .map((exp) => ({
-          $id: exp.id,
-          businessId: exp.businessId,
-          title: exp.title,
-          description: exp.title,
-          category: exp.category,
-          amount: exp.amount,
-          date: exp.date,
-          notes: exp.notes || '',
-          createdBy: exp.createdBy || '',
-          createdAt: exp.createdAt,
-          updatedAt: exp.createdAt,
-          $createdAt: exp.createdAt,
-          $updatedAt: exp.createdAt,
-          $databaseId: '',
-          $collectionId: '',
-          $permissions: [],
-        }))
+      let sorted = localExps.sort((a, b) => (b.date > a.date ? 1 : -1))
+      if (filters?.offset) sorted = sorted.slice(filters.offset)
+      if (filters?.limit) sorted = sorted.slice(0, filters.limit)
+
+      return sorted.map((exp) => ({
+        $id: exp.id,
+        businessId: exp.businessId,
+        title: exp.title,
+        description: exp.title,
+        category: exp.category,
+        amount: exp.amount,
+        date: exp.date,
+        notes: exp.notes || '',
+        createdBy: exp.createdBy || '',
+        createdAt: exp.createdAt,
+        updatedAt: exp.createdAt,
+        $createdAt: exp.createdAt,
+        $updatedAt: exp.createdAt,
+        $databaseId: '',
+        $collectionId: '',
+        $permissions: [],
+      }))
     }
   }
 
