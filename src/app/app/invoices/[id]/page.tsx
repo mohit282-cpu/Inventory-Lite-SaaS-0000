@@ -283,12 +283,7 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
                     <span>Change Returned:</span>
                     <span className="font-mono">Rs. {billSummary.changeAmount.toFixed(2)}</span>
                   </div>
-                ) : (
-                  <div className="flex justify-between text-xs text-slate-600 font-medium">
-                    <span>Due Balance:</span>
-                    <span className="font-mono">Rs. 0.00</span>
-                  </div>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
@@ -392,12 +387,7 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
                   <span>Change Return:</span>
                   <span>Rs. {billSummary.changeAmount.toFixed(2)}</span>
                 </div>
-              ) : (
-                <div className="flex justify-between text-slate-600">
-                  <span>Due:</span>
-                  <span>Rs. 0.00</span>
-                </div>
-              )}
+              ) : null}
             </div>
 
             {/* Footer */}

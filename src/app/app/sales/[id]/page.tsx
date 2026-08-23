@@ -231,12 +231,7 @@ export default function SaleDetailPage() {
                     <span>Change Returned</span>
                     <span className="font-mono text-emerald-900">Rs. {billSummary.changeAmount.toFixed(2)}</span>
                   </div>
-                ) : (
-                  <div className="flex justify-between text-slate-600 font-medium pt-1 border-t border-slate-200">
-                    <span>Udhaar / Due</span>
-                    <span className="font-mono text-slate-900 font-bold">Rs. 0.00</span>
-                  </div>
-                )}
+                ) : null}
               </div>
             </div>
           )
