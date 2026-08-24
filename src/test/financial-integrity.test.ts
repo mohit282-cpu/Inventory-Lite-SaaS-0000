@@ -376,7 +376,7 @@ describe('Mandatory 12 Financial Transaction Integrity Tests', () => {
     )
 
     expect(saleRes.sale.total).toBe(113)
-    expect(saleRes.sale.paidAmount).toBe(150)
+    expect(saleRes.sale.paidAmount).toBe(113) // Capped at total to maintain strict financial invariant (was 150)
     expect(saleRes.sale.dueAmount).toBe(0)
     expect(saleRes.sale.changeAmount).toBe(37)
     expect(saleRes.sale.status).toBe('completed')

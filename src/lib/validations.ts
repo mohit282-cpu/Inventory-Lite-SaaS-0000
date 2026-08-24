@@ -110,12 +110,16 @@ export const onboardingSchema = z
     (data) => {
       if (data.taxRegistrationType === 'VAT' || data.taxRegistrationType === 'PAN') {
         const num = (data.taxRegistrationNumber || (data.taxRegistrationType === 'VAT' ? data.vatNumber : data.panNumber) || '').trim()
-        return num.length > 0
+        if (num.length === 0) return false
+        
+        // Strict PAN/VAT 9 digit validation
+        const cleaned = num.replace(/\D/g, '')
+        if (cleaned.length !== 9) return false
       }
       return true
     },
     {
-      message: 'Tax registration number is required for PAN/VAT registered businesses',
+      message: 'A valid 9-digit Tax registration number (PAN) is required for PAN/VAT registered businesses',
       path: ['taxRegistrationNumber'],
     }
   )
@@ -142,12 +146,16 @@ export const businessSettingsSchema = z
     (data) => {
       if (data.taxRegistrationType === 'VAT' || data.taxRegistrationType === 'PAN') {
         const num = (data.taxRegistrationNumber || (data.taxRegistrationType === 'VAT' ? data.vatNumber : data.panNumber) || '').trim()
-        return num.length > 0
+        if (num.length === 0) return false
+
+        // Strict PAN/VAT 9 digit validation
+        const cleaned = num.replace(/\D/g, '')
+        if (cleaned.length !== 9) return false
       }
       return true
     },
     {
-      message: 'Tax registration number is required for PAN/VAT registered businesses',
+      message: 'A valid 9-digit Tax registration number (PAN) is required for PAN/VAT registered businesses',
       path: ['taxRegistrationNumber'],
     }
   )

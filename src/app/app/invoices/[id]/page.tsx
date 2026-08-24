@@ -90,7 +90,10 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
 
   const { invoice, sale, saleItems, customer, business } = details
   const sellerTaxInfo = getSellerTaxLabel(business)
-  const billSummary = getBillSummaryDetails(sale)
+  const billSummary = getBillSummaryDetails({
+    ...sale,
+    businessTaxType: business?.taxRegistrationType
+  })
 
   const issueDateObj = new Date(invoice.issueDate || invoice.createdAt || sale.createdAt)
   const formattedADDate = issueDateObj.toLocaleDateString('en-US', {

@@ -72,8 +72,10 @@ export function AuditHealth({ sales, invoices }: AuditHealthProps) {
 
   // 4. Payment Reconciliation
   const paymentMismatches = sales.filter(s => {
-    // A sale's total should be equal to the amount paid (minus any change returned) plus the amount still due.
-    const expected = (s.paidAmount || 0) - (s.changeAmount || 0) + (s.dueAmount || 0)
+    // Under strict financial invariants, paidAmount represents ONLY the applied payment.
+    // Therefore, paidAmount + dueAmount MUST exactly equal total.
+    // If a historical record has paidAmount > total (because it included change), this will flag it as an anomaly.
+    const expected = (s.paidAmount || 0) + (s.dueAmount || 0)
     return Math.abs(expected - (s.total || 0)) > 0.05
   })
   checks.push({

@@ -198,7 +198,7 @@ export default function CreateSalePage() {
         grandTotal: total,
         dueAmount: due,
         changeAmount: change,
-        effectivePaidAmount: paid,
+        effectivePaidAmount: Math.min(paid, total), // Cap at grandTotal to align with strict applied payment rules
       }
     }, [cart, effectiveOverallDiscount, effectiveTaxRate, paidAmountInput])
 

@@ -47,7 +47,8 @@ export function SimpleReportView({
 
   // Audit calculations
   const paymentMismatches = sales.filter(s => {
-    const expected = (s.paidAmount || 0) - (s.changeAmount || 0) + (s.dueAmount || 0)
+    // Strict applied payment rules: applied paidAmount + dueAmount MUST equal total
+    const expected = (s.paidAmount || 0) + (s.dueAmount || 0)
     return Math.abs(expected - (s.total || 0)) > 0.05
   })
   

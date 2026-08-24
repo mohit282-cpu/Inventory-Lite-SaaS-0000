@@ -90,7 +90,10 @@ export default function SaleDetailPage() {
 
   if (!sale) return null
 
-  const billSummary = getBillSummaryDetails(sale)
+  const billSummary = getBillSummaryDetails({
+    ...sale,
+    businessTaxType: activeBusiness?.taxRegistrationType
+  })
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto text-slate-900 print:max-w-none print:space-y-0">

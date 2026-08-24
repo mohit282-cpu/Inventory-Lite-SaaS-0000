@@ -254,8 +254,9 @@ export class AnalyticsService {
 
     let totalRevenue = 0
     let cogs = 0
+    let hasCostDataError = false
     const products = await productService.listAllProducts(businessId)
-    const productCostMap = new Map(products.map(p => [p.$id, p.purchasePrice || 0]))
+    const productCostMap = new Map(products.map(p => [p.$id, p.purchasePrice]))
 
     for (const sale of filteredSales) {
       totalRevenue += sale.total || 0
@@ -264,12 +265,17 @@ export class AnalyticsService {
         const items = await saleItemService.listSaleItems(sale.$id, businessId)
         let saleCogs = 0
         for (const item of items) {
-          const cost = productCostMap.get(item.productId) || 0
-          saleCogs += cost * (item.quantity || 0)
+          const cost = productCostMap.get(item.productId)
+          if (cost === undefined || cost === null || cost <= 0) {
+            // Missing or zero cost price implies unreliable COGS for standard retail
+            hasCostDataError = true
+          }
+          saleCogs += (cost || 0) * (item.quantity || 0)
         }
         cogs += saleCogs
       } catch (err) {
         console.warn(`Could not load sale items for sale ${sale.$id} to calculate COGS`, err)
+        hasCostDataError = true
       }
     }
 
@@ -286,7 +292,7 @@ export class AnalyticsService {
       netProfit: Math.round(netProfit * 100) / 100,
       netMarginPercent: Math.round(netMarginPercent * 10) / 10,
       totalSalesCount: filteredSales.length,
-      hasCostDataError: false // We are computing COGS now
+      hasCostDataError
     }
   }
 }

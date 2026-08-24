@@ -71,6 +71,6 @@ describe('VAT Calculation Hardening & Financial Invariants', () => {
         dueAmount: 0,
         changeAmount: 200,
       })
-    ).not.toThrow()
+    ).toThrow('Financial Invariant Error: Paid amount cannot exceed total amount')
   })
 })

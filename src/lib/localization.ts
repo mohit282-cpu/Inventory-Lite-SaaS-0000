@@ -323,6 +323,7 @@ export function getBillSummaryDetails(sale: {
   paidAmount?: number
   dueAmount?: number
   changeAmount?: number
+  businessTaxType?: TaxRegistrationType | string
 }): BillSummaryDetails {
   const subtotal = sale.subtotal || 0
   const discountAmount = sale.discount || 0
@@ -387,8 +388,9 @@ export function getBillSummaryDetails(sale: {
   const dueAmount = sale.dueAmount || 0
   const changeAmount = sale.changeAmount ?? Math.max(0, paidAmount - grandTotal)
 
-  const invoiceTitleEn = showVat ? 'TAX INVOICE' : 'SALES INVOICE'
-  const invoiceTitleNe = showVat ? 'कर बिजक' : 'बिजक'
+  const isVatBusiness = sale.businessTaxType === 'VAT'
+  const invoiceTitleEn = isVatBusiness ? 'TAX INVOICE' : 'SALES INVOICE'
+  const invoiceTitleNe = isVatBusiness ? 'कर बिजक' : 'बिजक'
 
   return {
     subtotal,

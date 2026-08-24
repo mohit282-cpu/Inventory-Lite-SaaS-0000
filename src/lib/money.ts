@@ -144,6 +144,9 @@ export function calculateSaleTotals(params: {
 
   const duePaisa = Math.max(0, totalPaisa - requestedPaidPaisa)
   const changePaisa = Math.max(0, requestedPaidPaisa - totalPaisa)
+  
+  // Enforce invariant: the recorded paidAmount must not exceed the total transaction amount
+  const appliedPaidPaisa = Math.min(requestedPaidPaisa, totalPaisa)
 
   return {
     subtotal: fromMinorUnits(grossSubtotalPaisa),
@@ -151,7 +154,7 @@ export function calculateSaleTotals(params: {
     taxableAmount: fromMinorUnits(taxableAmountPaisa),
     taxAmount: fromMinorUnits(taxAmountPaisa),
     total: fromMinorUnits(totalPaisa),
-    paidAmount: fromMinorUnits(requestedPaidPaisa),
+    paidAmount: fromMinorUnits(appliedPaidPaisa),
     dueAmount: fromMinorUnits(duePaisa),
     changeAmount: fromMinorUnits(changePaisa),
     processedItems,
@@ -172,28 +175,24 @@ export function validateFinancialInvariants(record: {
   const dueP = toMinorUnits(record.dueAmount)
   const changeP = record.changeAmount !== undefined
     ? toMinorUnits(record.changeAmount)
-    : Math.max(0, paidP - totalP)
+    : 0 // If changeAmount is undefined, assume 0.
 
   if (totalP < 0) throw new Error('Financial Invariant Error: Total cannot be negative')
   if (paidP < 0) throw new Error('Financial Invariant Error: Paid amount cannot be negative')
   if (dueP < 0) throw new Error('Financial Invariant Error: Due amount cannot be negative')
   if (changeP < 0) throw new Error('Financial Invariant Error: Change amount cannot be negative')
 
+  if (paidP > totalP) {
+    throw new Error('Financial Invariant Error: Paid amount cannot exceed total amount')
+  }
+
   // Rule: Cannot have both due > 0 and change > 0
   if (dueP > 0 && changeP > 0) {
     throw new Error('Financial Invariant Error: Transaction cannot have both Due and Change')
   }
 
-  if (paidP < totalP) {
-    if (Math.abs(dueP - (totalP - paidP)) > 1) {
-      throw new Error('Financial Invariant Error: dueAmount must equal total - paidAmount when underpaid')
-    }
-  } else {
-    if (dueP !== 0) {
-      throw new Error('Financial Invariant Error: dueAmount must be 0 when paidAmount >= total')
-    }
-    if (Math.abs(changeP - (paidP - totalP)) > 1) {
-      throw new Error('Financial Invariant Error: changeAmount must equal paidAmount - total when overpaid')
-    }
+  // Due must exactly equal Total - Paid
+  if (Math.abs(dueP - (totalP - paidP)) > 1) {
+    throw new Error('Financial Invariant Error: dueAmount must equal total - paidAmount')
   }
 }
