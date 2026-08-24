@@ -37,13 +37,12 @@ import { InstallAppButton } from '@/components/pwa/install-prompt'
 import { accountDeletionService } from '@/services/account-deletion.service'
 import { DeleteBusinessModal } from '@/components/features/settings/delete-business-modal'
 import { DeleteAccountModal } from '@/components/features/settings/delete-account-modal'
-import { WidgetSettings } from '@/components/features/settings/widget-settings'
 
 export default function SettingsPage() {
   const { activeBusiness, user, userProfile, memberships, refreshAuth, logout } = useAuth()
   const { toast } = useToast()
 
-  const [activeTab, setActiveTab] = useState<'business' | 'account' | 'team' | 'widgets'>('business')
+  const [activeTab, setActiveTab] = useState<'business' | 'account' | 'team'>('business')
 
   // Business Settings Form State
   const [bizName, setBizName] = useState('')
@@ -517,17 +516,6 @@ export default function SettingsPage() {
           }`}
         >
           <Users className="h-4 w-4" /> 3. Team & RBAC Permissions
-        </button>
-
-        <button
-          onClick={() => setActiveTab('widgets')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
-            activeTab === 'widgets'
-              ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Smartphone className="h-4 w-4" /> 4. Android Home Widgets
         </button>
       </div>
 
@@ -1161,9 +1149,6 @@ export default function SettingsPage() {
           </Card>
         </div>
       )}
-
-      {/* TAB 4: ANDROID HOME-SCREEN WIDGETS */}
-      {activeTab === 'widgets' && <WidgetSettings />}
 
       {/* Invite Member Modal Dialog */}
       <InviteMemberDialog
