@@ -107,7 +107,7 @@ describe('Reports Business Intelligence & Audit Center Engine', () => {
         discount: 0,
         tax: 0,
         total: 2068,
-        paidAmount: 2070, // Rs. 2 difference!
+        paidAmount: 2070, // Rs. 2 difference, no changeAmount field specified
         dueAmount: 0,
         status: 'completed',
         saleNumber: 'SALE-002',
@@ -132,6 +132,41 @@ describe('Reports Business Intelligence & Audit Center Engine', () => {
     expect(paymentIssue?.affectedRecords[0].details?.recorded).toBe(2070)
     expect(paymentIssue?.affectedRecords[0].details?.difference).toBe(2)
     expect(paymentIssue?.affectedRecords[0].url).toBe('/app/sales/s2')
+  })
+
+  it('does NOT flag payment reconciliation error when change is returned to customer (Total: 2068, Received: 2070, Change: 2)', () => {
+    const sales: Sale[] = [
+      {
+        $id: 's_change_ok',
+        $collectionId: 'sales',
+        $databaseId: 'db',
+        $createdAt: '2026-01-01',
+        $updatedAt: '2026-01-01',
+        $permissions: [],
+        businessId: 'biz1',
+        subtotal: 2068,
+        discount: 0,
+        tax: 0,
+        total: 2068,
+        paidAmount: 2070,
+        changeAmount: 2, // Customer received Rs. 2 change
+        dueAmount: 0,
+        status: 'completed',
+        saleNumber: 'SALE-003',
+        invoiceNumber: 'INV-003',
+        customerName: 'Gita Shrestha',
+        paymentMethod: 'cash',
+        createdBy: 'user1',
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+      },
+    ]
+
+    const summary = analyzeBusinessHealth(sales, [], [], [], [])
+    const paymentIssue = summary.issues.find((i) => i.category === 'payment_reconciliation')
+    expect(paymentIssue).toBeDefined()
+    expect(paymentIssue?.severity).toBe('ok')
+    expect(summary.overallStatus).toBe('ok')
   })
 
   it('detects duplicate invoices as Action Required', () => {

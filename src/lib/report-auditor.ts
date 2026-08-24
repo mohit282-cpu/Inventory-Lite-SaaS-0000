@@ -95,8 +95,12 @@ export function analyzeBusinessHealth(
     const total = s.total || 0
     const paid = s.paidAmount || 0
     const due = s.dueAmount || 0
+    const change = s.changeAmount || 0
     const expectedPaid = Math.max(0, total - due)
-    const diff = paid - expectedPaid
+    
+    // Account for change returned (e.g. Received Rs. 2070 for a Rs. 2068 bill, Change returned = Rs. 2)
+    const effectivePaid = (paid > expectedPaid && change > 0) ? Math.max(expectedPaid, paid - change) : paid
+    const diff = effectivePaid - expectedPaid
 
     // Mismatch threshold > 0.50 (to ignore minor rounding fractions)
     if (Math.abs(diff) > 0.50) {
