@@ -330,12 +330,12 @@ export function generateStockLedgerPdf(options: StockLedgerPdfOptions): jsPDF {
     columnStyles: {
       0: { cellWidth: 28 }, // Date & Time
       1: { cellWidth: 26, fontStyle: 'bold' }, // Reference
-      2: { cellWidth: 50 }, // Product
+      2: { }, // Product (Auto-resize)
       3: { cellWidth: 24 }, // Type
       4: { cellWidth: 20, halign: 'right', fontStyle: 'bold', textColor: [4, 120, 87] }, // Stock In (Emerald)
       5: { cellWidth: 20, halign: 'right', fontStyle: 'bold', textColor: [185, 28, 28] }, // Stock Out (Red)
       6: { cellWidth: 32, halign: 'center', fontStyle: 'bold' }, // Transition
-      7: { cellWidth: 42 }, // Reason
+      7: { }, // Reason (Auto-resize)
       8: { cellWidth: 26 }, // User
     },
     didDrawPage: (data) => {

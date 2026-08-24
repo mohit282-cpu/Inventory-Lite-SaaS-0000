@@ -24,8 +24,12 @@ vi.mock('@/config/appwrite', () => {
     },
     databases: {
       createDocument: vi.fn(async (_dbId, colId, id, data) => {
+        const docId = id || `doc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+        if (store.has(`${colId}:${docId}`)) {
+          throw { code: 409, message: 'Document already exists' }
+        }
         const doc = {
-          $id: id || `doc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          $id: docId,
           $collectionId: colId,
           $databaseId: _dbId,
           $createdAt: new Date().toISOString(),

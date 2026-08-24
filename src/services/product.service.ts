@@ -1,5 +1,5 @@
 import { BaseService } from './base.service'
-import { COLLECTIONS } from '@/config/appwrite'
+import { COLLECTIONS, databases, DATABASE_ID } from '@/config/appwrite'
 import { Product } from '@/types'
 import { Query } from 'appwrite'
 
@@ -10,28 +10,53 @@ import { Query } from 'appwrite'
  * backend-authoritative SKU/barcode uniqueness, and auditable stock mutations.
  */
 export class ProductService extends BaseService {
-  private stockLockMap = new Map<string, Promise<any>>()
-
   constructor() {
     super(COLLECTIONS.PRODUCTS)
   }
 
   /**
    * Executes a task under strict per-product async queue lock to prevent race conditions.
+   * Utilizes an Appwrite 'inventory_locks' collection to ensure atomicity across processes.
    */
   async withStockLock<T>(productId: string, task: () => Promise<T>): Promise<T> {
-    const existingLock = this.stockLockMap.get(productId) || Promise.resolve()
-    const nextLock = existingLock.then(async () => {
+    const lockId = `lock_${productId}`
+    const maxRetries = 10
+    const retryDelayMs = 500
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await task()
-      } finally {
-        if (this.stockLockMap.get(productId) === nextLock) {
-          this.stockLockMap.delete(productId)
+        // Attempt to acquire lock by creating a document with a unique ID
+        await databases.createDocument(
+          DATABASE_ID,
+          COLLECTIONS.INVENTORY_LOCKS,
+          lockId,
+          { productId, createdAt: new Date().toISOString() }
+        )
+
+        // Lock acquired, execute task
+        try {
+          return await task()
+        } finally {
+          // Always release lock
+          try {
+            await databases.deleteDocument(DATABASE_ID, COLLECTIONS.INVENTORY_LOCKS, lockId)
+          } catch (deleteErr) {
+            console.error(`Failed to release lock for ${productId}:`, deleteErr)
+          }
         }
+      } catch (err: any) {
+        // If document already exists, another process has the lock (Appwrite 409 conflict)
+        if (err?.code === 409) {
+          if (attempt === maxRetries) {
+            throw new Error(`Timeout acquiring lock for product ${productId}`)
+          }
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
+          continue
+        }
+        throw err
       }
-    })
-    this.stockLockMap.set(productId, nextLock)
-    return await nextLock
+    }
+    throw new Error('Unexpected lock failure')
   }
 
   /**
@@ -74,38 +99,58 @@ export class ProductService extends BaseService {
       throw new Error('Stock quantity cannot be negative')
     }
 
-    // Uniqueness validation across active business products
-    if (sku) {
-      const existingSku = await this.list<Product>(businessId, [Query.equal('sku', sku)])
-      if (existingSku.length > 0) {
-        throw new Error(`Product with SKU "${sku}" already exists in this business`)
+    let skuLockId = ''
+    let barcodeLockId = ''
+
+    try {
+      // Uniqueness validation across active business products
+      if (sku) {
+        skuLockId = `sku_${businessId}_${sku}`
+        try {
+          await databases.createDocument(DATABASE_ID, COLLECTIONS.INVENTORY_LOCKS, skuLockId, { productId: 'sku_check', createdAt: new Date().toISOString() })
+        } catch (err: any) {
+          if (err?.code === 409) throw new Error(`Product with SKU "${sku}" already exists or is being created`)
+          throw err
+        }
+        
+        const existingSku = await this.list<Product>(businessId, [Query.equal('sku', sku)])
+        if (existingSku.length > 0) {
+          throw new Error(`Product with SKU "${sku}" already exists in this business`)
+        }
       }
-    }
 
-    if (barcode) {
-      const existingBarcode = await this.list<Product>(businessId, [Query.equal('barcode', barcode)])
-      if (existingBarcode.length > 0) {
-        throw new Error(`Product with Barcode "${barcode}" already exists in this business`)
+      if (barcode) {
+        barcodeLockId = `bar_${businessId}_${barcode}`
+        try {
+          await databases.createDocument(DATABASE_ID, COLLECTIONS.INVENTORY_LOCKS, barcodeLockId, { productId: 'bar_check', createdAt: new Date().toISOString() })
+        } catch (err: any) {
+          if (err?.code === 409) throw new Error(`Product with Barcode "${barcode}" already exists or is being created`)
+          throw err
+        }
+
+        const existingBarcode = await this.list<Product>(businessId, [Query.equal('barcode', barcode)])
+        if (existingBarcode.length > 0) {
+          throw new Error(`Product with Barcode "${barcode}" already exists in this business`)
+        }
       }
-    }
 
-    const payload = {
-      name,
-      sku,
-      barcode,
-      categoryId: data.categoryId || '',
-      unit: data.unit || 'pcs',
-      purchasePrice: data.purchasePrice,
-      sellingPrice: data.sellingPrice,
-      stockQuantity: data.stockQuantity,
-      lowStockThreshold: data.lowStockThreshold ?? 5,
-      imageUrl: data.imageUrl || '',
-      isActive: data.isActive ?? true,
-    }
+      const payload = {
+        name,
+        sku,
+        barcode,
+        categoryId: data.categoryId || '',
+        unit: data.unit || 'pcs',
+        purchasePrice: data.purchasePrice,
+        sellingPrice: data.sellingPrice,
+        stockQuantity: data.stockQuantity,
+        lowStockThreshold: data.lowStockThreshold ?? 5,
+        imageUrl: data.imageUrl || '',
+        isActive: data.isActive ?? true,
+      }
 
-    const createdProduct = await this.create<Product>(payload, businessId, userId)
+      const createdProduct = await this.create<Product>(payload, businessId, userId)
 
-    // Record initial stock movement for opening stock (with transaction rollback on failure)
+      // Record initial stock movement for opening stock (with transaction rollback on failure)
     if (data.stockQuantity > 0) {
       try {
         const { stockMovementService } = await import('./stock-movement.service')
@@ -131,9 +176,18 @@ export class ProductService extends BaseService {
         }
         throw new Error(`Product creation failed: Unable to record opening stock audit trail: ${stockErr.message}`)
       }
-    }
+      }
 
-    return createdProduct
+      return createdProduct
+    } finally {
+      // Release uniqueness locks
+      if (skuLockId) {
+        try { await databases.deleteDocument(DATABASE_ID, COLLECTIONS.INVENTORY_LOCKS, skuLockId) } catch (e) { /* ignore */ }
+      }
+      if (barcodeLockId) {
+        try { await databases.deleteDocument(DATABASE_ID, COLLECTIONS.INVENTORY_LOCKS, barcodeLockId) } catch (e) { /* ignore */ }
+      }
+    }
   }
 
   /**

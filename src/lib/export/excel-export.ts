@@ -46,8 +46,8 @@ export function exportToExcel(data: ExportDataPayload) {
     .filter(s => s.status !== 'cancelled')
     .map(s => ({
       Date: new Date(s.createdAt).toLocaleDateString(),
-      'Sale Number': s.saleNumber || `SALE-${s.$id.substring(0, 6)}`,
-      'Invoice #': s.invoiceId || '',
+      'Sale Number': s.saleNumber || '-',
+      'Invoice #': invoices.find(i => i.$id === s.invoiceId)?.invoiceNumber || '-',
       Method: s.paymentMethod,
       Status: s.status,
       Total: s.total
@@ -58,7 +58,7 @@ export function exportToExcel(data: ExportDataPayload) {
   const invoiceData = invoices.map(i => ({
     Date: new Date(i.createdAt).toLocaleDateString(),
     'Invoice Number': i.invoiceNumber,
-    'Sale ID': i.saleId,
+    'Sale #': sales.find(s => s.$id === i.saleId)?.saleNumber || '-',
     Status: i.status
   }))
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(invoiceData), '04 Invoice Register')

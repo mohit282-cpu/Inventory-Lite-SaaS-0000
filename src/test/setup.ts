@@ -8,6 +8,22 @@ afterEach(() => {
   cleanup()
 })
 
+// Mock console.error to suppress expected test errors
+const originalError = console.error;
+console.error = (...args) => {
+  const msg = args.join(' ');
+  // Suppress specific known errors from test output
+  if (
+    msg.includes('Not implemented: window.matchMedia') ||
+    msg.includes('Error: Insufficient stock') ||
+    msg.includes('Failed to release lock') ||
+    msg.includes('Transaction failed')
+  ) {
+    return;
+  }
+  originalError(...args);
+};
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

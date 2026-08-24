@@ -26,8 +26,12 @@ vi.mock('@/config/appwrite', () => {
     },
     databases: {
       createDocument: vi.fn(async (_dbId, colId, id, data) => {
+        const docId = id || `doc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+        if (store.has(`${colId}:${docId}`)) {
+          throw { code: 409, message: 'Document already exists' }
+        }
         const doc = {
-          $id: id || `doc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          $id: docId,
           $collectionId: colId,
           $databaseId: _dbId,
           $createdAt: new Date().toISOString(),
@@ -75,6 +79,7 @@ vi.mock('@/config/appwrite', () => {
         }
         return { documents: filtered, total: filtered.length }
       }),
+      __clearStore: () => store.clear(),
     },
   }
 })
@@ -84,6 +89,7 @@ import { saleService } from '@/services/sale.service'
 import { paymentService } from '@/services/payment.service'
 import { invoiceService } from '@/services/invoice.service'
 import { idempotencyManager } from '@/lib/idempotency'
+import { databases } from '@/config/appwrite'
 
 describe('P0 & P1 Hardening: Concurrency, Idempotency, Payment Reversal & Invoice Tests', () => {
   const bizId = 'biz_p0_hardening_test'
@@ -92,6 +98,7 @@ describe('P0 & P1 Hardening: Concurrency, Idempotency, Payment Reversal & Invoic
   beforeEach(() => {
     vi.restoreAllMocks()
     idempotencyManager.clear()
+    if ((databases as any).__clearStore) (databases as any).__clearStore()
   })
 
   it('P0-1 Stock Concurrency Test: Initial stock = 10, 10 concurrent requests of qty = 7 (Repeated 50 iterations)', async () => {

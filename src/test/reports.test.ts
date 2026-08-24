@@ -8,31 +8,32 @@ import { expenseService } from '@/services/expense.service'
 
 vi.mock('@/services/product.service', () => ({
   productService: {
-    listProducts: vi.fn(),
+    listAllProducts: vi.fn(),
   },
 }))
 
 vi.mock('@/services/customer.service', () => ({
   customerService: {
-    listCustomers: vi.fn(),
+    listAllCustomers: vi.fn(),
   },
 }))
 
 vi.mock('@/services/sale.service', () => ({
   saleService: {
-    listSales: vi.fn(),
+    listAllSales: vi.fn(),
   },
 }))
 
 vi.mock('@/services/sale-item.service', () => ({
   saleItemService: {
     listSaleItems: vi.fn(),
+    listAllSaleItems: vi.fn(),
   },
 }))
 
 vi.mock('@/services/expense.service', () => ({
   expenseService: {
-    listExpenses: vi.fn(),
+    listAllExpenses: vi.fn(),
     getExpenseSummary: vi.fn().mockResolvedValue({ todayExpenses: 0, thisMonthExpenses: 0, totalExpenses: 0 }),
   },
 }))
@@ -48,18 +49,18 @@ describe('Analytics & Reports System', () => {
     it('should accurately aggregate product stock statuses and customer dues', async () => {
       const todayISO = new Date().toISOString()
 
-      vi.mocked(productService.listProducts).mockResolvedValueOnce([
+      vi.mocked(productService.listAllProducts).mockResolvedValueOnce([
         { $id: 'p1', name: 'Prod 1', stockQuantity: 10, lowStockThreshold: 5 } as any,
         { $id: 'p2', name: 'Prod 2', stockQuantity: 3, lowStockThreshold: 5 } as any,
         { $id: 'p3', name: 'Prod 3', stockQuantity: 0, lowStockThreshold: 5 } as any,
       ])
 
-      vi.mocked(customerService.listCustomers).mockResolvedValueOnce([
+      vi.mocked(customerService.listAllCustomers).mockResolvedValueOnce([
         { $id: 'c1', name: 'Cust 1', totalDue: 1500 } as any,
         { $id: 'c2', name: 'Cust 2', totalDue: 2500 } as any,
       ])
 
-      vi.mocked(saleService.listSales).mockResolvedValueOnce([
+      vi.mocked(saleService.listAllSales).mockResolvedValueOnce([
         { $id: 's1', total: 5000, createdAt: todayISO } as any,
       ])
 
@@ -76,15 +77,15 @@ describe('Analytics & Reports System', () => {
 
   describe('Executive Net Profit Statement', () => {
     it('should compute Net Profit = Revenue - COGS - Expenses', async () => {
-      vi.mocked(saleService.listSales).mockResolvedValueOnce([
+      vi.mocked(saleService.listAllSales).mockResolvedValueOnce([
         { $id: 'sale_1', total: 10000, createdAt: '2026-08-19T10:00:00.000Z' } as any,
       ])
 
-      vi.mocked(productService.listProducts).mockResolvedValueOnce([
+      vi.mocked(productService.listAllProducts).mockResolvedValueOnce([
         { $id: 'prod_keyboard', purchasePrice: 2000 } as any,
       ])
 
-      vi.mocked(expenseService.listExpenses).mockResolvedValueOnce([
+      vi.mocked(expenseService.listAllExpenses).mockResolvedValueOnce([
         { $id: 'exp_1', amount: 1500 } as any,
       ])
 

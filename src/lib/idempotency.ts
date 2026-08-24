@@ -1,3 +1,5 @@
+import { COLLECTIONS, databases, DATABASE_ID } from '@/config/appwrite'
+
 /**
  * Idempotency Record Interface
  * 
@@ -56,7 +58,6 @@ export function computePayloadHash(payload: any): string {
 
 export class IdempotencyManager {
   private cache = new Map<string, CacheRecord>()
-  private persistentRecords = new Map<string, IdempotencyRecord>()
   private ttlMs: number
 
   constructor(ttlMs: number = 60000) {
@@ -98,12 +99,12 @@ export class IdempotencyManager {
 
   clear(): void {
     this.cache.clear()
-    this.persistentRecords.clear()
   }
 
   /**
    * Process a transaction idempotently with persistent storage, stale lock recovery, and payload hash validation (P0-2).
    * Prevents duplicate financial transactions across serverless processes, tabs, and network retries.
+   * Utilizes Appwrite collection for authoritative distributed lock.
    */
   async executeIdempotentTransaction<T>(
     params: {
@@ -123,7 +124,7 @@ export class IdempotencyManager {
     }
 
     const key = idempotencyKey.trim()
-    const compositeKey = `${businessId}:${operationType}:${key}`
+    const compositeKey = `${key}_${businessId}_${operationType}`.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 36)
     const requestHash = computePayloadHash(payload)
 
     // 1. In-memory lock per composite key (prevents duplicate execution within same JS runtime)
@@ -139,23 +140,29 @@ export class IdempotencyManager {
     }
 
     const taskPromise = (async (): Promise<T> => {
-      // 2. Check in-memory persistent store for completed or active record
-      const memRecord = this.persistentRecords.get(compositeKey)
-      if (memRecord) {
-        if (memRecord.requestHash !== requestHash) {
-          throw new Error(
-            `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${key}' was already used for a different payload in ${operationType}`
-          )
-        }
-        if (memRecord.status === 'COMPLETED' && memRecord.result !== undefined) {
-          return memRecord.result as T
-        }
-        // Stale PROCESSING lock recovery: if stuck in PROCESSING for over 60s, allow retry
-        if (memRecord.status === 'PROCESSING') {
-          const createdAt = new Date(memRecord.createdAt).getTime()
-          if (now - createdAt < 60000) {
-            throw new Error(`IDEMPOTENCY_TRANSACTION_IN_PROGRESS: Transaction with key '${key}' is currently being processed`)
+      // 2. Check distributed persistent store for completed or active record
+      try {
+        const memRecord = await databases.getDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey)
+        if (memRecord) {
+          if (memRecord.requestHash !== requestHash) {
+            throw new Error(
+              `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${key}' was already used for a different payload in ${operationType}`
+            )
           }
+          if (memRecord.status === 'COMPLETED' && memRecord.result) {
+            return JSON.parse(memRecord.result) as T
+          }
+          if (memRecord.status === 'PROCESSING') {
+            const createdAt = new Date(memRecord.createdAt).getTime()
+            if (Date.now() - createdAt < 60000) {
+              throw new Error(`IDEMPOTENCY_TRANSACTION_IN_PROGRESS: Transaction with key '${key}' is currently being processed`)
+            }
+          }
+        }
+      } catch (err: any) {
+        // Ignore 404 (document not found)
+        if (err?.code !== 404) {
+          // Fall through, might be network error, we will just proceed with cautious checks
         }
       }
 
@@ -169,19 +176,31 @@ export class IdempotencyManager {
               `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${key}' was already used for a different payload in ${operationType}`
             )
           }
-          const completedRec: IdempotencyRecord = {
-            idempotencyKey: key,
-            businessId,
-            operationType,
-            requestHash,
-            status: 'COMPLETED',
-            resourceType,
-            resourceId: (existingDoc as any)?.$id || (existingDoc as any)?.id || (existingDoc as any)?.sale?.$id,
-            result: existingDoc,
-            createdAt: new Date().toISOString(),
-            completedAt: new Date().toISOString(),
+          
+          try {
+            await databases.createDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
+              idempotencyKey: key,
+              businessId,
+              operationType,
+              requestHash,
+              status: 'COMPLETED',
+              resourceType,
+              resourceId: (existingDoc as any)?.$id || (existingDoc as any)?.id || (existingDoc as any)?.sale?.$id || '',
+              result: JSON.stringify(existingDoc),
+              createdAt: new Date().toISOString(),
+              completedAt: new Date().toISOString(),
+            })
+          } catch (e: any) {
+            if (e?.code === 409) {
+              // Already exists, we update it
+              await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
+                status: 'COMPLETED',
+                result: JSON.stringify(existingDoc),
+                completedAt: new Date().toISOString(),
+              })
+            }
           }
-          this.persistentRecords.set(compositeKey, completedRec)
+
           return existingDoc
         }
       } catch (err: any) {
@@ -193,48 +212,50 @@ export class IdempotencyManager {
         }
       }
 
-      // 4. Reserve 'PROCESSING' record atomically in memory
-      const processingRecord: IdempotencyRecord = {
+      // 4. Reserve 'PROCESSING' record atomically in distributed store
+      const processingRecord = {
         idempotencyKey: key,
         businessId,
         operationType,
         requestHash,
         status: 'PROCESSING',
-        resourceType,
+        resourceType: resourceType || 'unknown',
         createdAt: new Date().toISOString(),
       }
-      this.persistentRecords.set(compositeKey, processingRecord)
+      
+      try {
+        await databases.createDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, processingRecord)
+      } catch (e: any) {
+        if (e?.code === 409) {
+           // Document already exists, someone else created it
+           // Check if it's processing or completed
+           const existing = await databases.getDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey)
+           if (existing.status === 'COMPLETED') {
+             return JSON.parse(existing.result) as T
+           }
+           throw new Error(`IDEMPOTENCY_TRANSACTION_IN_PROGRESS: Transaction with key '${key}' is currently being processed`)
+        }
+        throw e
+      }
 
       // 5. Execute operation
       try {
         const result = await operation()
-        const completedRec: IdempotencyRecord = {
-          idempotencyKey: key,
-          businessId,
-          operationType,
-          requestHash,
+        
+        await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
           status: 'COMPLETED',
-          resourceType,
-          resourceId: (result as any)?.$id || (result as any)?.id,
-          result,
-          createdAt: processingRecord.createdAt,
+          resourceId: (result as any)?.$id || (result as any)?.id || '',
+          result: JSON.stringify(result),
           completedAt: new Date().toISOString(),
-        }
-        this.persistentRecords.set(compositeKey, completedRec)
+        })
+
         return result
       } catch (err: any) {
-        const failedRec: IdempotencyRecord = {
-          idempotencyKey: key,
-          businessId,
-          operationType,
-          requestHash,
+        await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
           status: 'FAILED',
-          resourceType,
           error: err?.message || 'Operation failed',
-          createdAt: processingRecord.createdAt,
           completedAt: new Date().toISOString(),
-        }
-        this.persistentRecords.set(compositeKey, failedRec)
+        })
         throw err
       }
     })()
@@ -274,5 +295,6 @@ export class IdempotencyManager {
 
 export const idempotencyManager = new IdempotencyManager()
 export const serverIdempotencyManager = idempotencyManager
+
 
 

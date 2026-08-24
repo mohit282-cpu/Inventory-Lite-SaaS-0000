@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatCurrency } from '@/lib/utils'
 import { Product } from '@/types'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 
 export interface InventoryReportProps {
   products: Product[]
@@ -20,27 +21,36 @@ export function InventoryReport({ products }: InventoryReportProps) {
   return (
     <Card className="col-span-1 md:col-span-2 lg:col-span-4">
       <CardHeader>
-        <CardTitle>Inventory Valuation & Status</CardTitle>
+        <Link href="/app/products" className="group inline-flex items-center hover:opacity-80 transition-opacity">
+          <CardTitle>Inventory Valuation & Status</CardTitle>
+          <ExternalLink className="ml-2 w-4 h-4 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </Link>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 border-b pb-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
           <div>
             <p className="text-sm font-medium text-muted-foreground">Total SKUs</p>
             <p className="text-2xl font-bold">{activeProducts.length}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Value at Cost</p>
+            <p className="text-sm font-medium text-muted-foreground">Current Stock Cost Value</p>
             <p className="text-2xl font-bold">{formatCurrency(totalValueAtCost)}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Value at Retail</p>
+            <p className="text-sm font-medium text-muted-foreground">Current Stock Retail Value</p>
             <p className="text-2xl font-bold">{formatCurrency(totalValueAtRetail)}</p>
           </div>
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Potential Profit</p>
-            <p className="text-2xl font-bold text-green-600">{formatCurrency(totalValueAtRetail - totalValueAtCost)}</p>
+            <p className="text-sm font-medium text-muted-foreground">Potential Gross Margin</p>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalValueAtRetail - totalValueAtCost)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Potential Gross Margin is based on current stock cost versus current retail value. It is not realized profit.
+            </p>
           </div>
         </div>
+        <p className="text-xs text-muted-foreground mb-6 border-b pb-4">
+          * Potential Gross Margin represents non-realized profit assuming all current stock is sold at current retail price.
+        </p>
 
         <div>
           <h4 className="text-sm font-semibold mb-2 flex items-center">

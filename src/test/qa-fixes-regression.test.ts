@@ -47,7 +47,7 @@ describe('QA Audit Regression Tests', () => {
       totalDue: 100,
     } as any)
 
-    vi.spyOn(saleService, 'listSales').mockResolvedValue([
+    vi.spyOn(saleService, 'listAllSales').mockResolvedValue([
       { $id: 'sale_1', total: 500, paidAmount: 400, dueAmount: 100 },
       { $id: 'sale_2', total: 250, paidAmount: 250, dueAmount: 0 },
     ] as any)
@@ -71,7 +71,7 @@ describe('QA Audit Regression Tests', () => {
   })
 
   it('TEST 3: AnalyticsService handles all Nepalese and digital wallet payment methods', async () => {
-    vi.spyOn(saleService, 'listSales').mockResolvedValue([
+    vi.spyOn(saleService, 'listAllSales').mockResolvedValue([
       { $id: 's1', total: 100, paymentMethod: 'eSewa' },
       { $id: 's2', total: 200, paymentMethod: 'Khalti' },
       { $id: 's3', total: 300, paymentMethod: 'digital_wallet' },

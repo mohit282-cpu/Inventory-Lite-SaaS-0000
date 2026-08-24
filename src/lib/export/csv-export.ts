@@ -29,8 +29,8 @@ export function exportToCSV(data: ExportDataPayload, type: 'sales' | 'invoices' 
     csv += 'Date,Sale Number,Invoice #,Method,Status,Total\n'
     data.sales.forEach(s => {
       const date = escapeCSV(new Date(s.createdAt).toLocaleDateString())
-      const saleNum = escapeCSV(s.saleNumber || `SALE-${s.$id.substring(0, 6)}`)
-      const invoice = escapeCSV(s.invoiceId || '')
+      const saleNum = escapeCSV(s.saleNumber || '-')
+      const invoice = escapeCSV(data.invoices.find(i => i.$id === s.invoiceId)?.invoiceNumber || '-')
       const method = escapeCSV(s.paymentMethod || '')
       const status = escapeCSV(s.status || '')
       const total = escapeCSV(s.total)
@@ -40,13 +40,13 @@ export function exportToCSV(data: ExportDataPayload, type: 'sales' | 'invoices' 
   } 
   
   else if (type === 'invoices') {
-    csv += 'Date,Invoice Number,Sale ID,Status\n'
+    csv += 'Date,Invoice Number,Sale #,Status\n'
     data.invoices.forEach(i => {
       const date = escapeCSV(new Date(i.createdAt).toLocaleDateString())
       const num = escapeCSV(i.invoiceNumber)
-      const saleId = escapeCSV(i.saleId)
+      const saleNum = escapeCSV(data.sales.find(s => s.$id === i.saleId)?.saleNumber || '-')
       const status = escapeCSV(i.status)
-      csv += `${date},${num},${saleId},${status}\n`
+      csv += `${date},${num},${saleNum},${status}\n`
     })
     downloadCSV(csv, `${data.businessName}_Invoices_${data.yearLabel.replace('/', '_')}.csv`)
   }

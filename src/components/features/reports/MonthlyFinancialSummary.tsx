@@ -13,13 +13,15 @@ export interface MonthlyData {
 
 interface MonthlyFinancialSummaryProps {
   data: MonthlyData[]
+  hasCostDataError?: boolean
+  title?: string
 }
 
-export function MonthlyFinancialSummary({ data }: MonthlyFinancialSummaryProps) {
+export function MonthlyFinancialSummary({ data, hasCostDataError, title = "Monthly Financial Summary" }: MonthlyFinancialSummaryProps) {
   return (
     <Card className="col-span-1 md:col-span-2 lg:col-span-4">
       <CardHeader>
-        <CardTitle>Monthly Financial Summary</CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent className="h-[400px] print:h-auto">
         <ResponsiveContainer width="100%" height="100%">
@@ -37,9 +39,16 @@ export function MonthlyFinancialSummary({ data }: MonthlyFinancialSummaryProps) 
             <Legend />
             <Bar dataKey="revenue" name="Revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             <Bar dataKey="expenses" name="Expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="profit" name="Net Profit" fill="#10b981" radius={[4, 4, 0, 0]} />
+            {!hasCostDataError && (
+              <Bar dataKey="profit" name="Net Profit" fill="#10b981" radius={[4, 4, 0, 0]} />
+            )}
           </BarChart>
         </ResponsiveContainer>
+        {hasCostDataError && (
+          <div className="text-xs text-red-500 mt-2 text-center">
+            Net Profit calculation unavailable in chart — cost data required.
+          </div>
+        )}
       </CardContent>
     </Card>
   )

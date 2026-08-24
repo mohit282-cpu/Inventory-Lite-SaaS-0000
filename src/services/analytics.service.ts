@@ -43,6 +43,7 @@ export interface ProfitEstimateReport {
   netProfit: number
   netMarginPercent: number
   totalSalesCount: number
+  hasCostDataError?: boolean
 }
 
 export class AnalyticsService {
@@ -233,17 +234,11 @@ export class AnalyticsService {
     businessId: string,
     startDate?: string,
     endDate?: string
-  ): Promise<ProfitEstimateReport> {
-    const [sales, products, expenses] = await Promise.all([
+  ): Promise<ProfitEstimateReport & { hasCostDataError?: boolean }> {
+    const [sales, expenses] = await Promise.all([
       saleService.listAllSales(businessId, { dateFrom: startDate, dateTo: endDate }),
-      productService.listAllProducts(businessId),
       expenseService.listAllExpenses(businessId, { dateFrom: startDate, dateTo: endDate }),
     ])
-
-    const productPurchaseMap = new Map<string, number>()
-    for (const p of products) {
-      productPurchaseMap.set(p.$id, p.purchasePrice || 0)
-    }
 
     let filteredSales = sales.filter((s) => s.status !== 'cancelled')
     let filteredExpenses = expenses
@@ -259,17 +254,22 @@ export class AnalyticsService {
 
     let totalRevenue = 0
     let cogs = 0
+    const products = await productService.listAllProducts(businessId)
+    const productCostMap = new Map(products.map(p => [p.$id, p.purchasePrice || 0]))
 
     for (const sale of filteredSales) {
       totalRevenue += sale.total || 0
+      
       try {
         const items = await saleItemService.listSaleItems(sale.$id, businessId)
+        let saleCogs = 0
         for (const item of items) {
-          const unitCost = productPurchaseMap.get(item.productId) || 0
-          cogs += (item.quantity || 0) * unitCost
+          const cost = productCostMap.get(item.productId) || 0
+          saleCogs += cost * (item.quantity || 0)
         }
+        cogs += saleCogs
       } catch (err) {
-        console.warn(`Could not calculate COGS for sale ${sale.$id}:`, err)
+        console.warn(`Could not load sale items for sale ${sale.$id} to calculate COGS`, err)
       }
     }
 
@@ -286,6 +286,7 @@ export class AnalyticsService {
       netProfit: Math.round(netProfit * 100) / 100,
       netMarginPercent: Math.round(netMarginPercent * 10) / 10,
       totalSalesCount: filteredSales.length,
+      hasCostDataError: false // We are computing COGS now
     }
   }
 }

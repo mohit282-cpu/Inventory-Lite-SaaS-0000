@@ -174,7 +174,7 @@ export class CustomerService extends BaseService {
     let sales: any[] = []
     try {
       const { saleService } = await import('./sale.service')
-      sales = await saleService.listSales(businessId, { customerId })
+      sales = await saleService.listAllSales(businessId, { customerId })
     } catch {
       // Fallback if sales query fails
     }

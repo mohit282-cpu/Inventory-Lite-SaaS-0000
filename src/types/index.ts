@@ -170,7 +170,6 @@ export interface Sale extends Models.Document {
   customerId?: string
   invoiceId?: string
   saleNumber?: string
-  invoiceStatus?: 'PENDING' | 'GENERATED' | 'FAILED'
   idempotencyKey?: string
   requestHash?: string
   notes?: string

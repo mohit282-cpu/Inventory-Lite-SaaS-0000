@@ -274,7 +274,9 @@ export class SaleService extends BaseService {
         }
       } catch (err: any) {
         // COMPENSATING TRANSACTION ROLLBACK
-        console.error('Sale transaction failed. Executing compensating rollback:', err)
+        if (process.env.NODE_ENV !== 'test') {
+          console.error('Sale transaction failed. Executing compensating rollback:', err)
+        }
 
         // Rollback stock deductions
         for (const deduction of processedDeductions) {
@@ -356,6 +358,7 @@ export class SaleService extends BaseService {
       dateFrom?: string // ISO string
       dateTo?: string   // ISO string
       status?: SaleStatus
+      customerId?: string
     }
   ): Promise<Sale[]> {
     const queries: any[] = [Query.orderDesc('createdAt')]
@@ -368,6 +371,9 @@ export class SaleService extends BaseService {
     }
     if (filters?.status) {
       queries.push(Query.equal('status', filters.status))
+    }
+    if (filters?.customerId) {
+      queries.push(Query.equal('customerId', filters.customerId))
     }
 
     return await this.listAll<Sale>(businessId, queries)

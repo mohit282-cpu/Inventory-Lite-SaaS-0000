@@ -208,33 +208,6 @@ describe('Sales & POS Billing Module Tests', () => {
     expect(salesB.every((s) => s.businessId === bizB)).toBe(true)
   })
 
-  it('automatically handles Appwrite Unknown attribute errors by stripping unconfigured optional attributes', async () => {
-    const { databases } = await import('@/config/appwrite')
-    let mockFailedOnce = false
-    const originalCreate = databases.createDocument
-    vi.spyOn(databases, 'createDocument').mockImplementation(async (dbId, colId, id, data, perms) => {
-      if (!mockFailedOnce && colId === 'sales' && (data as any).invoiceStatus) {
-        mockFailedOnce = true
-        throw new Error('Invalid document structure: Unknown attribute: "invoiceStatus"')
-      }
-      return originalCreate(dbId, colId, id, data, perms)
-    })
 
-    const prod = await productService.createProduct(
-      { name: 'Unknown Attr Test Item', sku: 'SKU-UNKN-ATTR', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 10 },
-      bizA,
-      user1
-    )
-
-    const saleResult = await saleService.createSale(
-      { items: [{ productId: prod.$id, quantity: 1, unitPrice: 20, discount: 0 }], paidAmount: 20, paymentMethod: 'cash' },
-      bizA,
-      user1
-    )
-
-    expect(saleResult.sale.$id).toBeDefined()
-    expect(mockFailedOnce).toBe(true)
-
-  })
 })
 

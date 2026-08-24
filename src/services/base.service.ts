@@ -112,32 +112,15 @@ export abstract class BaseService {
       Permission.delete(secureTarget),
     ]
 
-    let attempts = 0
-    while (attempts < 5) {
-      try {
-        const doc = await databases.createDocument(
-          DATABASE_ID,
-          this.collectionId,
-          customId || ID.unique(),
-          documentData,
-          docPermissions
-        )
-        return this.mapDocument<T>(doc)
-      } catch (err: any) {
-        if (err?.message && err.message.includes('Unknown attribute')) {
-          const match = err.message.match(/Unknown attribute:\s*"([^"]+)"/i)
-          if (match && match[1] && documentData[match[1]] !== undefined) {
-            console.warn(`[BaseService] Stripping unknown attribute "${match[1]}" from ${this.collectionId} payload...`)
-            delete documentData[match[1]]
-            attempts++
-            continue
-          }
-        }
-        throw err
-      }
-    }
-
-    throw new Error(`Failed to create document in ${this.collectionId}: max retries exceeded`)
+    return this.mapDocument<T>(
+      await databases.createDocument(
+        DATABASE_ID,
+        this.collectionId,
+        customId || ID.unique(),
+        documentData,
+        docPermissions
+      )
+    )
   }
 
   /**

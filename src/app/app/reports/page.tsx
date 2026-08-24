@@ -11,24 +11,20 @@ import { saleService } from '@/services/sale.service'
 import { expenseService } from '@/services/expense.service'
 import { invoiceService } from '@/services/invoice.service'
 import { Product, Sale, Customer, Expense, Invoice } from '@/types'
-
+import { adToBS, formatBSMonth } from '@/lib/date/bs-date'
 import { FinancialYearSelector } from '@/components/features/reports/FinancialYearSelector'
-import { ExecutiveSummary } from '@/components/features/reports/ExecutiveSummary'
-import { MonthlyFinancialSummary, MonthlyData } from '@/components/features/reports/MonthlyFinancialSummary'
-import { SalesRegister } from '@/components/features/reports/SalesRegister'
-import { ReconciliationReport } from '@/components/features/reports/ReconciliationReport'
-import { CustomerDuesReport } from '@/components/features/reports/CustomerDuesReport'
-import { InventoryReport } from '@/components/features/reports/InventoryReport'
-import { ExpenseReport } from '@/components/features/reports/ExpenseReport'
-import { AuditHealth } from '@/components/features/reports/AuditHealth'
-import { ExportAuditPack } from '@/components/features/reports/ExportAuditPack'
-import { ExportMenu } from '@/components/features/reports/ExportMenu'
 import { PrintHeader } from '@/components/features/reports/PrintHeader'
+
+import { ExportMenu } from '@/components/features/reports/ExportMenu'
 import { ExportDataPayload } from '@/lib/export/excel-export'
+import { SimpleReportView } from '@/components/features/reports/views/SimpleReportView'
+import { AccountantReportView } from '@/components/features/reports/views/AccountantReportView'
+import { MonthlyData } from '@/components/features/reports/MonthlyFinancialSummary'
 
 export default function ReportsPage() {
   const { activeBusiness } = useAuth()
   const [loading, setLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<'simple' | 'accountant'>('simple')
 
   const [dateRange, setDateRange] = useState<{ isoFrom: string; isoTo: string; label: string } | null>(null)
 
@@ -101,34 +97,43 @@ export default function ReportsPage() {
   const monthlyData = useMemo(() => {
     const dataMap = new Map<string, MonthlyData>()
     
-    // Initialize map with months in the range (roughly)
+    // Initialize map with exactly 12 BS months (Shrawan to Ashadh)
+    // We assume the dateRange starts in Shrawan
     if (dateRange) {
-      const from = new Date(dateRange.isoFrom)
-      const to = new Date(dateRange.isoTo)
-      const curr = new Date(from)
-      while (curr <= to) {
-        const monthKey = curr.toLocaleString('en-US', { month: 'short', year: 'numeric' })
-        if (!dataMap.has(monthKey)) {
-          dataMap.set(monthKey, { month: monthKey, revenue: 0, expenses: 0, profit: 0 })
+      const fromBS = adToBS(dateRange.isoFrom)
+      // Enforce the Nepalese Financial Year: Always starts in Shrawan (Month 4)
+      let currYear = fromBS.month < 4 ? fromBS.year - 1 : fromBS.year
+      let currMonth = 4 // Shrawan
+      
+      for (let i = 0; i < 12; i++) {
+        const monthName = formatBSMonth(currMonth, 'en')
+        // Using "MonthName Year" to avoid collisions if spanning years, e.g., "Shrawan 2083"
+        const monthKey = `${monthName} ${currYear}`
+        dataMap.set(monthKey, { month: monthKey, revenue: 0, expenses: 0, profit: 0 })
+        
+        currMonth++
+        if (currMonth > 12) {
+          currMonth = 1
+          currYear++
         }
-        curr.setMonth(curr.getMonth() + 1)
       }
     }
 
     sales.forEach(s => {
       if (s.status === 'cancelled') return
-      const date = new Date(s.createdAt)
-      const monthKey = date.toLocaleString('en-US', { month: 'short', year: 'numeric' })
+      const bsDate = adToBS(s.createdAt)
+      const monthKey = `${formatBSMonth(bsDate.month, 'en')} ${bsDate.year}`
       if (dataMap.has(monthKey)) {
         const val = dataMap.get(monthKey)!
         val.revenue += s.total || 0
-        val.profit += s.total || 0
+        // We cannot calculate profit from sales alone without COGS.
+        // If profitReport.hasCostDataError is true, we ignore profit completely.
       }
     })
 
     expenses.forEach(e => {
-      const date = new Date(e.date || e.createdAt)
-      const monthKey = date.toLocaleString('en-US', { month: 'short', year: 'numeric' })
+      const bsDate = adToBS(e.date || e.createdAt)
+      const monthKey = `${formatBSMonth(bsDate.month, 'en')} ${bsDate.year}`
       if (dataMap.has(monthKey)) {
         const val = dataMap.get(monthKey)!
         val.expenses += e.amount || 0
@@ -142,10 +147,6 @@ export default function ReportsPage() {
   if (!activeBusiness) {
     return <ReportsPageSkeleton />
   }
-
-  const collectedTotal = paymentMethods.reduce((sum, p) => sum + p.total, 0)
-  const salesTotal = sales.filter(s => s.status !== 'cancelled').reduce((sum, s) => sum + (s.total || 0), 0)
-  const outstandingTotal = salesTotal - collectedTotal
 
   const exportData: ExportDataPayload | null = dateRange && profitReport && activeBusiness ? {
     businessName: activeBusiness.name,
@@ -169,9 +170,25 @@ export default function ReportsPage() {
           title="Business Intelligence & Audit Center"
           description="Complete financial reporting, reconciliation, and year-end audit package."
         />
-        <div className="flex-shrink-0 flex items-center gap-4">
-          <FinancialYearSelector onYearChange={setDateRange} />
-          {exportData && <ExportMenu data={exportData} />}
+        <div className="flex-shrink-0 flex flex-col items-end gap-4">
+          <div className="flex bg-muted p-1 rounded-md">
+            <button
+              onClick={() => setViewMode('simple')}
+              className={`px-4 py-2 rounded-sm text-sm font-medium transition-colors ${viewMode === 'simple' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Simple View
+            </button>
+            <button
+              onClick={() => setViewMode('accountant')}
+              className={`px-4 py-2 rounded-sm text-sm font-medium transition-colors ${viewMode === 'accountant' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Accountant View
+            </button>
+          </div>
+          <div className="flex items-center gap-4">
+            <FinancialYearSelector onYearChange={setDateRange} />
+            {exportData && <ExportMenu data={exportData} />}
+          </div>
         </div>
       </div>
 
@@ -190,56 +207,32 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {!loading && profitReport && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="col-span-1 md:col-span-2 lg:col-span-4">
-            <ExecutiveSummary 
-              metrics={{
-                totalRevenue: profitReport.totalRevenue,
-                grossProfit: profitReport.grossProfit,
-                netProfit: profitReport.netProfit,
-                totalExpenses: profitReport.totalExpenses,
-                totalSalesCount: profitReport.totalSalesCount,
-                netMarginPercent: profitReport.netMarginPercent,
-                totalCustomers: customers.length,
-                totalProducts: products.length,
-              }} 
-            />
-          </div>
-
-          <MonthlyFinancialSummary data={monthlyData} />
-
-          <SalesRegister sales={sales} />
-          
-          <ReconciliationReport 
-            salesTotal={salesTotal}
-            collectedTotal={collectedTotal}
-            outstandingTotal={outstandingTotal}
-            paymentMethods={paymentMethods}
+      {!loading && profitReport && exportData && dateRange && (
+        viewMode === 'simple' ? (
+          <SimpleReportView 
+            sales={sales}
+            products={products}
+            customers={customers}
+            expenses={expenses}
+            invoices={invoices}
+            profitReport={profitReport}
+            monthlyData={monthlyData}
+            dateRange={dateRange}
+            onReviewIssue={() => setViewMode('accountant')}
           />
-          
-          <CustomerDuesReport customers={customers} />
-
-          <ExpenseReport expenses={expenses} />
-
-          <AuditHealth sales={sales} invoices={invoices} />
-
-          <InventoryReport products={products} />
-
-          {dateRange && (
-            <div className="print:hidden">
-              <ExportAuditPack
-                businessId={activeBusiness.$id}
-                yearLabel={dateRange.label}
-                sales={sales}
-                invoices={invoices}
-                expenses={expenses}
-                products={products}
-                customers={customers}
-              />
-            </div>
-          )}
-        </div>
+        ) : (
+          <AccountantReportView
+            sales={sales}
+            products={products}
+            customers={customers}
+            expenses={expenses}
+            invoices={invoices}
+            profitReport={profitReport}
+            monthlyData={monthlyData}
+            paymentMethods={paymentMethods}
+            dateRange={dateRange}
+          />
+        )
       )}
     </div>
   )
