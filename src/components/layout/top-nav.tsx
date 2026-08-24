@@ -33,7 +33,7 @@ function getPageTitle(pathname: string): string {
 export function TopNav({ onOpenMobileNav }: TopNavProps) {
   const { user, userProfile, logout } = useAuth()
   const pathname = usePathname()
-  const pageTitle = getPageTitle(pathname)
+  const pageTitle = getPageTitle(pathname || '')
 
   const initials =
     userProfile?.name?.charAt(0).toUpperCase() ||

@@ -170,3 +170,48 @@ export function formatE164Phone(phone: string): string {
   }
   return `+${digitsOnly}`
 }
+
+/**
+ * Sanitize document IDs to guarantee strict compliance with Appwrite documentId requirements:
+ * 1. Must contain at most 36 chars.
+ * 2. Valid chars are a-z, A-Z, 0-9, period (.), hyphen (-), and underscore (_).
+ * 3. Can't start with a special char (must start with a-z, A-Z, 0-9).
+ */
+export function sanitizeAppwriteDocId(id: string | undefined | null, prefix = 'doc'): string {
+  if (!id || typeof id !== 'string' || id.trim() === '') {
+    return `${prefix}_${Math.random().toString(36).substring(2, 10)}`.substring(0, 36)
+  }
+
+  const raw = id.trim()
+  
+  // Replace invalid characters with underscore
+  let sanitized = raw.replace(/[^a-zA-Z0-9._-]/g, '_')
+
+  // Remove leading non-alphanumeric characters (., -, _)
+  sanitized = sanitized.replace(/^[^a-zA-Z0-9]+/, '')
+
+  // Fallback if empty after stripping
+  if (!sanitized) {
+    sanitized = `${prefix}_${Math.random().toString(36).substring(2, 10)}`
+  }
+
+  // Ensure first character is alphanumeric
+  if (!/^[a-zA-Z0-9]/.test(sanitized)) {
+    sanitized = `d_${sanitized}`
+  }
+
+  // Handle max length 36 limit gracefully using deterministic hashing
+  if (sanitized.length > 36) {
+    let hash = 0
+    for (let i = 0; i < raw.length; i++) {
+      const char = raw.charCodeAt(i)
+      hash = (hash << 5) - hash + char
+      hash |= 0
+    }
+    const hashStr = Math.abs(hash).toString(36)
+    // Keep first 28 chars + '_' + hash (up to 7 chars) = <= 36 chars
+    sanitized = `${sanitized.substring(0, 28)}_${hashStr}`.substring(0, 36)
+  }
+
+  return sanitized
+}

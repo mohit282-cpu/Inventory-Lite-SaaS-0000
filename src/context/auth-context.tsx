@@ -41,6 +41,7 @@ interface AuthContextType {
     currency?: Currency
     timezone?: string
   }) => Promise<Business>
+  completeOnboarding: (businessId?: string) => Promise<void>
   switchActiveBusiness: (businessId: string) => Promise<void>
   refreshAuth: () => Promise<void>
   retryAuth: () => Promise<void>
@@ -351,11 +352,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const membership = await businessMemberService.createInitialOwnerMember(user.$id, business.$id)
 
       try {
-        await userService.updateUserPreferences(user.$id, {
+        const updatedUser = await userService.updateUserPreferences(user.$id, {
           activeBusinessId: business.$id,
+          onboardingCompleted: false,
         })
+        setUserProfile(updatedUser)
       } catch {
-        // Preference update warning
+        // Fallback
       }
 
       setActiveBusiness(business)
@@ -365,6 +368,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const appErr = handleApiError(err)
       setAuthError(appErr.message)
       throw appErr
+    }
+  }
+
+  const completeOnboarding = async (businessId?: string): Promise<void> => {
+    if (!user) return
+    try {
+      const prefs: any = { onboardingCompleted: true }
+      if (businessId) prefs.activeBusinessId = businessId
+      const updatedUser = await userService.updateUserPreferences(user.$id, prefs)
+      if (isMountedRef.current) {
+        setUserProfile(updatedUser)
+      }
+    } catch {
+      // Fallback
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`onboarding_completed_${user.$id}`, 'true')
+      }
     }
   }
 
@@ -415,6 +436,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         forgotPassword,
         resetPassword,
         createBusinessOnboarding,
+        completeOnboarding,
         switchActiveBusiness,
         refreshAuth,
         retryAuth,

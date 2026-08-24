@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -23,8 +25,8 @@ function ResetPasswordForm() {
   const { resetPassword } = useAuth()
   const { toast } = useToast()
   const searchParams = useSearchParams()
-  const userId = searchParams.get('userId') || ''
-  const secret = searchParams.get('secret') || ''
+  const userId = searchParams?.get('userId') || ''
+  const secret = searchParams?.get('secret') || ''
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)

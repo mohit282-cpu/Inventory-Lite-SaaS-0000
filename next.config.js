@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  swcMinify: true,
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
   images: {
     domains: ['cloud.appwrite.io', 'fra.cloud.appwrite.io'],
   },

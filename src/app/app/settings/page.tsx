@@ -36,6 +36,7 @@ import { InstallAppButton } from '@/components/pwa/install-prompt'
 
 import { accountDeletionService } from '@/services/account-deletion.service'
 import { DeleteBusinessModal } from '@/components/features/settings/delete-business-modal'
+import { DeleteAccountModal } from '@/components/features/settings/delete-account-modal'
 
 export default function SettingsPage() {
   const { activeBusiness, user, userProfile, memberships, refreshAuth, logout } = useAuth()
@@ -54,6 +55,12 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState('Asia/Kathmandu')
   const [savingBiz, setSavingBiz] = useState(false)
 
+  // Calendar & Localization Preferences State
+  const [primaryCalendar, setPrimaryCalendar] = useState<'BS' | 'AD'>('BS')
+  const [dateDisplayMode, setDateDisplayMode] = useState<'DUAL' | 'BS_ONLY'>('DUAL')
+  const [dateFormat, setDateFormat] = useState<string>('BS_FORMAT')
+  const [savingCalendar, setSavingCalendar] = useState(false)
+
   // Account Form State
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
@@ -65,7 +72,8 @@ export default function SettingsPage() {
   const [changingPassword, setChangingPassword] = useState(false)
 
   // Delete Business & Account Modal State
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteBusinessModalOpen, setDeleteBusinessModalOpen] = useState(false)
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false)
 
   // Team Management State
   const [members, setMembers] = useState<BusinessMember[]>([])
@@ -79,7 +87,7 @@ export default function SettingsPage() {
   const currentRole: UserRole =
     (memberships.find((m) => m.businessId === activeBusiness?.$id)?.role as UserRole) || 'owner'
 
-  const handleDeleteBusinessAndAccount = async (password: string) => {
+  const handleDeleteBusinessOnly = async (password: string) => {
     const email = userProfile?.email || user?.email
     const userId = user?.$id || userProfile?.userId || userProfile?.$id
     const businessId = activeBusiness?.$id
@@ -87,18 +95,38 @@ export default function SettingsPage() {
     if (!businessId || !userId || !email) {
       throw new Error('Business and user identity verification failed. Please refresh the page.')
     }
-    await accountDeletionService.deleteBusinessAndAccount(
+    await accountDeletionService.deleteBusinessOnly(
       businessId,
       userId,
       password,
       email
     )
     toast({
-      title: 'Account & Business Deleted',
-      description: 'Your Inventory Lite account and business data have been permanently deleted.',
+      title: 'Business Deleted',
+      description: 'Your business profile and associated operational data have been permanently deleted.',
+    })
+    await refreshAuth()
+    window.location.href = '/onboarding'
+  }
+
+  const handleDeleteAccount = async (password: string) => {
+    const email = userProfile?.email || user?.email
+    const userId = user?.$id || userProfile?.userId || userProfile?.$id
+
+    if (!userId || !email) {
+      throw new Error('User identity verification failed. Please refresh the page.')
+    }
+    await accountDeletionService.deleteAccount(
+      userId,
+      password,
+      email
+    )
+    toast({
+      title: 'Account Deleted & Blocked',
+      description: 'Your business data has been permanently deleted and your account has been blocked.',
     })
     await logout()
-    window.location.href = '/auth/login'
+    window.location.href = '/account-blocked'
   }
 
   // Initialize Business Form Data
@@ -116,12 +144,131 @@ export default function SettingsPage() {
       setCurrency(activeBusiness.currency || 'NPR')
       setTimezone(activeBusiness.timezone || 'Asia/Kathmandu')
     }
+
+    if (user || activeBusiness) {
+      let savedFormat = 'BS_FORMAT'
+      let savedPrimary: 'BS' | 'AD' = 'BS'
+      let savedMode: 'DUAL' | 'BS_ONLY' = 'DUAL'
+
+      if (typeof window !== 'undefined' && user?.$id) {
+        const localPrefs = localStorage.getItem(`calendar_prefs_${user.$id}`)
+        if (localPrefs) {
+          try {
+            const parsed = JSON.parse(localPrefs)
+            if (parsed.primaryCalendar) savedPrimary = parsed.primaryCalendar
+            if (parsed.dateDisplayMode) savedMode = parsed.dateDisplayMode
+            if (parsed.dateFormat) savedFormat = parsed.dateFormat
+          } catch {
+            // Ignore JSON parse error
+          }
+        }
+      }
+
+      if (typeof window !== 'undefined' && user?.$id && !localStorage.getItem(`calendar_prefs_${user.$id}`)) {
+        const prefFormat = (userProfile?.preferences as any)?.dateFormat || activeBusiness?.dateFormat || 'BS_FORMAT'
+        savedFormat = prefFormat
+        if (prefFormat === 'YYYY-MM-DD' || prefFormat === 'DD/MM/YYYY') {
+          savedPrimary = 'AD'
+          savedMode = 'DUAL'
+        } else if (prefFormat === 'BS_ONLY') {
+          savedPrimary = 'BS'
+          savedMode = 'BS_ONLY'
+        } else {
+          savedPrimary = 'BS'
+          savedMode = 'DUAL'
+        }
+      }
+
+      setPrimaryCalendar(savedPrimary)
+      setDateDisplayMode(savedMode)
+      setDateFormat(savedFormat)
+    }
+
     if (userProfile || user) {
       setUserName(userProfile?.name || user?.name || '')
       setUserEmail(userProfile?.email || user?.email || '')
       setUserPhone(userProfile?.phone || user?.prefs?.phone || (user as any)?.phone || '')
     }
   }, [activeBusiness, userProfile, user])
+
+  const handleSelectPrimaryCalendar = (cal: 'BS' | 'AD') => {
+    setPrimaryCalendar(cal)
+    if (cal === 'AD') {
+      setDateFormat('YYYY-MM-DD')
+    } else {
+      setDateFormat(dateDisplayMode === 'BS_ONLY' ? 'BS_ONLY' : 'BS_FORMAT')
+    }
+  }
+
+  const handleSelectDateDisplayMode = (mode: 'DUAL' | 'BS_ONLY') => {
+    setDateDisplayMode(mode)
+    if (mode === 'BS_ONLY') {
+      setPrimaryCalendar('BS')
+      setDateFormat('BS_ONLY')
+    } else {
+      setDateFormat(primaryCalendar === 'AD' ? 'YYYY-MM-DD' : 'BS_FORMAT')
+    }
+  }
+
+  // Save Calendar Preferences
+  const handleSaveCalendar = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!user?.$id) return
+    try {
+      setSavingCalendar(true)
+      const computedDateFormat = primaryCalendar === 'AD' ? 'YYYY-MM-DD' : dateDisplayMode === 'BS_ONLY' ? 'BS_ONLY' : 'BS_FORMAT'
+      
+      setDateFormat(computedDateFormat)
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          `calendar_prefs_${user.$id}`,
+          JSON.stringify({
+            primaryCalendar,
+            dateDisplayMode,
+            dateFormat: computedDateFormat,
+          })
+        )
+      }
+
+      try {
+        await userService.updateUserPreferences(user.$id, {
+          primaryCalendar,
+          dateDisplayMode,
+          dateFormat: computedDateFormat,
+        } as any)
+      } catch {
+        // Fallback preference save
+      }
+
+      if (activeBusiness?.$id) {
+        try {
+          await businessService.updateBusiness(
+            activeBusiness.$id,
+            { dateFormat: computedDateFormat },
+            user.$id
+          )
+        } catch {
+          // Handled safely
+        }
+      }
+
+      toast({
+        title: 'Calendar Settings Saved 🎉',
+        description: `Preferences saved: ${primaryCalendar === 'AD' ? 'Gregorian (A.D.)' : 'Bikram Sambat (B.S.)'} (${dateDisplayMode === 'BS_ONLY' ? 'BS Only' : 'BS + AD Dual'}).`,
+      })
+      await refreshAuth()
+    } catch (err: any) {
+      console.error('Error updating calendar settings:', err)
+      toast({
+        title: 'Save Failed',
+        description: err?.message || 'Could not update calendar preferences.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingCalendar(false)
+    }
+  }
 
   // Fetch Team Members
   const fetchMembers = useCallback(async () => {
@@ -583,50 +730,165 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-700">Primary Calendar System</Label>
+            <form onSubmit={handleSaveCalendar} className="space-y-6 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Primary Calendar System */}
                 <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-indigo-50/50 cursor-pointer font-bold text-xs text-slate-900">
-                    <input type="radio" name="primaryCal" defaultChecked className="accent-indigo-600" />
-                    <div>
-                      <span>Bikram Sambat (B.S.) — Recommended Default</span>
-                      <p className="text-[11px] font-normal text-slate-500">Nepal-first calendar system (2083 Bhadra 6)</p>
-                    </div>
-                  </label>
+                  <Label className="text-xs font-bold text-slate-700">Primary Calendar System</Label>
+                  <div className="space-y-2">
+                    <label
+                      onClick={() => handleSelectPrimaryCalendar('BS')}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer font-bold text-xs transition-colors ${
+                        primaryCalendar === 'BS'
+                          ? 'border-indigo-200 bg-indigo-50/50 text-slate-900 ring-1 ring-indigo-500'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="primaryCal"
+                        checked={primaryCalendar === 'BS'}
+                        onChange={() => handleSelectPrimaryCalendar('BS')}
+                        className="accent-indigo-600"
+                      />
+                      <div>
+                        <span>Bikram Sambat (B.S.) — Recommended Default</span>
+                        <p className="text-[11px] font-normal text-slate-500">
+                          Nepal-first calendar system ({formatBSDate(new Date(), { format: 'MEDIUM' })})
+                        </p>
+                      </div>
+                    </label>
 
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white cursor-pointer font-medium text-xs text-slate-700 hover:bg-slate-50">
-                    <input type="radio" name="primaryCal" className="accent-indigo-600" />
-                    <div>
-                      <span>Gregorian (A.D.)</span>
-                      <p className="text-[11px] font-normal text-slate-500">International calendar system (August 22, 2026)</p>
-                    </div>
-                  </label>
+                    <label
+                      onClick={() => handleSelectPrimaryCalendar('AD')}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer font-bold text-xs transition-colors ${
+                        primaryCalendar === 'AD'
+                          ? 'border-indigo-200 bg-indigo-50/50 text-slate-900 ring-1 ring-indigo-500'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="primaryCal"
+                        checked={primaryCalendar === 'AD'}
+                        onChange={() => handleSelectPrimaryCalendar('AD')}
+                        className="accent-indigo-600"
+                      />
+                      <div>
+                        <span>Gregorian (A.D.)</span>
+                        <p className="text-[11px] font-normal text-slate-500">
+                          International calendar system ({new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })})
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Date Display Mode */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-700">Date Display Mode</Label>
+                  <div className="space-y-2">
+                    <label
+                      onClick={() => handleSelectDateDisplayMode('DUAL')}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer font-bold text-xs transition-colors ${
+                        dateDisplayMode === 'DUAL'
+                          ? 'border-indigo-200 bg-indigo-50/50 text-slate-900 ring-1 ring-indigo-500'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="dateDisp"
+                        checked={dateDisplayMode === 'DUAL'}
+                        onChange={() => handleSelectDateDisplayMode('DUAL')}
+                        className="accent-indigo-600"
+                      />
+                      <div>
+                        <span>BS + AD Dual Display (Recommended)</span>
+                        <p className="text-[11px] font-normal text-slate-500">
+                          {formatBSDate(new Date(), { format: 'MEDIUM' })} ({new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })} AD)
+                        </p>
+                      </div>
+                    </label>
+
+                    <label
+                      onClick={() => handleSelectDateDisplayMode('BS_ONLY')}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer font-bold text-xs transition-colors ${
+                        dateDisplayMode === 'BS_ONLY'
+                          ? 'border-indigo-200 bg-indigo-50/50 text-slate-900 ring-1 ring-indigo-500'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="dateDisp"
+                        checked={dateDisplayMode === 'BS_ONLY'}
+                        onChange={() => handleSelectDateDisplayMode('BS_ONLY')}
+                        className="accent-indigo-600"
+                      />
+                      <div>
+                        <span>Bikram Sambat (BS) Only</span>
+                        <p className="text-[11px] font-normal text-slate-500">
+                          {formatBSDate(new Date(), { format: 'MEDIUM' })}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-700">Date Display Mode</Label>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-indigo-200 bg-indigo-50/50 cursor-pointer font-bold text-xs text-slate-900">
-                    <input type="radio" name="dateDisp" defaultChecked className="accent-indigo-600" />
-                    <div>
-                      <span>BS + AD Dual Display (Recommended)</span>
-                      <p className="text-[11px] font-normal text-slate-500">2083 Bhadra 6 (22 Aug 2026 AD)</p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white cursor-pointer font-medium text-xs text-slate-700 hover:bg-slate-50">
-                    <input type="radio" name="dateDisp" className="accent-indigo-600" />
-                    <div>
-                      <span>Bikram Sambat (BS) Only</span>
-                      <p className="text-[11px] font-normal text-slate-500">2083 Bhadra 6</p>
-                    </div>
-                  </label>
-                </div>
+              {/* Save Button Area */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                <p className="text-[11px] font-medium text-slate-500">
+                  Current Format: <span className="font-mono font-bold text-slate-700">{dateFormat}</span>
+                </p>
+                <Button
+                  type="submit"
+                  disabled={savingCalendar}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
+                >
+                  {savingCalendar ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save Calendar Preferences
+                </Button>
               </div>
-            </div>
+            </form>
           </Card>
+
+          {/* DANGER ZONE FOR BUSINESS DELETE (TAB 1) */}
+          <div className="lg:col-span-3 border-2 border-red-200 bg-red-50/40 shadow-sm p-6 rounded-xl space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-extrabold text-red-900 flex items-center gap-2">
+                  <Trash2 className="h-5 w-5 text-red-600" /> Danger Zone — Delete Selected Business
+                </h3>
+                <p className="text-xs text-red-700 mt-1 font-medium">
+                  Permanently delete this business entity and its data. Your Inventory Lite user account will remain active.
+                </p>
+              </div>
+
+              {currentRole === 'owner' ? (
+                <Button
+                  type="button"
+                  onClick={() => setDeleteBusinessModalOpen(true)}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-4 shadow-sm shrink-0 text-xs"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Business
+                </Button>
+              ) : (
+                <div className="text-xs font-semibold text-red-700 bg-red-100/80 px-3 py-1.5 rounded-lg border border-red-200">
+                  Only business owners can delete a business
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DeleteBusinessModal
+            isOpen={deleteBusinessModalOpen}
+            onClose={() => setDeleteBusinessModalOpen(false)}
+            onConfirmDelete={handleDeleteBusinessOnly}
+            businessName={activeBusiness?.name || 'Your Business'}
+            userEmail={userProfile?.email || user?.email || ''}
+          />
         </div>
       )}
 
@@ -757,39 +1019,40 @@ export default function SettingsPage() {
             </div>
           </Card>
 
-          {/* DANGER ZONE SECTION */}
+          {/* DANGER ZONE SECTION FOR ACCOUNT DELETE (TAB 2) */}
           <div className="md:col-span-2 border-2 border-red-200 bg-red-50/40 shadow-sm p-6 rounded-xl space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-red-200/60">
               <div>
                 <h3 className="text-base font-extrabold text-red-900 flex items-center gap-2">
-                  <Trash2 className="h-5 w-5 text-red-600" /> Danger Zone
+                  <Trash2 className="h-5 w-5 text-red-600" /> Danger Zone — Delete Account
                 </h3>
-                <p className="text-xs text-red-700 mt-1 font-medium">
-                  Permanently delete your Inventory Lite account and all data belonging to this business.
+                <p className="text-xs text-red-700 mt-1 font-medium max-w-2xl leading-relaxed">
+                  Delete your Inventory Lite account and permanently remove all business data associated with it. This action cannot be undone. Your authentication identity will be preserved, but your account will be blocked and you will no longer be able to access Inventory Lite.
                 </p>
               </div>
 
               {currentRole === 'owner' ? (
                 <Button
                   type="button"
-                  onClick={() => setDeleteModalOpen(true)}
-                  className="bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-4 shadow-sm shrink-0"
+                  onClick={() => setDeleteAccountModalOpen(true)}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-4 shadow-sm shrink-0 text-xs"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete Business & Account
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Account
                 </Button>
               ) : (
                 <div className="text-xs font-semibold text-red-700 bg-red-100/80 px-3 py-1.5 rounded-lg border border-red-200">
-                  Only the business owner can delete this business & account
+                  Only the business owner can delete this account
                 </div>
               )}
             </div>
           </div>
 
-          <DeleteBusinessModal
-            isOpen={deleteModalOpen}
-            onClose={() => setDeleteModalOpen(false)}
-            onConfirmDelete={handleDeleteBusinessAndAccount}
+          <DeleteAccountModal
+            isOpen={deleteAccountModalOpen}
+            onClose={() => setDeleteAccountModalOpen(false)}
+            onConfirmDelete={handleDeleteAccount}
             businessName={activeBusiness?.name || 'Your Business'}
+            businessId={activeBusiness?.$id}
             userEmail={userProfile?.email || user?.email || ''}
           />
         </div>

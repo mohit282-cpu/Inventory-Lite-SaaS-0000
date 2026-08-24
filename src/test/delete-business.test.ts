@@ -127,13 +127,13 @@ describe('Delete Business & Account Security Tests', () => {
 
   it('rejects deletion if password re-authentication fails', async () => {
     await expect(
-      accountDeletionService.deleteBusinessAndAccount(bizA, ownerA, 'WrongPassword', 'owner@biz.com')
+      accountDeletionService.deleteAccount(ownerA, 'WrongPassword', 'owner@biz.com')
     ).rejects.toThrow(/re-authentication failed/)
   })
 
-  it('rejects deletion attempt by staff member (RBAC enforcement)', async () => {
+  it('rejects business deletion attempt by staff member (RBAC enforcement)', async () => {
     await expect(
-      accountDeletionService.deleteBusinessAndAccount(bizA, staffA, 'CorrectPass123!', 'staff@biz.com')
+      accountDeletionService.deleteBusinessOnly(bizA, staffA, 'CorrectPass123!', 'staff@biz.com')
     ).rejects.toThrow(/Forbidden/)
   })
 
@@ -149,8 +149,8 @@ describe('Delete Business & Account Security Tests', () => {
       ownerB
     )
 
-    // Execute deletion for Business A
-    await accountDeletionService.deleteBusinessAndAccount(bizA, ownerA, 'CorrectPass123!', 'owner@biz.com')
+    // Execute deletion for Business A only
+    await accountDeletionService.deleteBusinessOnly(bizA, ownerA, 'CorrectPass123!', 'owner@biz.com')
 
     // Verify Business A product is gone
     await expect(productService.getProduct(prodA.$id, bizA)).rejects.toThrow()
@@ -159,5 +159,19 @@ describe('Delete Business & Account Security Tests', () => {
     const remainingB = await productService.getProduct(prodB.$id, bizB)
     expect(remainingB.$id).toBe(prodB.$id)
     expect(remainingB.name).toBe('Prod B')
+  })
+
+  it('deletes account and marks accountStatus = BLOCKED without deleting Auth identity', async () => {
+    const prodA = await productService.createProduct(
+      { name: 'Prod A', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 10 },
+      bizA,
+      ownerA
+    )
+
+    // Execute account deletion for Owner A
+    await accountDeletionService.deleteAccount(ownerA, 'CorrectPass123!', 'owner@biz.com')
+
+    // Verify Business A product is deleted
+    await expect(productService.getProduct(prodA.$id, bizA)).rejects.toThrow()
   })
 })

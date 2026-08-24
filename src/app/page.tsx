@@ -2,23 +2,23 @@ import type { Metadata } from 'next'
 import { LandingPageView } from '@/components/landing/landing-page'
 
 export const metadata: Metadata = {
-  title: 'Inventory Lite — Simple Inventory & Billing for Small Businesses',
+  title: 'Inventory Lite — Simple Stock, Sales & Udhaar Management for Nepal',
   description:
-    'Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal.',
+    'Inventory Lite helps small businesses in Nepal manage stock, sales, customer Udhaar, expenses, invoices and business records in one simple system.',
   keywords: [
-    'Inventory Management Nepal',
-    'Billing Software Nepal',
-    'POS Nepal',
-    'Small Business Inventory',
-    'Tax Invoice Nepal',
-    'PAN VAT Invoicing',
-    'Udharo Tracking',
+    'inventory software Nepal',
+    'billing software Nepal',
+    'POS software Nepal',
+    'shop management software Nepal',
+    'inventory management Nepal',
+    'Udhaar management',
+    'small business software Nepal',
     'Inventory Lite',
   ],
   openGraph: {
-    title: 'Inventory Lite — Simple Inventory & Billing for Small Businesses',
+    title: 'Inventory Lite — Simple Stock, Sales & Udhaar Management for Nepal',
     description:
-      'Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal.',
+      'Inventory Lite helps small businesses in Nepal manage stock, sales, customer Udhaar, expenses, invoices and business records in one simple system.',
     url: 'https://inventorylite.app',
     siteName: 'Inventory Lite',
     locale: 'en_US',

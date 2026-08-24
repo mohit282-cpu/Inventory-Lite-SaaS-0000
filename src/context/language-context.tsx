@@ -32,7 +32,8 @@ function getNestedValue(obj: any, path: string): string | undefined {
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<LanguageType>('en')
+  // Default language is 'ne' (Nepali) for local visitors
+  const [language, setLanguageState] = useState<LanguageType>('ne')
 
   useEffect(() => {
     try {
@@ -40,11 +41,32 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       if (savedLang === 'en' || savedLang === 'ne') {
         setLanguageState(savedLang)
         document.documentElement.lang = savedLang
+      } else {
+        setLanguageState('ne')
+        document.documentElement.lang = 'ne'
       }
     } catch {
       // Catch localStorage errors in strict browser environments
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      if (language === 'ne') {
+        document.title = "Inventory Lite — नेपाली पसलका लागि स्टक, बिक्री र उधारो व्यवस्थापन"
+        const metaDesc = document.querySelector('meta[name="description"]')
+        if (metaDesc) {
+          metaDesc.setAttribute('content', "Inventory Lite प्रयोग गरेर आफ्नो पसलको स्टक, बिक्री, उधारो, खर्च, बिल र व्यापारका रेकर्डहरू एउटै सरल प्रणालीबाट व्यवस्थापन गर्नुहोस्।")
+        }
+      } else {
+        document.title = "Inventory Lite — Simple Inventory & Billing for Small Businesses in Nepal"
+        const metaDesc = document.querySelector('meta[name="description"]')
+        if (metaDesc) {
+          metaDesc.setAttribute('content', "Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal.")
+        }
+      }
+    }
+  }, [language])
 
   const setLanguage = useCallback((lang: LanguageType) => {
     setLanguageState(lang)
@@ -95,10 +117,10 @@ export function useLanguage(): LanguageContextType {
   if (!context) {
     // Return a safe fallback context for components rendered outside LanguageProvider
     return {
-      language: 'en',
+      language: 'ne',
       setLanguage: () => {},
       t: (key: string, params?: Record<string, string | number>): string => {
-        let val = getNestedValue(en, key) || key
+        let val = getNestedValue(ne, key) || key
         if (params) {
           Object.entries(params).forEach(([pKey, pVal]) => {
             val = val.replace(new RegExp(`\\{${pKey}\\}`, 'g'), String(pVal))

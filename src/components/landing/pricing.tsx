@@ -19,34 +19,33 @@ export function LandingPricing() {
     t('pricing.item7'),
     t('pricing.item8'),
     t('pricing.item9'),
+    t('pricing.item10'),
   ]
 
   return (
-    <section id="pricing" className="py-16 sm:py-24 bg-white text-slate-900 border-b border-slate-200">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="pricing" className="py-12 sm:py-16 lg:py-20 bg-slate-50 text-slate-900 border-b border-slate-200">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        
         {/* Section Heading */}
-        <div className="max-w-2xl mb-12 text-left">
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-            {t('pricing.badge')}
-          </span>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight mt-2">
+        <div className="max-w-2xl text-left space-y-2">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.2]">
             {t('pricing.headline')}
           </h2>
-          <p className="mt-3 text-base sm:text-lg text-slate-600">
+          <p className="text-base sm:text-lg text-slate-600 leading-[1.7]">
             {t('pricing.description')}
           </p>
         </div>
 
-        {/* Single Clean Panel */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:p-10 shadow-sm">
+        {/* Single Transparent Panel */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-10 shadow-lg">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-slate-200">
             <div>
-              <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                {t('pricing.planTitle')}
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-3 py-1 rounded-md border border-indigo-100">
+                Full Plan Included
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
+                Inventory Lite
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                {t('pricing.planDesc')}
-              </p>
             </div>
 
             <div className="text-left md:text-right shrink-0">
@@ -54,21 +53,20 @@ export function LandingPricing() {
                 <span className="text-4xl sm:text-5xl font-extrabold font-mono text-emerald-700">
                   NPR 0
                 </span>
-                <span className="text-sm text-slate-600 font-normal">{t('pricing.perMonth')}</span>
               </div>
-              <p className="text-xs sm:text-sm text-emerald-700 font-semibold mt-1 flex items-center gap-1">
+              <p className="text-xs sm:text-sm text-emerald-700 font-bold mt-1 flex items-center gap-1">
                 <ShieldCheck className="h-4 w-4 shrink-0" /> {t('pricing.noCard')}
               </p>
             </div>
           </div>
 
           <div className="py-8">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
-              {t('pricing.includedHeader')}
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
+              Included Shop Features
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs sm:text-sm text-slate-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-base text-slate-900 font-semibold">
               {includedList.map((item, idx) => (
-                <div key={idx} className="flex items-start gap-2.5">
+                <div key={idx} className="flex items-start gap-3">
                   <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
                     <Check className="h-3.5 w-3.5" />
                   </div>
@@ -82,7 +80,7 @@ export function LandingPricing() {
             <Button
               asChild
               size="lg"
-              className="w-full sm:w-auto h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-sm text-base"
+              className="w-full sm:w-auto h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md text-base"
             >
               <Link href="/auth/signup">
                 {t('pricing.startFree')} <ArrowRight className="ml-2 h-5 w-5" />
@@ -93,9 +91,9 @@ export function LandingPricing() {
               asChild
               size="lg"
               variant="outline"
-              className="w-full sm:w-auto h-12 px-8 border-slate-300 bg-white text-slate-800 hover:bg-slate-100 text-base font-semibold"
+              className="w-full sm:w-auto h-12 px-8 border-slate-300 bg-white text-slate-800 hover:bg-slate-50 text-base font-semibold"
             >
-              <Link href="/auth/login">{t('pricing.loginPortal')}</Link>
+              <a href="#product">{t('pricing.explore')}</a>
             </Button>
           </div>
         </div>

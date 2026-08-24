@@ -99,6 +99,7 @@ export class BusinessService extends BaseService {
       logoUrl: string
       currency: Currency
       timezone: string
+      dateFormat?: string
     }>,
     updatingUserId: string
   ): Promise<Business> {

@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2, Wand2, Image as ImageIcon } from 'lucide-react'
+import { Loader2, Wand2 } from 'lucide-react'
 import { Product, Category } from '@/types'
 
 type ProductFormValues = z.infer<typeof productFormSchema>
@@ -284,22 +284,6 @@ export function ProductFormDialog({
               {errors.sellingPrice && (
                 <p className="text-xs text-red-600 font-medium">{errors.sellingPrice.message}</p>
               )}
-            </div>
-          </div>
-
-          {/* Image URL */}
-          <div className="space-y-1.5">
-            <Label htmlFor="imageUrl" className="text-xs font-bold text-slate-700">Product Image URL (Optional)</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <ImageIcon className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Input
-                  id="imageUrl"
-                  placeholder="https://example.com/product-image.jpg"
-                  {...register('imageUrl')}
-                  className="pl-9"
-                />
-              </div>
             </div>
           </div>
 

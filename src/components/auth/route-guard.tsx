@@ -12,7 +12,7 @@ interface RouteGuardProps {
 }
 
 export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps) {
-  const { user, activeBusiness, memberships, authStatus, isAuthLoading, isWorkspaceLoading, authError, retryAuth } = useAuth()
+  const { user, userProfile, activeBusiness, memberships, authStatus, isAuthLoading, isWorkspaceLoading, authError, retryAuth } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
 
@@ -21,9 +21,30 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
     if (isAuthLoading || authStatus === 'INITIALIZING' || authStatus === 'ONLINE_AUTHENTICATING') return
     if (user && isWorkspaceLoading) return
 
-    const isAuthRoute = pathname.startsWith('/auth')
-    const isAppRoute = pathname.startsWith('/app')
-    const isOnboardingRoute = pathname === '/onboarding'
+    const currentPath = pathname || ''
+    const isAuthRoute = currentPath.startsWith('/auth')
+    const isAppRoute = currentPath.startsWith('/app')
+    const isOnboardingRoute = currentPath === '/onboarding'
+    const isAccountBlockedRoute = currentPath === '/account-blocked'
+
+    const isUserBlocked =
+      userProfile?.accountStatus === 'BLOCKED' ||
+      userProfile?.isBlocked === true ||
+      userProfile?.preferences?.accountStatus === 'BLOCKED' ||
+      userProfile?.preferences?.isBlocked === true ||
+      (typeof window !== 'undefined' && user ? localStorage.getItem(`account_blocked_${user.$id}`) === 'true' : false)
+
+    if (user && isUserBlocked) {
+      if (!isAccountBlockedRoute) {
+        router.replace('/account-blocked')
+      }
+      return
+    }
+
+    if (user && isAccountBlockedRoute && !isUserBlocked) {
+      router.replace('/app/dashboard')
+      return
+    }
 
     // 2. Unauthenticated users cannot access /app or /onboarding
     if (authStatus === 'UNAUTHENTICATED' || !user) {
@@ -35,22 +56,26 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
 
     // 3. Authenticated user state machine
     if (authStatus === 'AUTHENTICATED' || authStatus === 'ONLINE_AUTHENTICATED' || authStatus === 'OFFLINE_AUTHORIZED') {
-      const hasBusiness = activeBusiness !== null || (memberships?.length ?? 0) > 0
+      const isLocalCompleted = typeof window !== 'undefined' && user ? localStorage.getItem(`onboarding_completed_${user.$id}`) === 'true' : false
+      const isProfileCompleted = userProfile?.preferences?.onboardingCompleted === true
 
-      // Authenticated user has NO business membership & route requires business -> redirect to /onboarding
-      if (requireBusiness && !hasBusiness) {
-        if ((isAppRoute || isAuthRoute) && !isOnboardingRoute) {
+      // Onboarding is ONLY completed if explicitly marked in profile or localStorage
+      const isOnboardingCompleted = isProfileCompleted || isLocalCompleted
+
+      // Authenticated user with incomplete onboarding accessing /app -> redirect to /onboarding
+      if (requireBusiness && !isOnboardingCompleted) {
+        if (isAppRoute && !isOnboardingRoute) {
           router.replace('/onboarding')
         }
         return
       }
 
-      // Authenticated user WITH a business accessing /auth or /onboarding -> redirect to /app/dashboard
-      if (hasBusiness && (isAuthRoute || isOnboardingRoute)) {
+      // Authenticated user WITH completed onboarding accessing /auth or /onboarding -> redirect to /app/dashboard
+      if (isOnboardingCompleted && (isAuthRoute || isOnboardingRoute)) {
         router.replace('/app/dashboard')
       }
     }
-  }, [user, activeBusiness, memberships, authStatus, isAuthLoading, isWorkspaceLoading, pathname, router, requireBusiness])
+  }, [user, userProfile, activeBusiness, memberships, authStatus, isAuthLoading, isWorkspaceLoading, pathname, router, requireBusiness])
 
   const currentPath = pathname || (typeof window !== 'undefined' ? window.location.pathname : '')
   const isPublicRoute = currentPath === '/' || currentPath.startsWith('/auth')

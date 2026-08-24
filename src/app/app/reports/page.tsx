@@ -171,18 +171,30 @@ export default function ReportsPage() {
           description="Complete financial reporting, reconciliation, and year-end audit package."
         />
         <div className="flex-shrink-0 flex flex-col items-end gap-4">
-          <div className="flex bg-muted p-1 rounded-md">
+          <div className="flex bg-slate-200/80 p-1 rounded-xl border border-slate-300/80 shadow-2xs">
             <button
+              type="button"
               onClick={() => setViewMode('simple')}
-              className={`px-4 py-2 rounded-sm text-sm font-medium transition-colors ${viewMode === 'simple' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex flex-col items-center ${
+                viewMode === 'simple'
+                  ? 'bg-white text-indigo-900 shadow-xs ring-1 ring-indigo-500/20'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              Simple View
+              <span>Simple View</span>
+              <span className="text-[10px] font-normal text-slate-500 hidden sm:inline">Easy business summary</span>
             </button>
             <button
+              type="button"
               onClick={() => setViewMode('accountant')}
-              className={`px-4 py-2 rounded-sm text-sm font-medium transition-colors ${viewMode === 'accountant' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex flex-col items-center ${
+                viewMode === 'accountant'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              Accountant View
+              <span>Accountant View</span>
+              <span className="text-[10px] font-normal text-slate-400 hidden sm:inline">Audit & reconciliation</span>
             </button>
           </div>
           <div className="flex items-center gap-4">

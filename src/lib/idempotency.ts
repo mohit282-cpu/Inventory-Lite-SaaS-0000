@@ -1,4 +1,5 @@
 import { COLLECTIONS, databases, DATABASE_ID } from '@/config/appwrite'
+import { sanitizeAppwriteDocId } from './utils'
 
 /**
  * Idempotency Record Interface
@@ -124,7 +125,7 @@ export class IdempotencyManager {
     }
 
     const key = idempotencyKey.trim()
-    const compositeKey = `${key}_${businessId}_${operationType}`.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 36)
+    const compositeKey = sanitizeAppwriteDocId(`${key}_${businessId}_${operationType}`, 'idemp')
     const requestHash = computePayloadHash(payload)
 
     // 1. In-memory lock per composite key (prevents duplicate execution within same JS runtime)
@@ -226,12 +227,19 @@ export class IdempotencyManager {
       try {
         await databases.createDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, processingRecord)
       } catch (e: any) {
+        if (e?.code === 404 || (e?.message && e.message.toLowerCase().includes('could not be found'))) {
+          // Idempotency collection not provisioned in Appwrite, fallback directly to operation
+          return await operation()
+        }
         if (e?.code === 409) {
            // Document already exists, someone else created it
-           // Check if it's processing or completed
-           const existing = await databases.getDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey)
-           if (existing.status === 'COMPLETED') {
-             return JSON.parse(existing.result) as T
+           try {
+             const existing = await databases.getDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey)
+             if (existing.status === 'COMPLETED') {
+               return JSON.parse(existing.result) as T
+             }
+           } catch {
+             // Fallback
            }
            throw new Error(`IDEMPOTENCY_TRANSACTION_IN_PROGRESS: Transaction with key '${key}' is currently being processed`)
         }

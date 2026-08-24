@@ -9,15 +9,20 @@ import { Button } from '@/components/ui/button'
 import { AppLogo } from '@/components/ui/app-logo'
 
 export default function OnboardingPage() {
-  const { user, activeBusiness, logout, isWorkspaceLoading } = useAuth()
+  const { user, userProfile, logout, isWorkspaceLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    // If business is already set up and active, redirect directly to dashboard once workspace is loaded
-    if (activeBusiness?.$id && !isWorkspaceLoading) {
+    if (!user || isWorkspaceLoading) return
+
+    const isLocalCompleted = typeof window !== 'undefined' && user ? localStorage.getItem(`onboarding_completed_${user.$id}`) === 'true' : false
+    const isProfileCompleted = userProfile?.preferences?.onboardingCompleted === true
+    const isOnboardingCompleted = isProfileCompleted || isLocalCompleted
+
+    if (isOnboardingCompleted) {
       router.replace('/app/dashboard')
     }
-  }, [activeBusiness, isWorkspaceLoading, router])
+  }, [user, userProfile, isWorkspaceLoading, router])
 
   if (isWorkspaceLoading) {
     return (

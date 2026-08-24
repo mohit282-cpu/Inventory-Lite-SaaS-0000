@@ -167,7 +167,8 @@ export function Sidebar() {
             )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/app/dashboard' && pathname.startsWith(item.href))
+                const currentPath = pathname || ''
+                const isActive = currentPath === item.href || (item.href !== '/app/dashboard' && currentPath.startsWith(item.href))
                 const Icon = item.icon
 
                 return (

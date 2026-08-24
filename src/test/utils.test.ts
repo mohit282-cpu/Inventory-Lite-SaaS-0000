@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cn, formatCurrency, formatDate, truncate } from '@/lib/utils'
+import { cn, formatCurrency, formatDate, truncate, sanitizeAppwriteDocId } from '@/lib/utils'
 
 
 describe('cn utility', () => {
@@ -44,5 +44,32 @@ describe('truncate', () => {
 
   it('returns short text unchanged', () => {
     expect(truncate('Hi', 10)).toBe('Hi')
+  })
+})
+
+describe('sanitizeAppwriteDocId', () => {
+  it('limits document ID to at most 36 characters', () => {
+    const longId = 'sku_65f1234567890abcdef1234567890abcdef_SHIRT-BLUE-XL-2024'
+    const sanitized = sanitizeAppwriteDocId(longId, 'sku')
+    expect(sanitized.length).toBeLessThanOrEqual(36)
+  })
+
+  it('ensures ID does not start with a special character', () => {
+    const specialLeading = '_sku_12345_test'
+    const sanitized = sanitizeAppwriteDocId(specialLeading, 'sku')
+    expect(/^[a-zA-Z0-9]/.test(sanitized)).toBe(true)
+  })
+
+  it('replaces invalid characters with valid chars', () => {
+    const invalidChars = 'SKU #101 / XL @ 2024!'
+    const sanitized = sanitizeAppwriteDocId(invalidChars, 'sku')
+    expect(sanitized).toMatch(/^[a-zA-Z0-9._-]+$/)
+    expect(/^[a-zA-Z0-9]/.test(sanitized)).toBe(true)
+    expect(sanitized.length).toBeLessThanOrEqual(36)
+  })
+
+  it('handles null, undefined, or empty strings gracefully', () => {
+    expect(sanitizeAppwriteDocId(null).length).toBeLessThanOrEqual(36)
+    expect(sanitizeAppwriteDocId('').length).toBeLessThanOrEqual(36)
   })
 })

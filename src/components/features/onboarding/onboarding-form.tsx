@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -27,10 +27,22 @@ import {
 type OnboardingFormValues = z.infer<typeof onboardingSchema>
 
 export function OnboardingForm() {
-  const { userProfile, createBusinessOnboarding } = useAuth()
+  const { user, userProfile, createBusinessOnboarding, completeOnboarding } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
-  const [step, setStep] = useState<number>(1)
+  
+  // Persist current step across page refreshes if onboarding is incomplete
+  const [step, setStep] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const savedStep = sessionStorage.getItem(`onboarding_step_${user?.$id || 'current'}`)
+      if (savedStep) {
+        const parsed = parseInt(savedStep, 10)
+        if (parsed >= 1 && parsed <= 3) return parsed
+      }
+    }
+    return 1
+  })
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [isCompleted, setIsCompleted] = useState<boolean>(false)
   const [createdSummary, setCreatedSummary] = useState<{
@@ -52,9 +64,9 @@ export function OnboardingForm() {
     resolver: zodResolver(onboardingSchema) as any,
     defaultValues: {
       name: '',
-      ownerName: userProfile?.name || '',
+      ownerName: userProfile?.name || user?.name || '',
       phone: userProfile?.phone || '',
-      email: '',
+      email: userProfile?.email || user?.email || '',
       address: '',
       city: '',
       province: 'Bagmati',
@@ -62,13 +74,12 @@ export function OnboardingForm() {
       vatNumber: '',
       taxRegistrationType: 'NONE',
       taxRegistrationNumber: '',
-      logoUrl: '',
       currency: 'NPR',
       timezone: 'Asia/Kathmandu',
       defaultVatRate: 13,
       invoicePrefix: 'INV-',
       lowStockThreshold: 10,
-      dateFormat: 'YYYY-MM-DD',
+      dateFormat: 'BS_FORMAT',
     },
   })
 
@@ -78,12 +89,18 @@ export function OnboardingForm() {
   const currentDateFormat = watch('dateFormat')
   const currentTaxRegistrationType = watch('taxRegistrationType') || 'NONE'
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && user?.$id) {
+      sessionStorage.setItem(`onboarding_step_${user.$id}`, step.toString())
+    }
+  }, [step, user?.$id])
+
   const nextStep = async () => {
     let isValid = false
     if (step === 1) {
       isValid = await trigger(['name', 'ownerName', 'phone', 'email'])
     } else if (step === 2) {
-      isValid = await trigger(['address', 'city', 'province', 'taxRegistrationType', 'taxRegistrationNumber', 'panNumber', 'vatNumber', 'logoUrl'])
+      isValid = await trigger(['address', 'city', 'province', 'taxRegistrationType', 'taxRegistrationNumber', 'panNumber', 'vatNumber'])
     }
 
     if (isValid) {
@@ -105,33 +122,40 @@ export function OnboardingForm() {
       const regType = data.taxRegistrationType || 'NONE'
       const regNum = (data.taxRegistrationNumber || (regType === 'VAT' ? data.vatNumber : regType === 'PAN' ? data.panNumber : '') || '').trim()
 
-      await createBusinessOnboarding({
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
+      const business = await createBusinessOnboarding({
+        name: data.name.trim(),
+        phone: data.phone?.trim(),
+        email: data.email?.trim(),
         address: data.address ? `${data.address}${data.city ? `, ${data.city}` : ''}${data.province ? `, ${data.province}` : ''}` : '',
         panNumber: regType === 'PAN' ? regNum : data.panNumber,
         vatNumber: regType === 'VAT' ? regNum : data.vatNumber,
         taxRegistrationType: regType,
         taxRegistrationNumber: regNum,
-        logoUrl: data.logoUrl,
         currency: data.currency,
         timezone: data.timezone,
       })
 
+      await completeOnboarding(business?.$id)
+
       setCreatedSummary({
-        name: data.name,
-        ownerName: data.ownerName,
+        name: data.name.trim(),
+        ownerName: data.ownerName.trim(),
         currency: data.currency,
         timezone: data.timezone,
         vatRate: data.defaultVatRate || 13,
       })
+
+      if (typeof window !== 'undefined' && user?.$id) {
+        sessionStorage.removeItem(`onboarding_step_${user.$id}`)
+      }
 
       setIsCompleted(true)
       toast({
         title: 'Business Setup Complete 🎉',
         description: `Welcome to Inventory Lite, ${data.name}!`,
       })
+
+      router.push('/app/dashboard')
     } catch (err: any) {
       toast({
         variant: 'destructive',
@@ -147,7 +171,7 @@ export function OnboardingForm() {
     router.push('/app/dashboard')
   }
 
-  // 10. COMPLETION SCREEN / SUCCESS STATE
+  // COMPLETION SCREEN / SUCCESS STATE
   if (isCompleted && createdSummary) {
     return (
       <div className="bg-white border border-slate-200/90 shadow-sm rounded-xl p-6 sm:p-10 w-full text-center">
@@ -197,8 +221,7 @@ export function OnboardingForm() {
 
   return (
     <div className="w-full space-y-6">
-      {/* 3. PROGRESS INDICATOR */}
-      {/* Desktop Progress Bar */}
+      {/* 3-STEP PROGRESS INDICATOR */}
       <div className="hidden sm:flex items-center justify-between px-2 mb-2">
         {/* Step 1 Pill */}
         <div className="flex items-center gap-3">
@@ -295,7 +318,7 @@ export function OnboardingForm() {
         </div>
       </div>
 
-      {/* 4. MAIN FORM CARD */}
+      {/* MAIN FORM CARD */}
       <div className="bg-white border border-slate-200/90 shadow-xs rounded-xl p-6 sm:p-10">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* STEP 1: BUSINESS DETAILS */}
@@ -470,7 +493,7 @@ export function OnboardingForm() {
                 </div>
 
                 {/* Tax Registration Section */}
-                <div className="space-y-3 pt-1 border-t border-slate-100">
+                <div className="space-y-3 pt-2 border-t border-slate-100">
                   <div>
                     <Label className="text-xs font-bold text-slate-700">Which tax registration does your shop/business have?</Label>
                     <p className="text-[11px] text-slate-400">Determines automatic VAT defaults during billing.</p>
@@ -478,7 +501,7 @@ export function OnboardingForm() {
 
                   <div className="grid grid-cols-3 gap-3">
                     <label
-                      className={`flex items-center justify-center p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                      className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all text-center ${
                         currentTaxRegistrationType === 'NONE'
                           ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
                           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
@@ -490,11 +513,11 @@ export function OnboardingForm() {
                         className="sr-only"
                         {...register('taxRegistrationType')}
                       />
-                      None
+                      <span>None</span>
                     </label>
 
                     <label
-                      className={`flex items-center justify-center p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                      className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all text-center ${
                         currentTaxRegistrationType === 'PAN'
                           ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
                           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
@@ -506,11 +529,11 @@ export function OnboardingForm() {
                         className="sr-only"
                         {...register('taxRegistrationType')}
                       />
-                      PAN Registered
+                      <span>PAN Registered</span>
                     </label>
 
                     <label
-                      className={`flex items-center justify-center p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                      className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all text-center ${
                         currentTaxRegistrationType === 'VAT'
                           ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
                           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
@@ -522,14 +545,22 @@ export function OnboardingForm() {
                         className="sr-only"
                         {...register('taxRegistrationType')}
                       />
-                      VAT Registered
+                      <span>VAT Registered</span>
                     </label>
                   </div>
+
+                  <p className="text-[11px] font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-md border border-slate-200/80">
+                    {currentTaxRegistrationType === 'VAT'
+                      ? '✓ VAT Registered: VAT will be enabled by default (13%).'
+                      : currentTaxRegistrationType === 'PAN'
+                      ? '✓ PAN Registered: VAT will be off by default.'
+                      : '✓ No Tax Registration: VAT will be off by default.'}
+                  </p>
 
                   {currentTaxRegistrationType !== 'NONE' && (
                     <div className="space-y-1.5 pt-1">
                       <Label htmlFor="taxRegistrationNumber" className="text-xs font-bold text-slate-700">
-                        {currentTaxRegistrationType === 'VAT' ? 'VAT Number *' : 'PAN Number *'}
+                        {currentTaxRegistrationType === 'VAT' ? 'VAT Number (9-digits) *' : 'PAN Number (9-digits) *'}
                       </Label>
                       <Input
                         id="taxRegistrationNumber"
@@ -537,30 +568,11 @@ export function OnboardingForm() {
                         className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20 font-mono"
                         {...register('taxRegistrationNumber')}
                       />
-                      <p className="text-[11px] text-slate-400">
-                        {currentTaxRegistrationType === 'VAT'
-                          ? 'VAT registered: Bills will default to 13% VAT ON.'
-                          : 'PAN registered: Bills will default to VAT OFF.'}
-                      </p>
                       {errors.taxRegistrationNumber && (
                         <p className="text-[11px] font-medium text-rose-500">{errors.taxRegistrationNumber.message}</p>
                       )}
                     </div>
                   )}
-                </div>
-
-                {/* Logo URL */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="logoUrl" className="text-xs font-bold text-slate-700">
-                    Logo Image URL <span className="text-slate-400 font-normal">(Optional)</span>
-                  </Label>
-                  <Input
-                    id="logoUrl"
-                    type="url"
-                    placeholder="https://example.com/logo.png"
-                    className="h-10 text-sm focus:border-indigo-600 focus:ring-indigo-600/20"
-                    {...register('logoUrl')}
-                  />
                 </div>
               </div>
             </div>
@@ -577,7 +589,7 @@ export function OnboardingForm() {
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">Set your preferences</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Configure default operational settings for currency, VAT, and invoices.
+                    These are your default business settings. You can change them anytime in Settings.
                   </p>
                 </div>
               </div>
@@ -588,7 +600,7 @@ export function OnboardingForm() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="currency" className="text-xs font-bold text-slate-700">
-                      Billing Currency
+                      Billing Currency <span className="text-red-500">*</span>
                     </Label>
                     <Select
                       value={currentCurrency}
@@ -608,7 +620,7 @@ export function OnboardingForm() {
 
                   <div className="space-y-1.5">
                     <Label htmlFor="timezone" className="text-xs font-bold text-slate-700">
-                      Timezone
+                      Timezone <span className="text-red-500">*</span>
                     </Label>
                     <Select
                       value={currentTimezone}
@@ -685,9 +697,9 @@ export function OnboardingForm() {
                         <SelectValue placeholder="Select Date Format" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-slate-200">
+                        <SelectItem value="BS_FORMAT">Bikram Sambat (BS Nepal Calendar)</SelectItem>
                         <SelectItem value="YYYY-MM-DD">YYYY-MM-DD (ISO / AD)</SelectItem>
                         <SelectItem value="DD/MM/YYYY">DD/MM/YYYY (Standard)</SelectItem>
-                        <SelectItem value="BS_FORMAT">Bikram Sambat (BS Nepal Calendar)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -696,7 +708,7 @@ export function OnboardingForm() {
             </div>
           )}
 
-          {/* 7. BOTTOM ACTION AREA */}
+          {/* BOTTOM ACTION AREA */}
           <div className="flex items-center justify-between pt-6 border-t border-slate-100">
             {step > 1 ? (
               <Button
@@ -724,12 +736,12 @@ export function OnboardingForm() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-10 px-5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+                className="h-10 px-6 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs min-w-[140px]"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    Finishing Setup...
                   </>
                 ) : (
                   <>

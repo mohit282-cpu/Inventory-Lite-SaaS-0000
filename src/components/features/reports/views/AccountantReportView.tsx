@@ -12,6 +12,7 @@ import { AuditHealth } from '../AuditHealth'
 import { PrintDisclaimer } from '../PrintDisclaimer'
 import { Sale, Customer, Expense, Invoice, Product } from '@/types'
 import { ProfitEstimateReport, PaymentMethodPoint } from '@/services/analytics.service'
+import { ShieldCheck } from 'lucide-react'
 
 export interface AccountantReportViewProps {
   sales: Sale[]
@@ -33,7 +34,8 @@ export function AccountantReportView({
   invoices,
   profitReport,
   monthlyData,
-  paymentMethods
+  paymentMethods,
+  dateRange,
 }: AccountantReportViewProps) {
   const hasCostDataError = profitReport.hasCostDataError
 
@@ -44,11 +46,32 @@ export function AccountantReportView({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between no-print">
-        <h2 className="text-xl font-semibold">Accountant & Audit View</h2>
+      {/* Accountant Mode Banner */}
+      <div className="bg-slate-900 text-white p-5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-600 rounded-lg text-white">
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold">Accountant & Audit View</h2>
+              <span className="bg-indigo-500/30 text-indigo-300 border border-indigo-400/30 text-[11px] font-bold px-2 py-0.5 rounded">
+                Full Audit Trail
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Exposes complete reconciliation details, exact transaction references, invoice sequences, duplicate checks, and exportable ledgers for audit compliance.
+            </p>
+          </div>
+        </div>
+
+        <div className="text-xs text-slate-400 font-mono bg-slate-800 px-3 py-1.5 rounded border border-slate-700 shrink-0">
+          Period: {dateRange.label}
+        </div>
       </div>
 
-      <ExecutiveSummary 
+      {/* 1. Executive Summary */}
+      <ExecutiveSummary
         metrics={{
           totalRevenue: profitReport.totalRevenue,
           grossProfit: profitReport.grossProfit,
@@ -58,13 +81,14 @@ export function AccountantReportView({
           netMarginPercent: profitReport.netMarginPercent,
           totalCustomers: customers.length,
           totalProducts: products.length,
-          hasCostDataError
-        }} 
+          hasCostDataError,
+        }}
       />
 
+      {/* 2. Audit Health & Reconciliation */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <MonthlyFinancialSummary data={monthlyData} hasCostDataError={hasCostDataError} />
-        <ReconciliationReport 
+        <ReconciliationReport
           salesTotal={salesTotal}
           collectedTotal={collectedTotal}
           outstandingTotal={outstandingTotal}
@@ -74,11 +98,13 @@ export function AccountantReportView({
         <AuditHealth sales={sales} invoices={invoices} />
       </div>
 
+      {/* 3. Customer Dues & Expenses */}
       <div className="grid gap-6 md:grid-cols-2">
         <CustomerDuesReport customers={customers} />
         <ExpenseReport expenses={expenses} />
       </div>
 
+      {/* 4. Inventory Valuation & Sales Register */}
       <InventoryReport products={products} />
       <SalesRegister sales={sales} customers={customers} invoices={invoices} />
 

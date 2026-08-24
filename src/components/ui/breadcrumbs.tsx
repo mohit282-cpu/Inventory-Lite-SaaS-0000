@@ -7,7 +7,7 @@ import { ChevronRight, Home } from 'lucide-react'
 
 export function Breadcrumbs() {
   const pathname = usePathname()
-  const pathSegments = pathname.split('/').filter((x) => x)
+  const pathSegments = (pathname || '').split('/').filter((x) => x)
 
   // Map route segment names to human-readable titles
   const routeNameMap: Record<string, string> = {

@@ -48,8 +48,13 @@ export interface AppwriteDocument extends Models.Document {
 
 // ==================== 1. User Entity ====================
 
+export type AccountStatus = 'ACTIVE' | 'BLOCKED'
+
 export interface UserPreferences {
   activeBusinessId?: string
+  onboardingCompleted?: boolean
+  accountStatus?: AccountStatus
+  isBlocked?: boolean
   theme: 'light' | 'dark' | 'system'
   language: string
   notifications: {
@@ -64,6 +69,8 @@ export interface AppUser extends Models.Document {
   email: string
   phone?: string
   avatar?: string
+  accountStatus?: AccountStatus
+  isBlocked?: boolean
   preferences: UserPreferences
   createdAt: string
   updatedAt: string
@@ -87,6 +94,7 @@ export interface Business extends Models.Document {
   logoUrl?: string
   currency: Currency
   timezone: string
+  dateFormat?: string
   createdAt: string
   updatedAt: string
 }

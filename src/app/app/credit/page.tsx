@@ -1,7 +1,9 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import React, { useEffect, useState, useCallback } from 'react'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 import { PageHeader } from '@/components/ui/page-header'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
@@ -25,11 +27,11 @@ import { Customer } from '@/types'
 import { formatBSDate } from '@/lib/date/bs-date'
 
 // Dynamic Dialog Imports for Bundle Optimization
-const RecordPaymentDialog = dynamic(
+const RecordPaymentDialog = nextDynamic(
   () => import('@/components/features/credit/record-payment-dialog').then((mod) => mod.RecordPaymentDialog),
   { ssr: false }
 )
-const CreditDetailsDrawer = dynamic(
+const CreditDetailsDrawer = nextDynamic(
   () => import('@/components/features/credit/credit-details-drawer').then((mod) => mod.CreditDetailsDrawer),
   { ssr: false }
 )

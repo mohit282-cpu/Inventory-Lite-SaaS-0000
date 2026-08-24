@@ -19,11 +19,13 @@ export function MobileBottomBar({ onOpenMore }: MobileBottomBarProps) {
     { name: 'Customers', href: '/app/customers', icon: Users },
   ]
 
+  const currentPath = pathname || ''
+
   return (
     <nav aria-label="Mobile navigation bar" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-lg px-2 pt-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
       <div className="grid grid-cols-5 gap-1 items-center max-w-md mx-auto">
         {tabs.map((tab) => {
-          const isActive = pathname === tab.href || (tab.href !== '/app/dashboard' && pathname.startsWith(tab.href))
+          const isActive = currentPath === tab.href || (tab.href !== '/app/dashboard' && currentPath.startsWith(tab.href))
           const Icon = tab.icon
 
           return (

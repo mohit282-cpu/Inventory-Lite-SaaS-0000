@@ -2,6 +2,7 @@ import { BaseService } from './base.service'
 import { COLLECTIONS, databases, DATABASE_ID } from '@/config/appwrite'
 import { Product } from '@/types'
 import { Query } from 'appwrite'
+import { sanitizeAppwriteDocId } from '@/lib/utils'
 
 /**
  * Product Service
@@ -19,7 +20,7 @@ export class ProductService extends BaseService {
    * Utilizes an Appwrite 'inventory_locks' collection to ensure atomicity across processes.
    */
   async withStockLock<T>(productId: string, task: () => Promise<T>): Promise<T> {
-    const lockId = `lock_${productId}`
+    const lockId = sanitizeAppwriteDocId(`lock_${productId}`, 'lock')
     const maxRetries = 10
     const retryDelayMs = 500
 
@@ -45,6 +46,12 @@ export class ProductService extends BaseService {
           }
         }
       } catch (err: any) {
+        // If collection doesn't exist on Appwrite (404 / could not be found), fallback to executing task without locking
+        if (err?.code === 404 || (err?.message && err.message.toLowerCase().includes('could not be found'))) {
+          console.warn('[withStockLock] inventory_locks collection not found. Executing task directly...')
+          return await task()
+        }
+
         // If document already exists, another process has the lock (Appwrite 409 conflict)
         if (err?.code === 409) {
           if (attempt === maxRetries) {
@@ -105,12 +112,16 @@ export class ProductService extends BaseService {
     try {
       // Uniqueness validation across active business products
       if (sku) {
-        skuLockId = `sku_${businessId}_${sku}`
+        skuLockId = sanitizeAppwriteDocId(`sku_${businessId}_${sku}`, 'sku')
         try {
           await databases.createDocument(DATABASE_ID, COLLECTIONS.INVENTORY_LOCKS, skuLockId, { productId: 'sku_check', createdAt: new Date().toISOString() })
         } catch (err: any) {
           if (err?.code === 409) throw new Error(`Product with SKU "${sku}" already exists or is being created`)
-          throw err
+          if (err?.code === 404 || (err?.message && err.message.toLowerCase().includes('could not be found'))) {
+            // Collection not found, proceed to database query check
+          } else {
+            throw err
+          }
         }
         
         const existingSku = await this.list<Product>(businessId, [Query.equal('sku', sku)])
@@ -120,12 +131,16 @@ export class ProductService extends BaseService {
       }
 
       if (barcode) {
-        barcodeLockId = `bar_${businessId}_${barcode}`
+        barcodeLockId = sanitizeAppwriteDocId(`bar_${businessId}_${barcode}`, 'bar')
         try {
           await databases.createDocument(DATABASE_ID, COLLECTIONS.INVENTORY_LOCKS, barcodeLockId, { productId: 'bar_check', createdAt: new Date().toISOString() })
         } catch (err: any) {
           if (err?.code === 409) throw new Error(`Product with Barcode "${barcode}" already exists or is being created`)
-          throw err
+          if (err?.code === 404 || (err?.message && err.message.toLowerCase().includes('could not be found'))) {
+            // Collection not found, proceed to database query check
+          } else {
+            throw err
+          }
         }
 
         const existingBarcode = await this.list<Product>(businessId, [Query.equal('barcode', barcode)])

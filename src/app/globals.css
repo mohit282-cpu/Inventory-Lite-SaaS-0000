@@ -83,8 +83,19 @@
   /* Language-Specific Typography Systems */
   html[lang="ne"] body {
     font-family: var(--font-devanagari), var(--font-inter), "Kalimati", system-ui, sans-serif;
-    line-height: 1.65;
+    line-height: 1.7;
     letter-spacing: 0.01em;
+  }
+
+  html[lang="ne"] h1,
+  html[lang="ne"] h2 {
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+  }
+
+  html[lang="ne"] h3,
+  html[lang="ne"] h4 {
+    line-height: 1.28;
   }
 
   html[lang="en"] body {

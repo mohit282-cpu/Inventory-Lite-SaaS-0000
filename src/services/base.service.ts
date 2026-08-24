@@ -1,5 +1,6 @@
 import { databases, DATABASE_ID } from '@/config/appwrite'
 import { ID, Query, Models, Permission, Role } from 'appwrite'
+import { sanitizeAppwriteDocId } from '@/lib/utils'
 
 /**
  * Base Service Class
@@ -112,15 +113,33 @@ export abstract class BaseService {
       Permission.delete(secureTarget),
     ]
 
-    return this.mapDocument<T>(
-      await databases.createDocument(
-        DATABASE_ID,
-        this.collectionId,
-        customId || ID.unique(),
-        documentData,
-        docPermissions
-      )
-    )
+    let attempts = 0
+    while (attempts < 5) {
+      try {
+        const docId = customId ? sanitizeAppwriteDocId(customId) : ID.unique()
+        const createdDoc = await databases.createDocument(
+          DATABASE_ID,
+          this.collectionId,
+          docId,
+          documentData,
+          docPermissions
+        )
+        return this.mapDocument<T>(createdDoc)
+      } catch (err: any) {
+        if (err?.message && err.message.includes('Unknown attribute')) {
+          const match = err.message.match(/Unknown attribute:\s*"([^"]+)"/i)
+          if (match && match[1] && documentData[match[1]] !== undefined) {
+            console.warn(`[BaseService] Stripping unknown attribute "${match[1]}" from ${this.collectionId} create payload...`)
+            delete documentData[match[1]]
+            attempts++
+            continue
+          }
+        }
+        throw err
+      }
+    }
+
+    throw new Error(`Failed to create document in ${this.collectionId}: max retries exceeded`)
   }
 
   /**

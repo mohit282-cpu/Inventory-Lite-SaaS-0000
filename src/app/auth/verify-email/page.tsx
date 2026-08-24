@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -11,8 +13,8 @@ import { Mail, CheckCircle2, AlertCircle, Loader2, ArrowRight } from 'lucide-rea
 
 function VerifyEmailForm() {
   const searchParams = useSearchParams()
-  const userId = searchParams.get('userId') || ''
-  const secret = searchParams.get('secret') || ''
+  const userId = searchParams?.get('userId') || ''
+  const secret = searchParams?.get('secret') || ''
   const { toast } = useToast()
 
   const [isVerifying, setIsVerifying] = useState(false)

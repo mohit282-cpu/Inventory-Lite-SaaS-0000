@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import React, { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/context/auth-context'
 import { invoiceService, InvoiceFullDetails } from '@/services/invoice.service'
@@ -49,7 +51,7 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
 
   // Auto-trigger print if ?print=true is present in query string
   useEffect(() => {
-    if (details && searchParams.get('print') === 'true') {
+    if (details && searchParams?.get('print') === 'true') {
       setTimeout(() => {
         window.print()
       }, 500)

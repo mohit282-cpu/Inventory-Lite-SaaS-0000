@@ -87,8 +87,8 @@ export const businessSchema = z.object({
 
 export const onboardingSchema = z
   .object({
-    name: z.string().min(2, 'Business name must be at least 2 characters'),
-    ownerName: z.string().min(2, 'Owner name must be at least 2 characters'),
+    name: z.string().trim().min(2, 'Business name must be at least 2 characters'),
+    ownerName: z.string().trim().min(2, 'Owner name must be at least 2 characters'),
     phone: z.string().optional(),
     email: z.string().email('Invalid email address').optional().or(z.literal('')),
     address: z.string().optional(),
@@ -98,13 +98,12 @@ export const onboardingSchema = z
     vatNumber: z.string().optional(),
     taxRegistrationType: taxRegistrationTypeSchema.default('NONE'),
     taxRegistrationNumber: z.string().optional(),
-    logoUrl: safeImageUrlSchema,
-    currency: z.enum(['NPR', 'USD', 'EUR', 'INR']),
-    timezone: z.string().min(1, 'Timezone is required'),
-    defaultVatRate: z.coerce.number().min(0).max(100).optional(),
-    invoicePrefix: z.string().optional(),
-    lowStockThreshold: z.coerce.number().min(0).optional(),
-    dateFormat: z.string().optional(),
+    currency: z.enum(['NPR', 'USD', 'EUR', 'INR']).default('NPR'),
+    timezone: z.string().min(1, 'Timezone is required').default('Asia/Kathmandu'),
+    defaultVatRate: z.coerce.number().min(0).max(100).optional().default(13),
+    invoicePrefix: z.string().optional().default('INV-'),
+    lowStockThreshold: z.coerce.number().min(0).optional().default(10),
+    dateFormat: z.string().optional().default('BS_FORMAT'),
   })
   .refine(
     (data) => {

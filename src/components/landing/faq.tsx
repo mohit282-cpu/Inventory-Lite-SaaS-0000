@@ -16,6 +16,11 @@ export function LandingFAQ() {
     { q: t('faq.q5'), a: t('faq.a5') },
     { q: t('faq.q6'), a: t('faq.a6') },
     { q: t('faq.q7'), a: t('faq.a7') },
+    { q: t('faq.q8'), a: t('faq.a8') },
+    { q: t('faq.q9'), a: t('faq.a9') },
+    { q: t('faq.q10'), a: t('faq.a10') },
+    { q: t('faq.q11'), a: t('faq.a11') },
+    { q: t('faq.q12'), a: t('faq.a12') },
   ]
 
   const toggle = (idx: number) => {
@@ -23,13 +28,13 @@ export function LandingFAQ() {
   }
 
   return (
-    <section id="faq" className="py-16 sm:py-24 bg-slate-50 border-b border-slate-200 text-slate-900">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-12 text-left">
-          <span className="text-xs font-semibold uppercase tracking-wider text-indigo-700">
-            {t('faq.badge')}
+    <section id="faq" className="py-12 sm:py-16 lg:py-20 bg-white border-b border-slate-200 text-slate-900">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        <div className="text-left space-y-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-3 py-1 rounded-md border border-indigo-100">
+            Answers & Clarifications
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-2">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.2]">
             {t('faq.headline')}
           </h2>
         </div>
@@ -39,13 +44,13 @@ export function LandingFAQ() {
           {faqItems.map((item, idx) => {
             const isOpen = openIndex === idx
             return (
-              <div key={idx} className="py-4">
+              <div key={idx} className="py-4 sm:py-5">
                 <button
                   type="button"
                   onClick={() => toggle(idx)}
                   aria-expanded={isOpen}
                   aria-controls={`faq-answer-${idx}`}
-                  className="w-full flex items-center justify-between text-left text-base sm:text-lg font-bold text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600/50 rounded-md py-1.5 gap-4"
+                  className="w-full flex items-center justify-between text-left text-lg sm:text-xl font-bold text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded-lg py-1 gap-4"
                 >
                   <span className="leading-snug">{item.q}</span>
                   <ChevronDown
@@ -56,7 +61,7 @@ export function LandingFAQ() {
                 </button>
 
                 {isOpen && (
-                  <p id={`faq-answer-${idx}`} className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed animate-fade-in pr-6">
+                  <p id={`faq-answer-${idx}`} className="mt-3 text-base text-slate-700 leading-[1.7] pr-4 sm:pr-6">
                     {item.a}
                   </p>
                 )}
