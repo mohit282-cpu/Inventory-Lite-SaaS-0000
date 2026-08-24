@@ -77,7 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   /**
-   * Primary Authentication Bootstrap
+   * Primary Authentication & Persistent Workspace Bootstrap
+   * Queries Appwrite database as sole source of truth across all devices/browsers.
    */
   const refreshAuthInternal = useCallback(async () => {
     try {
@@ -104,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // AUTHENTICATED! Unblock app immediately
+      // AUTHENTICATED! Unblock app session immediately
       if (isMountedRef.current) {
         setUser(currentUser)
         setAuthStatus('ONLINE_AUTHENTICATED')
@@ -113,15 +114,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setWorkspaceError(null)
       }
 
-      // Load Workspace Data (Profile, Memberships, Business) asynchronously
+      // Load Workspace Data (Profile, Memberships, Business) asynchronously from Appwrite
       try {
-        const [profileRes, membershipsRes] = await Promise.all([
+        const [profileRes, membershipsRes, ownedBusinessesRes] = await Promise.all([
           withTimeout(userService.getUserProfile(currentUser.$id), 6000, 'User profile fetch timed out').catch((err) => {
             console.warn('User profile fetch warning:', err)
             return null
           }),
           withTimeout(businessMemberService.getUserMemberships(currentUser.$id), 6000, 'Memberships fetch timed out').catch((err) => {
             console.warn('Memberships fetch warning:', err)
+            return []
+          }),
+          withTimeout(businessService.getMyBusinesses(currentUser.$id), 6000, 'Owned businesses fetch timed out').catch((err) => {
+            console.warn('Owned businesses fetch warning:', err)
             return []
           }),
         ])
@@ -136,16 +141,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: currentUser.email,
             })
           } catch {
-            // Non-fatal
+            // Non-fatal profile creation fallback
           }
         }
-        setUserProfile(finalProfile)
-        setMemberships(membershipsRes)
 
-        // Determine Active Business
-        if (membershipsRes.length > 0) {
+        // Combine memberships from business_members table AND owned businesses table
+        const effectiveMemberships = [...membershipsRes]
+        for (const ownedBiz of ownedBusinessesRes) {
+          if (!effectiveMemberships.some((m) => m.businessId === ownedBiz.$id)) {
+            effectiveMemberships.push({
+              $id: `mem_owner_${ownedBiz.$id}`,
+              $collectionId: 'business_members',
+              $databaseId: 'system',
+              $createdAt: ownedBiz.$createdAt || new Date().toISOString(),
+              $updatedAt: ownedBiz.$updatedAt || new Date().toISOString(),
+              $permissions: [],
+              businessId: ownedBiz.$id,
+              userId: currentUser.$id,
+              role: 'owner',
+              createdAt: ownedBiz.createdAt || ownedBiz.$createdAt || new Date().toISOString(),
+            })
+          }
+        }
+
+        setUserProfile(finalProfile)
+        setMemberships(effectiveMemberships)
+
+        // Determine Active Business from Appwrite DB records
+        if (effectiveMemberships.length > 0) {
           const preferredId = finalProfile?.preferences?.activeBusinessId
-          const targetMembership = membershipsRes.find((m) => m.businessId === preferredId) || membershipsRes[0]
+          const targetMembership = effectiveMemberships.find((m) => m.businessId === preferredId) || effectiveMemberships[0]
 
           try {
             const biz = await withTimeout(
@@ -160,6 +185,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.warn('Active business fetch warning:', bizErr)
             if (isMountedRef.current) {
               setActiveBusiness(null)
+            }
+          }
+
+          // Ensure user profile in Appwrite is marked onboardingCompleted = true so all devices know setup is complete
+          if (finalProfile && !finalProfile.preferences?.onboardingCompleted) {
+            try {
+              const updatedProfile = await userService.updateUserPreferences(currentUser.$id, {
+                onboardingCompleted: true,
+                activeBusinessId: targetMembership.businessId,
+              })
+              if (isMountedRef.current) {
+                setUserProfile(updatedProfile)
+              }
+            } catch {
+              // Ignore preference sync failure
             }
           }
         } else if (isMountedRef.current) {
@@ -312,6 +352,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  /**
+   * Create Business Onboarding with Server-Side Duplicate Check (Requirement #22)
+   */
   const createBusinessOnboarding = async (data: {
     name: string
     phone?: string
@@ -332,6 +375,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       clearError()
 
+      // 1. Check Appwrite database for existing business memberships or owned businesses
+      const [existingMemberships, existingOwned] = await Promise.all([
+        businessMemberService.getUserMemberships(user.$id).catch(() => []),
+        businessService.getMyBusinesses(user.$id).catch(() => []),
+      ])
+
+      const existingBizId = existingMemberships[0]?.businessId || existingOwned[0]?.$id
+
+      if (existingBizId) {
+        // Business already exists in Appwrite! Do NOT create a duplicate business!
+        const existingBiz = await businessService.getBusiness(existingBizId)
+        setActiveBusiness(existingBiz)
+        setMemberships(
+          existingMemberships.length > 0
+            ? existingMemberships
+            : [
+                {
+                  $id: `mem_owner_${existingBiz.$id}`,
+                  $collectionId: 'business_members',
+                  $databaseId: 'system',
+                  $createdAt: existingBiz.$createdAt,
+                  $updatedAt: existingBiz.$updatedAt,
+                  $permissions: [],
+                  businessId: existingBiz.$id,
+                  userId: user.$id,
+                  role: 'owner',
+                  createdAt: existingBiz.createdAt || existingBiz.$createdAt || new Date().toISOString(),
+                },
+              ]
+        )
+        await completeOnboarding(existingBiz.$id)
+        return existingBiz
+      }
+
+      // 2. Genuinely no business exists -> Create new business in Appwrite
       const business = await businessService.createBusiness(
         {
           name: data.name,
@@ -351,18 +429,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const membership = await businessMemberService.createInitialOwnerMember(user.$id, business.$id)
 
-      try {
-        const updatedUser = await userService.updateUserPreferences(user.$id, {
-          activeBusinessId: business.$id,
-          onboardingCompleted: false,
-        })
-        setUserProfile(updatedUser)
-      } catch {
-        // Fallback
-      }
+      await completeOnboarding(business.$id)
 
       setActiveBusiness(business)
-      setMemberships((prev) => [...prev, membership])
+      setMemberships((prev) => [...prev.filter((m) => m.businessId !== business.$id), membership])
       return business
     } catch (err: any) {
       const appErr = handleApiError(err)
@@ -380,8 +450,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isMountedRef.current) {
         setUserProfile(updatedUser)
       }
-    } catch {
-      // Fallback
+    } catch (err) {
+      console.warn('[AuthContext] Update user preferences onboardingCompleted warning:', err)
     } finally {
       if (typeof window !== 'undefined') {
         localStorage.setItem(`onboarding_completed_${user.$id}`, 'true')

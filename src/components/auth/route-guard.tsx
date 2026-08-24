@@ -12,12 +12,22 @@ interface RouteGuardProps {
 }
 
 export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps) {
-  const { user, userProfile, activeBusiness, memberships, authStatus, isAuthLoading, isWorkspaceLoading, authError, retryAuth } = useAuth()
+  const {
+    user,
+    userProfile,
+    activeBusiness,
+    memberships,
+    authStatus,
+    isAuthLoading,
+    isWorkspaceLoading,
+    authError,
+    retryAuth,
+  } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
 
   useEffect(() => {
-    // 1. Wait until initial session verification AND workspace initialization finish
+    // 1. MUST WAIT until initial session verification AND workspace initialization finish
     if (isAuthLoading || authStatus === 'INITIALIZING' || authStatus === 'ONLINE_AUTHENTICATING') return
     if (user && isWorkspaceLoading) return
 
@@ -27,6 +37,7 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
     const isOnboardingRoute = currentPath === '/onboarding'
     const isAccountBlockedRoute = currentPath === '/account-blocked'
 
+    // Blocked Account Protection
     const isUserBlocked =
       userProfile?.accountStatus === 'BLOCKED' ||
       userProfile?.isBlocked === true ||
@@ -58,20 +69,21 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
     if (authStatus === 'AUTHENTICATED' || authStatus === 'ONLINE_AUTHENTICATED' || authStatus === 'OFFLINE_AUTHORIZED') {
       const isLocalCompleted = typeof window !== 'undefined' && user ? localStorage.getItem(`onboarding_completed_${user.$id}`) === 'true' : false
       const isProfileCompleted = userProfile?.preferences?.onboardingCompleted === true
+      const hasDatabaseBusiness = memberships.length > 0 || activeBusiness !== null || !!userProfile?.preferences?.activeBusinessId
 
-      // Onboarding is ONLY completed if explicitly marked in profile or localStorage
-      const isOnboardingCompleted = isProfileCompleted || isLocalCompleted
+      // Persistent Source of Truth: Business setup is complete if marked in profile, stored locally, OR confirmed by Appwrite database business records
+      const hasCompletedBusinessSetup = isProfileCompleted || isLocalCompleted || hasDatabaseBusiness
 
-      // Authenticated user with incomplete onboarding accessing /app -> redirect to /onboarding
-      if (requireBusiness && !isOnboardingCompleted) {
+      // Authenticated user with incomplete business setup accessing /app -> redirect to /onboarding
+      if (requireBusiness && !hasCompletedBusinessSetup) {
         if (isAppRoute && !isOnboardingRoute) {
           router.replace('/onboarding')
         }
         return
       }
 
-      // Authenticated user WITH completed onboarding accessing /auth or /onboarding -> redirect to /app/dashboard
-      if (isOnboardingCompleted && (isAuthRoute || isOnboardingRoute)) {
+      // Authenticated user WITH completed business setup accessing /auth or /onboarding -> redirect to /app/dashboard
+      if (hasCompletedBusinessSetup && (isAuthRoute || isOnboardingRoute)) {
         router.replace('/app/dashboard')
       }
     }
@@ -80,12 +92,12 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
   const currentPath = pathname || (typeof window !== 'undefined' ? window.location.pathname : '')
   const isPublicRoute = currentPath === '/' || currentPath.startsWith('/auth')
 
-  // Loading State - Allow public marketing pages to render immediately; show loading screen for protected routes while authenticating or fetching initial workspace
+  // Loading State - Show loading screen while authenticating session or fetching Appwrite workspace
   if ((isAuthLoading || authStatus === 'INITIALIZING' || (user && isWorkspaceLoading && requireBusiness && !activeBusiness)) && !isPublicRoute) {
-    return <AuthLoadingScreen message="Loading workspace..." />
+    return <AuthLoadingScreen message="Loading your business..." />
   }
 
-  // 2. Authenticated user (online or offline mode) -> ALWAYS render children, NEVER block with full-page error!
+  // 2. Authenticated user -> Render children
   if (user) {
     return <>{children}</>
   }
@@ -94,7 +106,6 @@ export function RouteGuard({ children, requireBusiness = true }: RouteGuardProps
   if ((authStatus === 'TIMEOUT' || authStatus === 'ERROR' || authStatus === 'OFFLINE_NOT_AUTHORIZED') && !isPublicRoute) {
     return <AuthErrorScreen status={authStatus} error={authError} onRetry={retryAuth} />
   }
-
 
   return <>{children}</>
 }

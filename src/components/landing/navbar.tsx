@@ -10,7 +10,7 @@ import { AppLogo } from '@/components/ui/app-logo'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 
 export function LandingNavbar() {
-  const { user, activeBusiness } = useAuth()
+  const { user, activeBusiness, memberships } = useAuth()
   const { t } = useLanguage()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -52,7 +52,7 @@ export function LandingNavbar() {
               asChild
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm text-xs sm:text-sm"
             >
-              <Link href={activeBusiness ? "/app/dashboard" : "/onboarding"}>
+              <Link href={activeBusiness || memberships.length > 0 ? "/app/dashboard" : "/onboarding"}>
                 <LayoutDashboard className="mr-2 h-4 w-4 shrink-0" /> {t('nav.goToDashboard')}
               </Link>
             </Button>
@@ -140,7 +140,7 @@ export function LandingNavbar() {
                 asChild
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold min-h-[44px]"
               >
-                <Link href={activeBusiness ? "/app/dashboard" : "/onboarding"}>
+                <Link href={activeBusiness || memberships.length > 0 ? "/app/dashboard" : "/onboarding"}>
                   <LayoutDashboard className="mr-2 h-4 w-4 shrink-0" /> {t('nav.goToDashboard')}
                 </Link>
               </Button>

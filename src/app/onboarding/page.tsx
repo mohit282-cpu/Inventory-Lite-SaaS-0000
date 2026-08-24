@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { AppLogo } from '@/components/ui/app-logo'
 
 export default function OnboardingPage() {
-  const { user, userProfile, logout, isWorkspaceLoading } = useAuth()
+  const { user, userProfile, activeBusiness, memberships, logout, isWorkspaceLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -17,19 +17,20 @@ export default function OnboardingPage() {
 
     const isLocalCompleted = typeof window !== 'undefined' && user ? localStorage.getItem(`onboarding_completed_${user.$id}`) === 'true' : false
     const isProfileCompleted = userProfile?.preferences?.onboardingCompleted === true
-    const isOnboardingCompleted = isProfileCompleted || isLocalCompleted
+    const hasDatabaseBusiness = memberships.length > 0 || activeBusiness !== null || !!userProfile?.preferences?.activeBusinessId
+    const isOnboardingCompleted = isProfileCompleted || isLocalCompleted || hasDatabaseBusiness
 
     if (isOnboardingCompleted) {
       router.replace('/app/dashboard')
     }
-  }, [user, userProfile, isWorkspaceLoading, router])
+  }, [user, userProfile, activeBusiness, memberships, isWorkspaceLoading, router])
 
   if (isWorkspaceLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
         <div className="flex items-center gap-3 text-slate-600 text-sm font-semibold">
           <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-          Loading workspace...
+          Loading your business...
         </div>
       </div>
     )
@@ -61,28 +62,10 @@ export default function OnboardingPage() {
         </div>
       </header>
 
-      {/* 2. MAIN ONBOARDING AREA */}
-      <main className="flex-1 py-8 sm:py-12 px-4 sm:px-6 flex flex-col items-center">
-        <div className="w-full max-w-[720px] mx-auto">
-          {/* Onboarding Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Set up your business
-            </h1>
-            <p className="mt-2 text-sm text-slate-500 max-w-lg mx-auto leading-relaxed">
-              Tell us a few things about your business. You can change these details later from Settings.
-            </p>
-          </div>
-
-          {/* Wizard Form */}
-          <OnboardingForm />
-        </div>
+      {/* 2. FORM BODY AREA */}
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 my-4">
+        <OnboardingForm />
       </main>
-
-      {/* Footer copyright note */}
-      <footer className="py-4 text-center text-xs text-slate-400 font-medium border-t border-slate-200/50">
-        Inventory Lite SaaS &copy; {new Date().getFullYear()} — Multi-tenant Inventory & Billing Setup
-      </footer>
     </div>
   )
 }
