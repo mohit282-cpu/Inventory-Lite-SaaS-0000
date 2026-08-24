@@ -34,5 +34,58 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
+  ],
+  "widgets": [
+    {
+      "name": "Today's Sales (Small)",
+      "short_name": "Daily Sales",
+      "description": "See today's total sales and completed transaction count on your home screen.",
+      "tag": "small-daily-sales",
+      "template": "widget-small",
+      "ms_ac_template": "/widgets/small.json",
+      "data": "/api/widget/data",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "/screenshots/widget-small.png",
+          "sizes": "200x200",
+          "label": "Daily Sales Widget"
+        }
+      ]
+    },
+    {
+      "name": "Shop Overview (Medium)",
+      "short_name": "Shop Overview",
+      "description": "Overview of sales, expenses, stock count, and udhaar dues with deep links.",
+      "tag": "medium-shop-overview",
+      "template": "widget-medium",
+      "ms_ac_template": "/widgets/medium.json",
+      "data": "/api/widget/data",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "/screenshots/widget-medium.png",
+          "sizes": "400x200",
+          "label": "Shop Overview Widget"
+        }
+      ]
+    },
+    {
+      "name": "Business Overview (Large)",
+      "short_name": "Business Overview",
+      "description": "Full business metrics including low stock alerts and estimated profit.",
+      "tag": "large-business-overview",
+      "template": "widget-large",
+      "ms_ac_template": "/widgets/large.json",
+      "data": "/api/widget/data",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "/screenshots/widget-large.png",
+          "sizes": "400x400",
+          "label": "Business Overview Widget"
+        }
+      ]
+    }
   ]
 }

@@ -8,6 +8,7 @@ import { userService } from '@/services/user.service'
 import { businessService } from '@/services/business.service'
 import { businessMemberService } from '@/services/business-member.service'
 import { handleApiError } from '@/lib/error-handler'
+import { clearWidgetCache, syncWidgetData } from '@/lib/widget-sync'
 import { withTimeout, TimeoutError } from '@/lib/async-utils'
 import { formatE164Phone } from '@/lib/utils'
 
@@ -279,6 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore logout errors
     } finally {
+      clearWidgetCache()
       if (isMountedRef.current) {
         setUser(null)
         setUserProfile(null)
@@ -405,7 +407,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Preference update warning
       }
 
+      clearWidgetCache()
       setActiveBusiness(business)
+      if (business?.$id) {
+        syncWidgetData(business.$id).catch(() => {})
+      }
     } catch (err: any) {
       const appErr = handleApiError(err)
       setWorkspaceError(appErr.message)

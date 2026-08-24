@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Inventory Lite</string>
+    <string name="widget_small_title">Today\'s Sales (Small)</string>
+    <string name="widget_medium_title">Shop Overview (Medium)</string>
+    <string name="widget_large_title">Business Overview (Large)</string>
+    <string name="widget_todays_sales">Today\'s Sales</string>
+    <string name="widget_todays_expenses">Today\'s Expenses</string>
+    <string name="widget_stock">Current Stock</string>
+    <string name="widget_udhaar">Customer Udhaar</string>
+    <string name="widget_low_stock">Low Stock</string>
+    <string name="widget_estimated_profit">Estimated Profit</string>
+    <string name="widget_open_app">Open Inventory Lite</string>
+    <string name="widget_not_available">Not available</string>
+    <string name="widget_unable_to_refresh">Unable to refresh</string>
+    <string name="widget_showing_cached">Showing last saved data</string>
+</resources>
