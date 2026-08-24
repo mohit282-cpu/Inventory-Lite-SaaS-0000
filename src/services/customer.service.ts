@@ -76,6 +76,24 @@ export class CustomerService extends BaseService {
   }
 
   /**
+   * List ALL customers for a business without limit (for reporting)
+   */
+  async listAllCustomers(
+    businessId: string,
+    filters?: {
+      hasDueOnly?: boolean
+    }
+  ): Promise<Customer[]> {
+    const queries: any[] = [Query.orderDesc('createdAt')]
+
+    if (filters?.hasDueOnly) {
+      queries.push(Query.greaterThan('totalDue', 0))
+    }
+
+    return await this.listAll<Customer>(businessId, queries)
+  }
+
+  /**
    * Update customer record
    */
   async updateCustomer(

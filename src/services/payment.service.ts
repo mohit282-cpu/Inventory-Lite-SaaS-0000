@@ -189,6 +189,32 @@ export class PaymentService extends BaseService {
   }
 
   /**
+   * List ALL payments for a business within a date range
+   */
+  async listAllPayments(
+    businessId: string,
+    filters?: {
+      dateFrom?: string // ISO string
+      dateTo?: string   // ISO string
+      status?: string
+    }
+  ): Promise<Payment[]> {
+    const queries: any[] = [Query.orderDesc('createdAt')]
+
+    if (filters?.dateFrom) {
+      queries.push(Query.greaterThanEqual('paymentDate', filters.dateFrom))
+    }
+    if (filters?.dateTo) {
+      queries.push(Query.lessThanEqual('paymentDate', filters.dateTo))
+    }
+    if (filters?.status) {
+      queries.push(Query.equal('status', filters.status))
+    }
+
+    return await this.listAll<Payment>(businessId, queries)
+  }
+
+  /**
    * Update an existing payment record with exact difference balance adjustments
    */
   async updatePayment(

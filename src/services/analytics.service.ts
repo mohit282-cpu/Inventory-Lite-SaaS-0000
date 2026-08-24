@@ -51,9 +51,9 @@ export class AnalyticsService {
    */
   async getDashboardMetrics(businessId: string): Promise<DashboardMetrics> {
     const [products, customers, sales, expenseSum] = await Promise.all([
-      productService.listProducts(businessId, { limit: 500 }),
-      customerService.listCustomers(businessId, { limit: 500 }),
-      saleService.listSales(businessId, { limit: 500 }),
+      productService.listAllProducts(businessId),
+      customerService.listAllCustomers(businessId),
+      saleService.listAllSales(businessId),
       expenseService.getExpenseSummary(businessId),
     ])
 
@@ -109,11 +109,13 @@ export class AnalyticsService {
    * Get sales trend over time grouped by date
    */
   async getSalesChartData(businessId: string, days = 7): Promise<SalesChartPoint[]> {
-    const sales = await saleService.listSales(businessId, { limit: 500 })
+    const now = new Date()
+    const dFrom = new Date()
+    dFrom.setDate(now.getDate() - days)
+    const sales = await saleService.listAllSales(businessId, { dateFrom: dFrom.toISOString() })
 
     // Build map for the last `days` days
     const dateMap = new Map<string, { revenue: number; count: number }>()
-    const now = new Date()
 
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date()
@@ -150,7 +152,7 @@ export class AnalyticsService {
    * Get top selling products aggregated from sale item snapshots
    */
   async getTopSellingProducts(businessId: string, limit = 5): Promise<TopProductPoint[]> {
-    const sales = await saleService.listSales(businessId, { limit: 100 })
+    const sales = await saleService.listAllSales(businessId)
     const productAggMap = new Map<string, { name: string; quantity: number; revenue: number }>()
 
     for (const sale of sales) {
@@ -184,7 +186,7 @@ export class AnalyticsService {
    * Get sales distribution by payment method
    */
   async getSalesByPaymentMethod(businessId: string): Promise<PaymentMethodPoint[]> {
-    const sales = await saleService.listSales(businessId, { limit: 500 })
+    const sales = await saleService.listAllSales(businessId)
 
     const methodLabels: Record<string, string> = {
       cash: 'Cash',
@@ -233,9 +235,9 @@ export class AnalyticsService {
     endDate?: string
   ): Promise<ProfitEstimateReport> {
     const [sales, products, expenses] = await Promise.all([
-      saleService.listSales(businessId, { limit: 500 }),
-      productService.listProducts(businessId, { limit: 500 }),
-      expenseService.listExpenses(businessId, { limit: 500 }),
+      saleService.listAllSales(businessId, { dateFrom: startDate, dateTo: endDate }),
+      productService.listAllProducts(businessId),
+      expenseService.listAllExpenses(businessId, { dateFrom: startDate, dateTo: endDate }),
     ])
 
     const productPurchaseMap = new Map<string, number>()

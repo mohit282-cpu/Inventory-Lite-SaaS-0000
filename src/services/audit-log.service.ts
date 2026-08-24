@@ -64,8 +64,20 @@ export class AuditLogService {
   /**
    * Retrieve recent audit logs for a business
    */
-  async getBusinessAuditLogs(businessId: string): Promise<AuditLogEntry[]> {
-    return this.logs.filter((l) => l.businessId === businessId)
+  async getBusinessAuditLogs(
+    businessId: string,
+    filters?: {
+      dateFrom?: string
+      dateTo?: string
+      action?: string
+    }
+  ): Promise<AuditLogEntry[]> {
+    return this.logs
+      .filter((l) => l.businessId === businessId)
+      .filter((l) => (filters?.dateFrom ? l.timestamp >= filters.dateFrom : true))
+      .filter((l) => (filters?.dateTo ? l.timestamp <= filters.dateTo : true))
+      .filter((l) => (filters?.action ? l.action === filters.action : true))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   }
 }
 

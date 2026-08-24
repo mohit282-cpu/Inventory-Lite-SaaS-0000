@@ -348,6 +348,32 @@ export class SaleService extends BaseService {
   }
 
   /**
+   * List ALL sales for a business within a date range (for reporting)
+   */
+  async listAllSales(
+    businessId: string,
+    filters?: {
+      dateFrom?: string // ISO string
+      dateTo?: string   // ISO string
+      status?: SaleStatus
+    }
+  ): Promise<Sale[]> {
+    const queries: any[] = [Query.orderDesc('createdAt')]
+
+    if (filters?.dateFrom) {
+      queries.push(Query.greaterThanEqual('createdAt', filters.dateFrom))
+    }
+    if (filters?.dateTo) {
+      queries.push(Query.lessThanEqual('createdAt', filters.dateTo))
+    }
+    if (filters?.status) {
+      queries.push(Query.equal('status', filters.status))
+    }
+
+    return await this.listAll<Sale>(businessId, queries)
+  }
+
+  /**
    * Delete / Cancel a sale transaction safely.
    * Restores product stock, adjusts customer due balance, and deletes sale item records.
    */

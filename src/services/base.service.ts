@@ -195,6 +195,32 @@ export abstract class BaseService {
   }
 
   /**
+   * Fetch all documents for a business, bypassing limit restrictions by using cursor pagination
+   */
+  async listAll<T extends Models.Document>(businessId: string, queries: any[] = []): Promise<T[]> {
+    const allDocuments: T[] = []
+    let cursor: string | null = null
+    const limit = 500 // Max limit for Appwrite is 5000, 500 is safer for large payloads
+
+    while (true) {
+      const pageQueries = [...queries, Query.limit(limit)]
+      if (cursor) {
+        pageQueries.push(Query.cursorAfter(cursor))
+      }
+
+      const pageDocs = await this.list<T>(businessId, pageQueries)
+      if (pageDocs.length === 0) break
+
+      allDocuments.push(...pageDocs)
+
+      if (pageDocs.length < limit) break
+      cursor = pageDocs[pageDocs.length - 1].$id
+    }
+
+    return allDocuments
+  }
+
+  /**
    * Update a document with tenant isolation verification
    */
   async update<T>(id: string, data: any, businessId: string): Promise<T> {

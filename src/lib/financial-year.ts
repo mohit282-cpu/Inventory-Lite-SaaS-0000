@@ -5,6 +5,8 @@ export interface FinancialYearInfo {
   bsEndYear: number
   label: string // e.g. "2083/84"
   shortLabel: string // e.g. "83/84"
+  isoStartDate?: string // ISO string of Shrawan 1
+  isoEndDate?: string   // ISO string of Ashadh end
 }
 
 /**
@@ -60,4 +62,26 @@ export function getFYShortLabel(dateInput?: string | Date): string {
  */
 export function getFYFullLabel(dateInput?: string | Date): string {
   return getCurrentFinancialYear(dateInput).label
+}
+
+/**
+ * Get exact ISO bounds for a financial year (e.g. 2083)
+ * Financial year starts on Shrawan 1 of the given year, and ends on Ashadh end of the next year.
+ * Needs calendarService which has bsToAd. But calendarService imports this file.
+ * To avoid circular dependency, we return ISO strings directly from bs-date or just AD Date logic.
+ */
+export function getFinancialYearDateRange(bsStartYear: number, getMonthDays: (y: number, m: number) => number, bsToAd: (y: number, m: number, d: number) => Date): { isoFrom: string; isoTo: string } {
+  // Start: Shrawan 1st of bsStartYear
+  const adStart = bsToAd(bsStartYear, 4, 1)
+  adStart.setHours(0, 0, 0, 0)
+  
+  // End: Ashadh end of bsStartYear + 1
+  const ashadhDays = getMonthDays(bsStartYear + 1, 3)
+  const adEnd = bsToAd(bsStartYear + 1, 3, ashadhDays)
+  adEnd.setHours(23, 59, 59, 999)
+
+  return {
+    isoFrom: adStart.toISOString(),
+    isoTo: adEnd.toISOString()
+  }
 }

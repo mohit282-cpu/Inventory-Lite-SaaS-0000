@@ -170,6 +170,28 @@ export class InvoiceService extends BaseService {
   }
 
   /**
+   * List ALL invoices for a business within a date range (for reporting)
+   */
+  async listAllInvoices(
+    businessId: string,
+    filters?: {
+      dateFrom?: string // ISO string
+      dateTo?: string   // ISO string
+    }
+  ): Promise<Invoice[]> {
+    const queries: any[] = [Query.orderDesc('issueDate')]
+
+    if (filters?.dateFrom) {
+      queries.push(Query.greaterThanEqual('issueDate', filters.dateFrom))
+    }
+    if (filters?.dateTo) {
+      queries.push(Query.lessThanEqual('issueDate', filters.dateTo))
+    }
+
+    return await this.listAll<Invoice>(businessId, queries)
+  }
+
+  /**
    * Update invoice PDF URL
    */
   async updatePdfUrl(invoiceId: string, pdfUrl: string, businessId: string): Promise<Invoice> {

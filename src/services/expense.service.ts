@@ -96,6 +96,33 @@ export class ExpenseService extends BaseService {
   }
 
   /**
+   * List ALL expenses for a business within a date range (for reporting)
+   */
+  async listAllExpenses(
+    businessId: string,
+    filters?: {
+      dateFrom?: string // ISO string
+      dateTo?: string   // ISO string
+      category?: string
+    }
+  ): Promise<Expense[]> {
+    const queries: string[] = [Query.orderDesc('date')]
+
+    if (filters?.dateFrom) {
+      queries.push(Query.greaterThanEqual('date', filters.dateFrom))
+    }
+    if (filters?.dateTo) {
+      queries.push(Query.lessThanEqual('date', filters.dateTo))
+    }
+    if (filters?.category && filters.category !== 'all') {
+      queries.push(Query.equal('category', filters.category))
+    }
+
+    const response = await this.listAll<Expense>(businessId, queries)
+    return response.map((doc) => this.mapExpense(doc))
+  }
+
+  /**
    * Get expense summary metrics for today, this month, and total
    */
   async getExpenseSummary(businessId: string): Promise<ExpenseSummary> {

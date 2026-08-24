@@ -1,432 +1,244 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
-import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { SearchInput } from '@/components/ui/search-input'
 import { ReportsPageSkeleton } from '@/components/ui/skeleton'
-import { StatusBadge } from '@/components/ui/status-badge'
 import { useAuth } from '@/context/auth-context'
-import { analyticsService, ProfitEstimateReport } from '@/services/analytics.service'
+import { analyticsService, ProfitEstimateReport, PaymentMethodPoint } from '@/services/analytics.service'
 import { productService } from '@/services/product.service'
 import { customerService } from '@/services/customer.service'
 import { saleService } from '@/services/sale.service'
 import { expenseService } from '@/services/expense.service'
-import { Product, Sale, Customer, Expense } from '@/types'
-import { formatBSDate } from '@/lib/date/bs-date'
-import {
-  TrendingUp,
-  Download,
-  Package,
-  Users,
-  Receipt,
-  DollarSign,
-} from 'lucide-react'
+import { invoiceService } from '@/services/invoice.service'
+import { Product, Sale, Customer, Expense, Invoice } from '@/types'
+
+import { FinancialYearSelector } from '@/components/features/reports/FinancialYearSelector'
+import { ExecutiveSummary } from '@/components/features/reports/ExecutiveSummary'
+import { MonthlyFinancialSummary, MonthlyData } from '@/components/features/reports/MonthlyFinancialSummary'
+import { SalesRegister } from '@/components/features/reports/SalesRegister'
+import { ReconciliationReport } from '@/components/features/reports/ReconciliationReport'
+import { CustomerDuesReport } from '@/components/features/reports/CustomerDuesReport'
+import { InventoryReport } from '@/components/features/reports/InventoryReport'
+import { ExpenseReport } from '@/components/features/reports/ExpenseReport'
+import { AuditHealth } from '@/components/features/reports/AuditHealth'
+import { ExportAuditPack } from '@/components/features/reports/ExportAuditPack'
+import { ExportMenu } from '@/components/features/reports/ExportMenu'
+import { PrintHeader } from '@/components/features/reports/PrintHeader'
+import { ExportDataPayload } from '@/lib/export/excel-export'
 
 export default function ReportsPage() {
   const { activeBusiness } = useAuth()
-
-  const [activeTab, setActiveTab] = useState<'sales' | 'stock' | 'dues' | 'expenses' | 'profit'>('sales')
-  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
 
-  // Real database datasets
+  const [dateRange, setDateRange] = useState<{ isoFrom: string; isoTo: string; label: string } | null>(null)
+
   const [sales, setSales] = useState<Sale[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [invoices, setInvoices] = useState<Invoice[]>([])
   const [profitReport, setProfitReport] = useState<ProfitEstimateReport | null>(null)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodPoint[]>([])
 
   const fetchReportsData = useCallback(async () => {
-    if (!activeBusiness?.$id) return
+    if (!activeBusiness?.$id || !dateRange) return
     try {
       setLoading(true)
       const bId = activeBusiness.$id
+      const queryParams = { dateFrom: dateRange.isoFrom, dateTo: dateRange.isoTo }
 
-      const [sData, pData, cData, eData, pReport] = await Promise.all([
-        saleService.listSales(bId),
-        productService.listProducts(bId),
-        customerService.listCustomers(bId),
-        expenseService.listExpenses(bId),
-        analyticsService.getProfitEstimateReport(bId),
+      const [sData, pData, cData, eData, iData, pReport] = await Promise.all([
+        saleService.listAllSales(bId, queryParams),
+        productService.listAllProducts(bId), // Products don't use date filter for inventory valuation
+        customerService.listAllCustomers(bId), // Customers don't use date filter for dues
+        expenseService.listAllExpenses(bId, queryParams),
+        invoiceService.listAllInvoices(bId, queryParams),
+        analyticsService.getProfitEstimateReport(bId, dateRange.isoFrom, dateRange.isoTo),
       ])
 
       setSales(sData)
       setProducts(pData)
       setCustomers(cData)
       setExpenses(eData)
+      setInvoices(iData)
       setProfitReport(pReport)
+
+      // Calculate payment methods manually based on filtered sales
+      const methodMap = new Map<string, { count: number; total: number }>()
+      for (const sale of sData) {
+        if (sale.status === 'cancelled') continue
+        const method = sale.paymentMethod || 'cash'
+        const curr = methodMap.get(method) || { count: 0, total: 0 }
+        curr.count += 1
+        curr.total += sale.total || 0
+        methodMap.set(method, curr)
+      }
+      const pMethodsArr: PaymentMethodPoint[] = []
+      for (const [method, val] of methodMap.entries()) {
+        if (val.count > 0) {
+          pMethodsArr.push({
+            method,
+            name: method.replace('_', ' '),
+            count: val.count,
+            total: val.total
+          })
+        }
+      }
+      setPaymentMethods(pMethodsArr)
     } catch (err) {
       console.error('Failed to load reports data:', err)
     } finally {
       setLoading(false)
     }
-  }, [activeBusiness?.$id])
+  }, [activeBusiness?.$id, dateRange])
 
   useEffect(() => {
-    fetchReportsData()
-  }, [fetchReportsData])
+    if (dateRange) {
+      fetchReportsData()
+    }
+  }, [fetchReportsData, dateRange])
 
-  if (loading) {
+  const monthlyData = useMemo(() => {
+    const dataMap = new Map<string, MonthlyData>()
+    
+    // Initialize map with months in the range (roughly)
+    if (dateRange) {
+      const from = new Date(dateRange.isoFrom)
+      const to = new Date(dateRange.isoTo)
+      const curr = new Date(from)
+      while (curr <= to) {
+        const monthKey = curr.toLocaleString('en-US', { month: 'short', year: 'numeric' })
+        if (!dataMap.has(monthKey)) {
+          dataMap.set(monthKey, { month: monthKey, revenue: 0, expenses: 0, profit: 0 })
+        }
+        curr.setMonth(curr.getMonth() + 1)
+      }
+    }
+
+    sales.forEach(s => {
+      if (s.status === 'cancelled') return
+      const date = new Date(s.createdAt)
+      const monthKey = date.toLocaleString('en-US', { month: 'short', year: 'numeric' })
+      if (dataMap.has(monthKey)) {
+        const val = dataMap.get(monthKey)!
+        val.revenue += s.total || 0
+        val.profit += s.total || 0
+      }
+    })
+
+    expenses.forEach(e => {
+      const date = new Date(e.date || e.createdAt)
+      const monthKey = date.toLocaleString('en-US', { month: 'short', year: 'numeric' })
+      if (dataMap.has(monthKey)) {
+        const val = dataMap.get(monthKey)!
+        val.expenses += e.amount || 0
+        val.profit -= e.amount || 0
+      }
+    })
+
+    return Array.from(dataMap.values())
+  }, [sales, expenses, dateRange])
+
+  if (!activeBusiness) {
     return <ReportsPageSkeleton />
   }
 
-  const currency = activeBusiness?.currency || 'NPR'
+  const collectedTotal = paymentMethods.reduce((sum, p) => sum + p.total, 0)
+  const salesTotal = sales.filter(s => s.status !== 'cancelled').reduce((sum, s) => sum + (s.total || 0), 0)
+  const outstandingTotal = salesTotal - collectedTotal
 
-  // Calculations for Stock Valuation
-  const totalStockValuationCost = products.reduce((sum, p) => sum + (p.stockQuantity || 0) * (p.purchasePrice || 0), 0)
-  const totalStockValuationRetail = products.reduce((sum, p) => sum + (p.stockQuantity || 0) * (p.sellingPrice || 0), 0)
-  const potentialProfitMargin = totalStockValuationRetail - totalStockValuationCost
-
-  // Total Customer Due
-  const totalCustomerDues = customers.reduce((sum, c) => sum + (c.totalDue || 0), 0)
-
-  // Total Expenses
-  const totalExpensesAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0)
-
-  // CSV Export Handler
-  const handleExportCSV = () => {
-    let csvContent = 'data:text/csv;charset=utf-8,'
-    if (activeTab === 'sales') {
-      csvContent += 'Sale Number,Total,Paid,Due,Payment Method,Status,Date\n'
-      sales.forEach((s) => {
-        csvContent += `${s.saleNumber || s.$id},${s.total},${s.paidAmount},${s.dueAmount},${s.paymentMethod},${s.status},${s.createdAt}\n`
-      })
-    } else if (activeTab === 'stock') {
-      csvContent += 'Product Name,SKU,Stock Qty,Purchase Price,Selling Price,Valuation (Cost)\n'
-      products.forEach((p) => {
-        csvContent += `"${p.name}",${p.sku},${p.stockQuantity},${p.purchasePrice},${p.sellingPrice},${p.stockQuantity * p.purchasePrice}\n`
-      })
-    } else if (activeTab === 'dues') {
-      csvContent += 'Customer Name,Phone,Email,Total Due\n'
-      customers.forEach((c) => {
-        csvContent += `"${c.name}",${c.phone || ''},${c.email || ''},${c.totalDue}\n`
-      })
-    } else if (activeTab === 'expenses') {
-      csvContent += 'Title,Category,Amount,Date,Notes\n'
-      expenses.forEach((e) => {
-        csvContent += `"${e.title}",${e.category},${e.amount},${e.date},"${e.notes || ''}"\n`
-      })
-    } else if (activeTab === 'profit' && profitReport) {
-      csvContent += 'Metric,Amount (Rs)\n'
-      csvContent += `Total Sales Revenue,${profitReport.totalRevenue}\n`
-      csvContent += `Cost of Goods Sold (COGS),${profitReport.cogs}\n`
-      csvContent += `Gross Profit,${profitReport.grossProfit}\n`
-      csvContent += `Total Expenses,${profitReport.totalExpenses}\n`
-      csvContent += `Net Profit,${profitReport.netProfit}\n`
-      csvContent += `Net Profit Margin %,${profitReport.netMarginPercent}%\n`
-    }
-
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `Inventory_Lite_${activeTab.toUpperCase()}_Report.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
+  const exportData: ExportDataPayload | null = dateRange && profitReport && activeBusiness ? {
+    businessName: activeBusiness.name,
+    yearLabel: dateRange.label,
+    dateFrom: dateRange.isoFrom,
+    dateTo: dateRange.isoTo,
+    sales,
+    invoices,
+    expenses,
+    products,
+    customers,
+    profitReport,
+    monthlyData,
+    paymentMethods
+  } : null
 
   return (
-    <div className="space-y-6 text-slate-900">
-      <PageHeader
-        title="Business Intelligence & Reports"
-        description="Comprehensive real-data financial, sales, inventory, and net profit analytics."
-        actions={
-          <Button onClick={handleExportCSV} variant="outline" className="border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold shadow-xs">
-            <Download className="mr-2 h-4 w-4 text-emerald-600" /> Export Active Report (CSV)
-          </Button>
-        }
-      />
-
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto pb-2">
-        <button
-          onClick={() => setActiveTab('sales')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
-            activeTab === 'sales' ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <TrendingUp className="h-4 w-4" /> 1. Sales Report
-        </button>
-
-        <button
-          onClick={() => setActiveTab('stock')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
-            activeTab === 'stock' ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Package className="h-4 w-4" /> 2. Product & Stock Report
-        </button>
-
-        <button
-          onClick={() => setActiveTab('dues')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
-            activeTab === 'dues' ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Users className="h-4 w-4" /> 3. Customer Dues Report
-        </button>
-
-        <button
-          onClick={() => setActiveTab('expenses')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
-            activeTab === 'expenses' ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Receipt className="h-4 w-4" /> 4. Expense Report
-        </button>
-
-        <button
-          onClick={() => setActiveTab('profit')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
-            activeTab === 'profit' ? 'bg-emerald-50 text-emerald-800 border-2 border-emerald-600' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <DollarSign className="h-4 w-4" /> 5. Profit Estimate
-        </button>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+        <PageHeader
+          title="Business Intelligence & Audit Center"
+          description="Complete financial reporting, reconciliation, and year-end audit package."
+        />
+        <div className="flex-shrink-0 flex items-center gap-4">
+          <FinancialYearSelector onYearChange={setDateRange} />
+          {exportData && <ExportMenu data={exportData} />}
+        </div>
       </div>
 
-      {/* TAB 1: SALES REPORT */}
-      {activeTab === 'sales' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <SearchInput placeholder="Search sales by invoice # or customer..." value={searchQuery} onChange={setSearchQuery} className="w-full sm:max-w-md" />
-            <div className="text-sm font-bold text-slate-700">
-              Total Sales Volume: <span className="text-emerald-700 font-mono font-extrabold">Rs. {sales.reduce((sum, s) => sum + s.total, 0).toFixed(2)}</span>
-            </div>
+      {exportData && (
+        <PrintHeader
+          businessName={exportData.businessName}
+          yearLabel={exportData.yearLabel}
+          dateFrom={exportData.dateFrom}
+          dateTo={exportData.dateTo}
+        />
+      )}
+
+      {loading && (
+        <div className="print:hidden">
+          <ReportsPageSkeleton />
+        </div>
+      )}
+
+      {!loading && profitReport && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="col-span-1 md:col-span-2 lg:col-span-4">
+            <ExecutiveSummary 
+              metrics={{
+                totalRevenue: profitReport.totalRevenue,
+                grossProfit: profitReport.grossProfit,
+                netProfit: profitReport.netProfit,
+                totalExpenses: profitReport.totalExpenses,
+                totalSalesCount: profitReport.totalSalesCount,
+                netMarginPercent: profitReport.netMarginPercent,
+                totalCustomers: customers.length,
+                totalProducts: products.length,
+              }} 
+            />
           </div>
 
-          <Card className="border-slate-200 bg-white shadow-sm p-5">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-500 bg-slate-50">
-                    <th className="py-2.5 px-3">Sale #</th>
-                    <th className="py-2.5 px-3">Subtotal</th>
-                    <th className="py-2.5 px-3">VAT (13%)</th>
-                    <th className="py-2.5 px-3">Grand Total</th>
-                    <th className="py-2.5 px-3">Payment</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3 text-right">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sales
-                    .filter((s) => (s.saleNumber || s.$id).toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((s) => (
-                      <tr key={s.$id} className="hover:bg-slate-50/80">
-                        <td className="py-3 px-3 font-mono font-bold text-indigo-700">{s.saleNumber || s.$id.slice(0, 8)}</td>
-                        <td className="py-3 px-3 font-mono text-slate-700 font-medium">Rs. {s.subtotal.toFixed(2)}</td>
-                        <td className="py-3 px-3 font-mono text-slate-500">Rs. {s.tax.toFixed(2)}</td>
-                        <td className="py-3 px-3 font-mono font-bold text-emerald-700">Rs. {s.total.toFixed(2)}</td>
-                        <td className="py-3 px-3 uppercase text-xs font-bold text-slate-700">{s.paymentMethod}</td>
-                        <td className="py-3 px-3"><StatusBadge status={s.status} /></td>
-                        <td className="py-3 px-3 text-right text-xs text-slate-800 font-mono font-bold">{formatBSDate(s.createdAt)}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+          <MonthlyFinancialSummary data={monthlyData} />
+
+          <SalesRegister sales={sales} />
+          
+          <ReconciliationReport 
+            salesTotal={salesTotal}
+            collectedTotal={collectedTotal}
+            outstandingTotal={outstandingTotal}
+            paymentMethods={paymentMethods}
+          />
+          
+          <CustomerDuesReport customers={customers} />
+
+          <ExpenseReport expenses={expenses} />
+
+          <AuditHealth sales={sales} invoices={invoices} />
+
+          <InventoryReport products={products} />
+
+          {dateRange && (
+            <div className="print:hidden">
+              <ExportAuditPack
+                businessId={activeBusiness.$id}
+                yearLabel={dateRange.label}
+                sales={sales}
+                invoices={invoices}
+                expenses={expenses}
+                products={products}
+                customers={customers}
+              />
             </div>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 2: PRODUCT & STOCK REPORT */}
-      {activeTab === 'stock' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="border-slate-200 bg-white shadow-sm p-5">
-              <p className="text-[11px] text-slate-500 uppercase font-extrabold">Cost Valuation</p>
-              <p className="text-2xl font-extrabold font-mono text-indigo-700 mt-1">{currency} {totalStockValuationCost.toFixed(2)}</p>
-              <p className="text-xs text-slate-500 mt-1">Based on purchase prices</p>
-            </Card>
-
-            <Card className="border-slate-200 bg-white shadow-sm p-5">
-              <p className="text-[11px] text-slate-500 uppercase font-extrabold">Retail Valuation</p>
-              <p className="text-2xl font-extrabold font-mono text-emerald-700 mt-1">{currency} {totalStockValuationRetail.toFixed(2)}</p>
-              <p className="text-xs text-slate-500 mt-1">Based on selling prices</p>
-            </Card>
-
-            <Card className="border-slate-200 bg-white shadow-sm p-5">
-              <p className="text-[11px] text-slate-500 uppercase font-extrabold">Potential Margin</p>
-              <p className="text-2xl font-extrabold font-mono text-amber-800 mt-1">{currency} {potentialProfitMargin.toFixed(2)}</p>
-              <p className="text-xs text-slate-500 mt-1">Estimated gross asset profit</p>
-            </Card>
-          </div>
-
-          <Card className="border-slate-200 bg-white shadow-sm p-5">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-500 bg-slate-50">
-                    <th className="py-2.5 px-3">Product Name</th>
-                    <th className="py-2.5 px-3">SKU</th>
-                    <th className="py-2.5 px-3 text-center">Stock Qty</th>
-                    <th className="py-2.5 px-3 text-right">Cost Price</th>
-                    <th className="py-2.5 px-3 text-right">Selling Price</th>
-                    <th className="py-2.5 px-3 text-right">Total Cost Value</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {products.map((p) => (
-                    <tr key={p.$id} className="hover:bg-slate-50/80">
-                      <td className="py-3 px-3 font-bold text-slate-900">{p.name}</td>
-                      <td className="py-3 px-3 font-mono text-xs text-slate-500">{p.sku}</td>
-                      <td className="py-3 px-3 text-center font-mono font-bold text-slate-900">{p.stockQuantity}</td>
-                      <td className="py-3 px-3 text-right font-mono text-slate-700">Rs. {p.purchasePrice.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right font-mono text-emerald-700 font-bold">Rs. {p.sellingPrice.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-indigo-700">
-                        Rs. {(p.stockQuantity * p.purchasePrice).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 3: CUSTOMER DUES REPORT */}
-      {activeTab === 'dues' && (
-        <div className="space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm p-5">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
-              <h3 className="text-base font-extrabold text-slate-900">Outstanding Customer Dues Summary</h3>
-              <div className="text-right font-mono font-extrabold text-amber-800 text-lg">
-                Total Credit Due: Rs. {totalCustomerDues.toFixed(2)}
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-500 bg-slate-50">
-                    <th className="py-2.5 px-3">Customer Name</th>
-                    <th className="py-2.5 px-3">Phone</th>
-                    <th className="py-2.5 px-3">Email</th>
-                    <th className="py-2.5 px-3 text-right">Outstanding Due</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {customers.map((c) => (
-                    <tr key={c.$id} className="hover:bg-slate-50/80">
-                      <td className="py-3 px-3 font-bold text-slate-900">{c.name}</td>
-                      <td className="py-3 px-3 font-mono text-xs text-slate-600">{c.phone || '-'}</td>
-                      <td className="py-3 px-3 text-slate-600 text-xs">{c.email || '-'}</td>
-                      <td className={`py-3 px-3 text-right font-mono font-extrabold ${c.totalDue > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
-                        Rs. {(c.totalDue || 0).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 4: EXPENSE REPORT */}
-      {activeTab === 'expenses' && (
-        <div className="space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm p-5">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
-              <h3 className="text-base font-extrabold text-slate-900">Expenditure Log & Summary</h3>
-              <div className="text-right font-mono font-extrabold text-rose-700 text-lg">
-                Total Expenses: Rs. {totalExpensesAmount.toFixed(2)}
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-500 bg-slate-50">
-                    <th className="py-2.5 px-3">Title</th>
-                    <th className="py-2.5 px-3">Category</th>
-                    <th className="py-2.5 px-3 text-right">Amount</th>
-                    <th className="py-2.5 px-3 text-right">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {expenses.map((e) => (
-                    <tr key={e.$id} className="hover:bg-slate-50/80">
-                      <td className="py-3 px-3 font-bold text-slate-900">{e.title}</td>
-                      <td className="py-3 px-3 uppercase text-xs font-mono text-slate-600">{e.category}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-rose-700">Rs. {e.amount.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right text-xs text-slate-800 font-mono font-bold">{formatBSDate(e.date || e.createdAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 5: NET PROFIT ESTIMATE REPORT */}
-      {activeTab === 'profit' && profitReport && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Revenue Card */}
-            <Card className="border-slate-200 bg-white shadow-sm p-5">
-              <p className="text-[11px] text-slate-500 uppercase font-extrabold">1. Total Revenue</p>
-              <p className="text-3xl font-black font-mono text-emerald-700 mt-2">{currency} {profitReport.totalRevenue.toFixed(2)}</p>
-              <p className="text-xs text-slate-500 mt-1">From {profitReport.totalSalesCount} completed sales</p>
-            </Card>
-
-            {/* COGS Card */}
-            <Card className="border-slate-200 bg-white shadow-sm p-5">
-              <p className="text-[11px] text-slate-500 uppercase font-extrabold">2. Cost of Goods Sold (COGS)</p>
-              <p className="text-3xl font-black font-mono text-amber-800 mt-2">{currency} {profitReport.cogs.toFixed(2)}</p>
-              <p className="text-xs text-slate-500 mt-1">Purchase cost of sold items</p>
-            </Card>
-
-            {/* Total Expenses */}
-            <Card className="border-slate-200 bg-white shadow-sm p-5">
-              <p className="text-[11px] text-slate-500 uppercase font-extrabold">3. Total Operating Expenses</p>
-              <p className="text-3xl font-black font-mono text-rose-700 mt-2">{currency} {profitReport.totalExpenses.toFixed(2)}</p>
-              <p className="text-xs text-slate-500 mt-1">Logged operational expenses</p>
-            </Card>
-          </div>
-
-          {/* Profit & Loss Executive Summary Card */}
-          <Card className="border-slate-200 bg-white shadow-sm p-6 space-y-6">
-            <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3">
-              Executive Profit & Loss Statement
-            </h3>
-
-            <div className="space-y-4 font-mono text-sm max-w-xl">
-              <div className="flex justify-between text-slate-700 font-medium">
-                <span>Total Gross Sales Revenue:</span>
-                <span className="font-bold text-slate-900">+ {currency} {profitReport.totalRevenue.toFixed(2)}</span>
-              </div>
-
-              <div className="flex justify-between text-slate-600">
-                <span>Less: Cost of Goods Sold (COGS):</span>
-                <span className="text-amber-800 font-bold">- {currency} {profitReport.cogs.toFixed(2)}</span>
-              </div>
-
-              <div className="flex justify-between text-slate-900 border-t border-slate-200 pt-2 font-bold">
-                <span>Gross Profit:</span>
-                <span className="text-emerald-700 font-extrabold">= {currency} {profitReport.grossProfit.toFixed(2)}</span>
-              </div>
-
-              <div className="flex justify-between text-slate-600">
-                <span>Less: Total Operating Expenses:</span>
-                <span className="text-rose-700 font-bold">- {currency} {profitReport.totalExpenses.toFixed(2)}</span>
-              </div>
-
-              <div className={`flex justify-between text-lg font-black border-t-2 border-slate-200 pt-4 p-4 rounded-xl ${
-                profitReport.netProfit >= 0 ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : 'bg-rose-50 text-rose-900 border-rose-200'
-              }`}>
-                <span>Net Estimated Profit:</span>
-                <span className={profitReport.netProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
-                  {currency} {profitReport.netProfit.toFixed(2)} ({profitReport.netMarginPercent}%)
-                </span>
-              </div>
-            </div>
-          </Card>
+          )}
         </div>
       )}
     </div>

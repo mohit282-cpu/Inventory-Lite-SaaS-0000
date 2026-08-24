@@ -132,6 +132,14 @@ export class CalendarService {
   }
 
   /**
+   * Get exact ISO date range for a specific financial year
+   */
+  getFinancialYearDateRange(bsStartYear: number): { isoFrom: string; isoTo: string } {
+    const { getFinancialYearDateRange: getRange } = require('@/lib/financial-year')
+    return getRange(bsStartYear, this.getBSMonthDays.bind(this), this.bsToAd.bind(this))
+  }
+
+  /**
    * Format BS Date into readable string
    * Example: "2083 Bhadra 6" or "2083 Bhadra 6 (August 22, 2026)"
    */

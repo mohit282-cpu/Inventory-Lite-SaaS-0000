@@ -174,6 +174,24 @@ export class ProductService extends BaseService {
   }
 
   /**
+   * List ALL products for a business without limit (for reporting)
+   */
+  async listAllProducts(
+    businessId: string,
+    filters?: {
+      isActive?: boolean
+    }
+  ): Promise<Product[]> {
+    const queries: any[] = [Query.orderDesc('createdAt')]
+
+    if (filters?.isActive !== undefined) {
+      queries.push(Query.equal('isActive', filters.isActive))
+    }
+
+    return await this.listAll<Product>(businessId, queries)
+  }
+
+  /**
    * Update product with normalized SKU & Barcode checks
    */
   async updateProduct(
