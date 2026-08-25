@@ -281,6 +281,30 @@ export const COLLECTIONS_SCHEMA = [
     ],
   },
   {
+    id: 'payments',
+    name: 'Payments',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'saleId', type: 'string', size: 100, required: true },
+      { key: 'customerId', type: 'string', size: 100, required: false },
+      { key: 'invoiceId', type: 'string', size: 100, required: false },
+      { key: 'amount', type: 'double', required: true },
+      { key: 'paymentMethod', type: 'string', size: 50, required: true },
+      { key: 'paymentDate', type: 'string', size: 100, required: true },
+      { key: 'referenceNumber', type: 'string', size: 100, required: false },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+      { key: 'status', type: 'string', size: 50, required: true, default: 'POSTED' },
+      { key: 'createdBy', type: 'string', size: 100, required: true },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_business_saleId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'saleId'] },
+      { key: 'idx_business_customerId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'customerId'] },
+      { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
+    ],
+  },
+  {
     id: 'suppliers',
     name: 'Suppliers',
     attributes: [
