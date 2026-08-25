@@ -8,7 +8,7 @@ import { Models } from 'appwrite'
 
 // ==================== Core Enum Types ====================
 
-export type UserRole = 'owner' | 'admin' | 'staff'
+export type UserRole = 'owner' | 'admin' | 'staff' | 'auditor'
 
 export type Currency = 'NPR' | 'USD' | 'EUR' | 'INR'
 
@@ -500,4 +500,74 @@ export interface AssetInput {
   status?: AssetStatus
   notes?: string
 }
+
+// ==================== Audit & Compliance Center Entities ====================
+
+export type IrdSubmissionStatus =
+  | 'NOT_CONFIGURED'
+  | 'NOT_SUBMITTED'
+  | 'PENDING'
+  | 'SUBMITTING'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'FAILED'
+  | 'RETRYING'
+
+export interface AuditFilterParams {
+  fiscalYear?: string
+  dateFrom?: string
+  dateTo?: string
+  month?: string
+  quarter?: string
+  customerId?: string
+  supplierId?: string
+  productId?: string
+  paymentMethod?: string
+  documentStatus?: string
+}
+
+export interface IrdReadinessStatus {
+  businessId: string
+  businessName: string
+  panNumber: string
+  vatNumber: string
+  vatRegistrationStatus: 'REGISTERED' | 'EXEMPT' | 'NOT_REGISTERED'
+  currentFiscalYear: string
+  electronicBillingStatus: 'Not Configured' | 'Technical Readiness' | 'Connected'
+  cbmsIntegrationStatus: IrdSubmissionStatus
+  cbmsSubmissionCount: number
+  cbmsAcceptedCount: number
+  cbmsPendingCount: number
+  cbmsFailedCount: number
+  lastAttemptAt?: string
+  lastSuccessfulSubmissionAt?: string
+  approvalVerified: boolean
+  approvalReference?: string
+}
+
+export interface IrdReconciliationItem {
+  id: string
+  invoiceNumber: string
+  invoiceDate: string
+  customerName?: string
+  totalAmount: number
+  localStatus: string
+  irdStatus: 'MATCHED' | 'PENDING' | 'FAILED' | 'REJECTED' | 'MISMATCH' | 'NOT_CONFIGURED'
+  submissionDate?: string
+  externalReference?: string
+  resultMessage?: string
+}
+
+export interface InvoiceSequenceAudit {
+  fiscalYear: string
+  prefix: string
+  firstInvoiceNumber: string | null
+  lastInvoiceNumber: string | null
+  totalIssued: number
+  totalCancelled: number
+  gapsDetected: string[]
+  duplicatesDetected: string[]
+  isSequenceIntact: boolean
+}
+
 

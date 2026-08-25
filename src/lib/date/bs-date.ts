@@ -3,6 +3,10 @@ import { BS_MONTH_NAMES_EN, BS_MONTH_NAMES_NE, BSDate } from '@/lib/nepali-calen
 import { getCurrentFinancialYear, FinancialYearInfo } from '@/lib/financial-year'
 import { toNepaliNumerals } from '@/lib/localization'
 
+export function getCurrentFiscalYear(dateInput?: string | Date): string {
+  return getCurrentFinancialYear(dateInput).label
+}
+
 export type BSDateFormat = 'YYYY/MM/DD' | 'YYYY-MM-DD' | 'MEDIUM' | 'LONG' | 'SHORT'
 
 export interface FormatBSDateOptions {

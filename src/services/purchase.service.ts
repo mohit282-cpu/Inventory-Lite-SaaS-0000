@@ -199,14 +199,17 @@ export class PurchaseService extends BaseService {
             purchase.$id
           )
 
-          // 2. Update product purchase price catalog to latest cost
+          // 2. Recalculate Weighted Average Cost (WAC) & update product catalog cost
           try {
-            await productService.updateProduct(
+            await productService.recordPurchaseIntakeWAC(
               item.productId,
-              { purchasePrice: item.purchasePrice },
+              item.quantity,
+              item.purchasePrice,
               businessId
             )
-          } catch {}
+          } catch (wacErr) {
+            console.error('[PurchaseService] Failed to update WAC:', wacErr)
+          }
         }
 
         // Update supplier balance

@@ -27,6 +27,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'invoices:manage',
     'expenses:manage',
     'reports:view',
+    'audit:view',
+    'audit:export',
     'settings:manage',
   ],
   admin: [
@@ -42,6 +44,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'invoices:manage',
     'expenses:manage',
     'reports:view',
+    'audit:view',
+    'audit:export',
     'settings:manage',
   ],
   staff: [
@@ -54,6 +58,22 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'payments:create',
     'payments:read',
     'invoices:read',
+  ],
+  auditor: [
+    'business:read',
+    'reports:view',
+    'audit:view',
+    'audit:export',
+    'products:read',
+    'categories:read',
+    'stock:read',
+    'customers:read',
+    'suppliers:read',
+    'sales:read',
+    'purchases:read',
+    'invoices:read',
+    'payments:read',
+    'expenses:read',
   ],
 }
 

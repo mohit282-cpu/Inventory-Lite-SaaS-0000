@@ -333,6 +333,13 @@ export class StockMovementService extends BaseService {
 
     return result
   }
+
+  /**
+   * Alias for fetching movement history
+   */
+  async getMovementHistory(businessId: string): Promise<StockMovement[]> {
+    return this.fetchAllMovements(businessId)
+  }
 }
 
 export const stockMovementService = new StockMovementService()

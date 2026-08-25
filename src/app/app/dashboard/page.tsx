@@ -243,9 +243,9 @@ export default function DashboardPage() {
             Inventory Lite provides operational profit estimates (Revenue − COGS − Expenses). For full financial reporting, export detailed reports.
           </div>
         </div>
-        <Link href="/app/reports" className="shrink-0">
+        <Link href="/app/audit" className="shrink-0">
           <Button size="sm" variant="outline" className="h-8 border-slate-300 bg-white text-xs text-slate-800 hover:bg-slate-50 whitespace-nowrap font-semibold">
-            View Reports
+            Audit & Compliance
           </Button>
         </Link>
       </div>

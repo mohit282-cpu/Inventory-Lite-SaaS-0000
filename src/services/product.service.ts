@@ -3,6 +3,7 @@ import { COLLECTIONS, databases, DATABASE_ID } from '@/config/appwrite'
 import { Product } from '@/types'
 import { Query } from 'appwrite'
 import { sanitizeAppwriteDocId } from '@/lib/utils'
+import { toMinorUnits, fromMinorUnits } from '@/lib/money'
 
 /**
  * Product Service
@@ -431,6 +432,42 @@ export class ProductService extends BaseService {
     return products.filter(
       (p) => p.stockQuantity <= (p.lowStockThreshold ?? 5)
     )
+  }
+
+  /**
+   * Update product stock quantity and recalculate Weighted Average Cost (WAC) on purchase intake.
+   * WAC = ((currentStock * currentCost) + (purchasedQty * purchaseCost)) / (currentStock + purchasedQty)
+   */
+  async recordPurchaseIntakeWAC(
+    productId: string,
+    purchasedQty: number,
+    purchaseCost: number,
+    businessId: string
+  ): Promise<Product> {
+    return await this.withStockLock(productId, async () => {
+      const product = await this.getProduct(productId, businessId)
+      const currentStock = Math.max(0, product.stockQuantity || 0)
+      const previousStock = Math.max(0, currentStock - purchasedQty)
+      const currentCost = Math.max(0, product.costPrice || product.purchasePrice || 0)
+
+      const previousTotalValuePaisa = toMinorUnits(previousStock * currentCost)
+      const newPurchaseValuePaisa = toMinorUnits(purchasedQty * purchaseCost)
+
+      let newWacCost = purchaseCost
+      if (currentStock > 0) {
+        const totalPaisa = previousTotalValuePaisa + newPurchaseValuePaisa
+        newWacCost = fromMinorUnits(Math.round(totalPaisa / currentStock))
+      }
+
+      return await this.update<Product>(
+        productId,
+        {
+          costPrice: newWacCost,
+          purchasePrice: newWacCost,
+        },
+        businessId
+      )
+    })
   }
 }
 

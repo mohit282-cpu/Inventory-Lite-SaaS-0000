@@ -15,7 +15,6 @@ import {
   FileText,
   Wallet,
   Receipt,
-  BarChart3,
   Calendar as CalendarIcon,
   Settings,
   ChevronLeft,
@@ -26,6 +25,7 @@ import {
   Plus,
   Truck,
   ShoppingBag,
+  ShieldCheck,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -66,7 +66,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
   {
     label: 'Business',
     items: [
-      { name: 'Reports', href: '/app/reports', icon: BarChart3 },
+      { name: 'Audit & Compliance', href: '/app/audit', icon: ShieldCheck },
       { name: 'Calendar', href: '/app/calendar', icon: CalendarIcon },
       { name: 'Settings', href: '/app/settings', icon: Settings },
     ],

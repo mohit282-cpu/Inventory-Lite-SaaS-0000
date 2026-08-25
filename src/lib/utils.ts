@@ -24,6 +24,52 @@ export function formatCurrency(amount: number, currency: string = 'NPR', locale:
 }
 
 /**
+ * Format sales transaction into a standardized human-readable invoice number.
+ * Example: INV-83/84-000001 (never displays raw internal database IDs)
+ */
+export function formatHumanInvoiceNumber(sale: any, defaultFy: string = '83/84'): string {
+  if (!sale) return `INV-${defaultFy}-000000`
+  if (typeof sale === 'string') {
+    if (sale.startsWith('INV-') || sale.startsWith('SALE-')) return sale.replace('SALE-', 'INV-')
+    return `INV-${defaultFy}-${sale.slice(-6).toUpperCase()}`
+  }
+  if (sale.invoiceNumber && sale.invoiceNumber.trim() !== '' && !sale.invoiceNumber.includes('_')) {
+    return sale.invoiceNumber
+  }
+  if (sale.saleNumber && sale.saleNumber.trim() !== '') {
+    return sale.saleNumber.replace('SALE-', 'INV-')
+  }
+  if (sale.billNumber && sale.billNumber.trim() !== '') {
+    return sale.billNumber.replace('BILL-', 'INV-')
+  }
+  const idStr = String(sale.$id || sale.id || '000000')
+  return `INV-${defaultFy}-${idStr.slice(-6).toUpperCase()}`
+}
+
+/**
+ * Format purchase transaction into a standardized human-readable purchase number.
+ * Example: PUR-83/84-000001
+ */
+export function formatHumanPurchaseNumber(purchase: any, defaultFy: string = '83/84'): string {
+  if (!purchase) return `PUR-${defaultFy}-000000`
+  if (typeof purchase === 'string') {
+    if (purchase.startsWith('PUR-') || purchase.startsWith('BILL-')) return purchase.replace('BILL-', 'PUR-')
+    return `PUR-${defaultFy}-${purchase.slice(-6).toUpperCase()}`
+  }
+  if (purchase.purchaseNumber && purchase.purchaseNumber.trim() !== '') {
+    return purchase.purchaseNumber
+  }
+  if (purchase.billNumber && purchase.billNumber.trim() !== '') {
+    return purchase.billNumber.replace('BILL-', 'PUR-')
+  }
+  if (purchase.supplierInvoiceNumber && purchase.supplierInvoiceNumber.trim() !== '') {
+    return purchase.supplierInvoiceNumber
+  }
+  const idStr = String(purchase.$id || purchase.id || '000000')
+  return `PUR-${defaultFy}-${idStr.slice(-6).toUpperCase()}`
+}
+
+/**
  * Format date based on locale and format string
  */
 export function formatDate(date: string | Date, format: string = 'DD/MM/YYYY'): string {
