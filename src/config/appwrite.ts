@@ -42,6 +42,7 @@ export const COLLECTIONS = {
   SALES_RETURN_ITEMS: 'sales_return_items',
   CREDIT_NOTES: 'credit_notes',
   DEBIT_NOTES: 'debit_notes',
+  STORE_ASSETS: 'store_assets',
 } as const
 
 // Storage Bucket IDs

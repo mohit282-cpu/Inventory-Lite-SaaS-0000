@@ -500,6 +500,27 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
     ],
   },
+  {
+    id: 'store_assets',
+    name: 'Store Assets',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'name', type: 'string', size: 255, required: true },
+      { key: 'serialNumber', type: 'string', size: 100, required: false },
+      { key: 'category', type: 'string', size: 100, required: false },
+      { key: 'cost', type: 'double', required: true },
+      { key: 'purchaseDate', type: 'string', size: 100, required: false },
+      { key: 'status', type: 'string', size: 50, required: true, default: 'ACTIVE' },
+      { key: 'notes', type: 'string', size: 1000, required: false },
+      { key: 'createdBy', type: 'string', size: 100, required: true },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_business_status', type: INDEX_TYPES.KEY, attributes: ['businessId', 'status'] },
+      { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
+    ],
+  },
 ]
 
 async function apiRequest(path: string, method: string = 'GET', body?: any) {

@@ -283,6 +283,19 @@ export function DemoPos({
                 placeholder="Search items by name, barcode... (F2)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    e.preventDefault()
+                    const exactBarcodeMatch = products.find((p) => p.barcode === searchQuery.trim())
+                    if (exactBarcodeMatch) {
+                      addToCart(exactBarcodeMatch)
+                      setSearchQuery('')
+                    } else if (filteredProducts.length > 0) {
+                      addToCart(filteredProducts[0])
+                      setSearchQuery('')
+                    }
+                  }
+                }}
                 className="pl-10 h-11 bg-slate-50 border-slate-200 text-sm focus:bg-white"
               />
             </div>

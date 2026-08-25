@@ -474,4 +474,33 @@ export interface DebitNote extends Models.Document {
   createdAt: string
 }
 
+// ==================== Store Asset Entity ====================
+
+export type AssetStatus = 'ACTIVE' | 'MAINTENANCE' | 'DISPOSED'
+
+export interface StoreAsset extends Models.Document {
+  $id: string
+  businessId: string
+  name: string
+  serialNumber?: string
+  category?: string
+  cost: number
+  purchaseDate?: string
+  status: AssetStatus
+  notes?: string
+  createdBy: string
+  createdAt: string
+}
+
+export interface AssetInput {
+  name: string
+  serialNumber?: string
+  category?: string
+  cost: number
+  purchaseDate?: string
+  status?: AssetStatus
+  notes?: string
+}
+
+
 

@@ -52,6 +52,7 @@ export abstract class BaseService {
       'sales_returns',
       'credit_notes',
       'debit_notes',
+      'store_assets',
     ])
 
     const collectionsWithCreatedAt = new Set<string>([
@@ -74,6 +75,7 @@ export abstract class BaseService {
       'sales_return_items',
       'credit_notes',
       'debit_notes',
+      'store_assets',
     ])
 
     const documentData: any = {

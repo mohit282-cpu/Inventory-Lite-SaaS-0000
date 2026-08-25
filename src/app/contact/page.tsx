@@ -1,12 +1,74 @@
 "use client"
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { AppLogo } from '@/components/ui/app-logo'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Mail, Phone, MapPin, Clock, MessageSquare } from 'lucide-react'
+import { useToast } from '@/components/ui/use-toast'
+import { ArrowLeft, Mail, Phone, MapPin, Clock, MessageSquare, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 
 export default function ContactPage() {
+  const { toast } = useToast()
+  const [name, setName] = useState('')
+  const [businessName, setBusinessName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [message, setMessage] = useState('')
+  const [website, setWebsite] = useState('') // Bot honeypot field
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isSuccess, setIsSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!name.trim()) {
+      setError('Please enter your name.')
+      return
+    }
+
+    if (!phone.trim() || phone.trim().length < 7) {
+      setError('Please enter a valid phone number or email.')
+      return
+    }
+
+    if (!message.trim()) {
+      setError('Please enter your message.')
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          businessName: businessName.trim(),
+          phone: phone.trim(),
+          message: message.trim(),
+          website,
+        }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to submit inquiry.')
+      }
+
+      setIsSuccess(true)
+      toast({
+        title: 'Support Request Sent!',
+        description: 'Thank you for reaching out. Our support team will get back to you shortly.',
+      })
+    } catch (err: any) {
+      setError(err?.message || 'Failed to submit inquiry. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/90 backdrop-blur-md">
@@ -83,43 +145,107 @@ export default function ContactPage() {
 
           <div className="p-6 bg-white rounded-2xl border border-slate-200 space-y-4">
             <h3 className="text-lg font-bold text-slate-900">Quick Inquiry</h3>
-            <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Your Name</label>
+
+            {isSuccess ? (
+              <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-3">
+                <CheckCircle2 className="h-10 w-10 text-emerald-600 mx-auto" />
+                <h4 className="font-bold text-slate-900 text-base">Inquiry Submitted!</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Thank you, <strong>{name}</strong>. Our support team has received your message and will reach out to <strong>{phone}</strong> soon.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsSuccess(false)
+                    setName('')
+                    setPhone('')
+                    setBusinessName('')
+                    setMessage('')
+                  }}
+                  className="text-xs mt-2"
+                >
+                  Send Another Inquiry
+                </Button>
+              </div>
+            ) : (
+              <form className="space-y-3" onSubmit={handleSubmit}>
+                {error && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                {/* Invisible honeypot field for bot filtering */}
                 <input
                   type="text"
-                  placeholder="Ram Sharma"
-                  className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  name="website"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className="hidden"
+                  tabIndex={-1}
+                  autoComplete="off"
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Shop / Business Name</label>
-                <input
-                  type="text"
-                  placeholder="Sharma Traders & Kirana"
-                  className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
-                <input
-                  type="text"
-                  placeholder="9800000000"
-                  className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Message</label>
-                <textarea
-                  rows={3}
-                  placeholder="How can we help your business?"
-                  className="w-full p-3 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                />
-              </div>
-              <Button type="button" className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm">
-                Send Support Request
-              </Button>
-            </form>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Your Name *</label>
+                  <input
+                    type="text"
+                    placeholder="Ram Sharma"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Shop / Business Name</label>
+                  <input
+                    type="text"
+                    placeholder="Sharma Traders & Kirana"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number or Email *</label>
+                  <input
+                    type="text"
+                    placeholder="9800000000 or ram@gmail.com"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    className="w-full h-10 px-3 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Message *</label>
+                  <textarea
+                    rows={3}
+                    placeholder="How can we help your business?"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    required
+                    className="w-full p-3 rounded-lg border border-slate-300 text-sm focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...
+                    </>
+                  ) : (
+                    'Send Support Request'
+                  )}
+                </Button>
+              </form>
+            )}
           </div>
         </div>
       </main>
