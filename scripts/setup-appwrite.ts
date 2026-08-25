@@ -413,13 +413,8 @@ export const COLLECTIONS_SCHEMA = [
     attributes: [
       { key: 'businessId', type: 'string', size: 100, required: true },
       { key: 'saleId', type: 'string', size: 100, required: true },
-      { key: 'saleNumber', type: 'string', size: 100, required: false },
-      { key: 'customerId', type: 'string', size: 100, required: false },
       { key: 'returnNumber', type: 'string', size: 100, required: false },
       { key: 'returnDate', type: 'string', size: 100, required: true },
-      { key: 'subtotal', type: 'double', required: false },
-      { key: 'discount', type: 'double', required: false },
-      { key: 'tax', type: 'double', required: false },
       { key: 'totalAmount', type: 'double', required: true },
       { key: 'refundMethod', type: 'string', size: 50, required: true },
       { key: 'reason', type: 'string', size: 1000, required: true },
@@ -452,6 +447,7 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'idx_business_productId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'productId'] },
     ],
   },
+<<<<<<< HEAD
   {
     id: 'credit_notes',
     name: 'Credit Notes',
@@ -521,6 +517,8 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
     ],
   },
+=======
+>>>>>>> parent of 2620f43 (feat: implement debit note system, integrate with reporting module, and add supporting services and components)
 ]
 
 async function apiRequest(path: string, method: string = 'GET', body?: any) {

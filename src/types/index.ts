@@ -411,7 +411,6 @@ export interface SalesReturn extends Models.Document {
   saleId: string
   saleNumber?: string
   customerId?: string
-  returnDate: string
   subtotal: number
   discount: number
   tax: number
@@ -436,6 +435,7 @@ export interface SalesReturnItem extends Models.Document {
   total: number
 }
 
+<<<<<<< HEAD
 // ==================== Credit Note Entity ====================
 
 export interface CreditNote extends Models.Document {
@@ -503,4 +503,6 @@ export interface AssetInput {
 }
 
 
+=======
+>>>>>>> parent of 2620f43 (feat: implement debit note system, integrate with reporting module, and add supporting services and components)
 

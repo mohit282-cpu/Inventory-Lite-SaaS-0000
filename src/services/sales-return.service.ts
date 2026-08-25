@@ -58,7 +58,6 @@ export class SalesReturnService extends BaseService {
       }>
       reason: string
       refundMethod?: 'cash' | 'credit_adjustment' | 'bank_transfer' | 'digital_wallet' | 'other'
-      returnDate?: string
       idempotencyKey?: string
     },
     businessId: string,
@@ -179,7 +178,6 @@ export class SalesReturnService extends BaseService {
           saleId: data.saleId,
           saleNumber: sale.saleNumber || `SALE-${sale.$id.slice(-6)}`,
           customerId: sale.customerId || '',
-          returnDate: data.returnDate || new Date().toISOString(),
           subtotal: fromMinorUnits(totalReturnAmountP),
           discount: 0,
           tax: 0,

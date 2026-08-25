@@ -10,11 +10,7 @@ import { customerService } from '@/services/customer.service'
 import { saleService } from '@/services/sale.service'
 import { expenseService } from '@/services/expense.service'
 import { invoiceService } from '@/services/invoice.service'
-import { purchaseService } from '@/services/purchase.service'
-import { supplierService } from '@/services/supplier.service'
-import { creditNoteService } from '@/services/credit-note.service'
-import { debitNoteService } from '@/services/debit-note.service'
-import { Product, Sale, Customer, Expense, Invoice, Purchase, Supplier, CreditNote, DebitNote } from '@/types'
+import { Product, Sale, Customer, Expense, Invoice } from '@/types'
 import { adToBS, formatBSMonth } from '@/lib/date/bs-date'
 import dynamic from 'next/dynamic'
 import { FinancialYearSelector } from '@/components/features/reports/FinancialYearSelector'
@@ -48,10 +44,6 @@ export default function ReportsPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
-  const [purchases, setPurchases] = useState<Purchase[]>([])
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [creditNotes, setCreditNotes] = useState<CreditNote[]>([])
-  const [debitNotes, setDebitNotes] = useState<DebitNote[]>([])
   const [profitReport, setProfitReport] = useState<ProfitEstimateReport | null>(null)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodPoint[]>([])
 
@@ -62,16 +54,12 @@ export default function ReportsPage() {
       const bId = activeBusiness.$id
       const queryParams = { dateFrom: dateRange.isoFrom, dateTo: dateRange.isoTo }
 
-      const [sData, pData, cData, eData, iData, purData, supData, cnData, dnData, pReport] = await Promise.all([
+      const [sData, pData, cData, eData, iData, pReport] = await Promise.all([
         saleService.listAllSales(bId, queryParams),
-        productService.listAllProducts(bId),
-        customerService.listAllCustomers(bId),
+        productService.listAllProducts(bId), // Products don't use date filter for inventory valuation
+        customerService.listAllCustomers(bId), // Customers don't use date filter for dues
         expenseService.listAllExpenses(bId, queryParams),
         invoiceService.listAllInvoices(bId, queryParams),
-        purchaseService.listAllPurchases(bId, queryParams),
-        supplierService.listAllSuppliers(bId),
-        creditNoteService.listCreditNotes(bId, queryParams).catch(() => []),
-        debitNoteService.listDebitNotes(bId, queryParams).catch(() => []),
         analyticsService.getProfitEstimateReport(bId, dateRange.isoFrom, dateRange.isoTo),
       ])
 
@@ -80,10 +68,6 @@ export default function ReportsPage() {
       setCustomers(cData)
       setExpenses(eData)
       setInvoices(iData)
-      setPurchases(purData)
-      setSuppliers(supData)
-      setCreditNotes(cnData)
-      setDebitNotes(dnData)
       setProfitReport(pReport)
 
       // Calculate payment methods manually based on filtered sales
@@ -254,10 +238,6 @@ export default function ReportsPage() {
             customers={customers}
             expenses={expenses}
             invoices={invoices}
-            purchases={purchases}
-            suppliers={suppliers}
-            creditNotes={creditNotes}
-            debitNotes={debitNotes}
             profitReport={profitReport}
             monthlyData={monthlyData}
             dateRange={dateRange}
@@ -270,10 +250,6 @@ export default function ReportsPage() {
             customers={customers}
             expenses={expenses}
             invoices={invoices}
-            purchases={purchases}
-            suppliers={suppliers}
-            creditNotes={creditNotes}
-            debitNotes={debitNotes}
             profitReport={profitReport}
             monthlyData={monthlyData}
             paymentMethods={paymentMethods}
