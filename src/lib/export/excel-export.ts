@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { Sale, Invoice, Expense, Product, Customer } from '@/types'
 import { MonthlyData } from '@/components/features/reports/MonthlyFinancialSummary'
 import { ProfitEstimateReport, PaymentMethodPoint } from '@/services/analytics.service'
@@ -18,99 +18,173 @@ export interface ExportDataPayload {
   paymentMethods: PaymentMethodPoint[]
 }
 
-export function exportToExcel(data: ExportDataPayload) {
-  const wb = XLSX.utils.book_new()
-  const { sales, invoices, expenses, products, customers, profitReport, monthlyData, paymentMethods } = data
+export async function exportToExcel(data: ExportDataPayload): Promise<void> {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'Inventory Lite SaaS'
+  workbook.created = new Date()
 
   // 01 Executive Summary
-  const execSummary = [
-    ['Metric', 'Value'],
-    ['Total Revenue', profitReport.totalRevenue],
-    ['Cost of Goods Sold (COGS)', profitReport.cogs],
-    ['Gross Profit', profitReport.grossProfit],
-    ['Total Expenses', profitReport.totalExpenses],
-    ['Net Profit', profitReport.netProfit],
-    ['Net Margin %', profitReport.netMarginPercent],
-    ['Total Sales Count', profitReport.totalSalesCount],
-    ['Total Customers', customers.length],
-    ['Total Products', products.length]
+  const s1 = workbook.addWorksheet('01 Executive Summary')
+  s1.columns = [
+    { header: 'Metric', key: 'metric', width: 30 },
+    { header: 'Value', key: 'value', width: 20 },
   ]
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(execSummary), '01 Executive Summary')
+  const execSummary = [
+    { metric: 'Total Revenue', value: data.profitReport.totalRevenue },
+    { metric: 'Cost of Goods Sold (COGS)', value: data.profitReport.cogs },
+    { metric: 'Gross Profit', value: data.profitReport.grossProfit },
+    { metric: 'Total Expenses', value: data.profitReport.totalExpenses },
+    { metric: 'Net Profit', value: data.profitReport.netProfit },
+    { metric: 'Net Margin %', value: data.profitReport.netMarginPercent },
+    { metric: 'Total Sales Count', value: data.profitReport.totalSalesCount },
+    { metric: 'Total Customers', value: data.customers.length },
+    { metric: 'Total Products', value: data.products.length },
+  ]
+  execSummary.forEach((row) => s1.addRow(row))
 
   // 02 Monthly Summary
-  const monthlySheet = XLSX.utils.json_to_sheet(monthlyData)
-  XLSX.utils.book_append_sheet(wb, monthlySheet, '02 Monthly Summary')
+  const s2 = workbook.addWorksheet('02 Monthly Summary')
+  if (data.monthlyData && data.monthlyData.length > 0) {
+    const keys = Object.keys(data.monthlyData[0])
+    s2.columns = keys.map((k) => ({ header: k, key: k, width: 20 }))
+    data.monthlyData.forEach((row) => s2.addRow(row as any))
+  }
 
   // 03 Sales Register
-  const salesData = sales
-    .filter(s => s.status !== 'cancelled')
-    .map(s => ({
-      Date: new Date(s.createdAt).toLocaleDateString(),
-      'Sale Number': s.saleNumber || '-',
-      'Invoice #': invoices.find(i => i.$id === s.invoiceId)?.invoiceNumber || '-',
-      Method: s.paymentMethod,
-      Status: s.status,
-      Total: s.total
-    }))
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesData), '03 Sales Register')
+  const s3 = workbook.addWorksheet('03 Sales Register')
+  s3.columns = [
+    { header: 'Date', key: 'date', width: 15 },
+    { header: 'Sale Number', key: 'saleNumber', width: 20 },
+    { header: 'Invoice #', key: 'invoiceNumber', width: 20 },
+    { header: 'Method', key: 'method', width: 15 },
+    { header: 'Status', key: 'status', width: 15 },
+    { header: 'Total', key: 'total', width: 15 },
+  ]
+  data.sales
+    .filter((s) => s.status !== 'cancelled')
+    .forEach((s) => {
+      s3.addRow({
+        date: new Date(s.createdAt).toLocaleDateString(),
+        saleNumber: s.saleNumber || '-',
+        invoiceNumber: data.invoices.find((i) => i.$id === s.invoiceId)?.invoiceNumber || '-',
+        method: s.paymentMethod,
+        status: s.status,
+        total: s.total,
+      })
+    })
 
   // 04 Invoice Register
-  const invoiceData = invoices.map(i => ({
-    Date: new Date(i.createdAt).toLocaleDateString(),
-    'Invoice Number': i.invoiceNumber,
-    'Sale #': sales.find(s => s.$id === i.saleId)?.saleNumber || '-',
-    Status: i.status
-  }))
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(invoiceData), '04 Invoice Register')
+  const s4 = workbook.addWorksheet('04 Invoice Register')
+  s4.columns = [
+    { header: 'Date', key: 'date', width: 15 },
+    { header: 'Invoice Number', key: 'invoiceNumber', width: 20 },
+    { header: 'Sale #', key: 'saleNumber', width: 20 },
+    { header: 'Status', key: 'status', width: 15 },
+  ]
+  data.invoices.forEach((i) => {
+    s4.addRow({
+      date: new Date(i.createdAt).toLocaleDateString(),
+      invoiceNumber: i.invoiceNumber,
+      saleNumber: data.sales.find((s) => s.$id === i.saleId)?.saleNumber || '-',
+      status: i.status,
+    })
+  })
 
   // 05 Payment Reconciliation
-  const paymentData = paymentMethods.map(p => ({
-    'Payment Method': p.name,
-    'Transactions Count': p.count,
-    'Total Collected': p.total
-  }))
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentData), '05 Payment Reconciliation')
+  const s5 = workbook.addWorksheet('05 Payment Reconciliation')
+  s5.columns = [
+    { header: 'Payment Method', key: 'name', width: 25 },
+    { header: 'Transactions Count', key: 'count', width: 20 },
+    { header: 'Total Collected', key: 'total', width: 20 },
+  ]
+  data.paymentMethods.forEach((p) => {
+    s5.addRow({
+      name: p.name,
+      count: p.count,
+      total: p.total,
+    })
+  })
 
   // 06 Receivables
-  const receivablesData = customers
-    .filter(c => (c.totalDue || 0) > 0)
-    .map(c => ({
-      Name: c.name,
-      Phone: c.phone || '',
-      'Total Due': c.totalDue
-    }))
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(receivablesData), '06 Receivables')
+  const s6 = workbook.addWorksheet('06 Receivables')
+  s6.columns = [
+    { header: 'Name', key: 'name', width: 25 },
+    { header: 'Phone', key: 'phone', width: 20 },
+    { header: 'Total Due', key: 'totalDue', width: 15 },
+  ]
+  data.customers
+    .filter((c) => (c.totalDue || 0) > 0)
+    .forEach((c) => {
+      s6.addRow({
+        name: c.name,
+        phone: c.phone || '',
+        totalDue: c.totalDue,
+      })
+    })
 
   // 07 Inventory
-  const inventoryData = products.map(p => ({
-    Name: p.name,
-    SKU: p.sku || '',
-    'Stock Qty': p.stockQuantity || 0,
-    'Cost Price': p.purchasePrice || 0,
-    'Selling Price': p.sellingPrice || 0,
-    'Total Value (Cost)': (p.stockQuantity || 0) * (p.purchasePrice || 0)
-  }))
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(inventoryData), '07 Inventory')
+  const s7 = workbook.addWorksheet('07 Inventory')
+  s7.columns = [
+    { header: 'Name', key: 'name', width: 25 },
+    { header: 'SKU', key: 'sku', width: 15 },
+    { header: 'Stock Qty', key: 'stockQuantity', width: 15 },
+    { header: 'Cost Price', key: 'purchasePrice', width: 15 },
+    { header: 'Selling Price', key: 'sellingPrice', width: 15 },
+    { header: 'Total Value (Cost)', key: 'totalValue', width: 20 },
+  ]
+  data.products.forEach((p) => {
+    s7.addRow({
+      name: p.name,
+      sku: p.sku || '',
+      stockQuantity: p.stockQuantity || 0,
+      purchasePrice: p.purchasePrice || 0,
+      sellingPrice: p.sellingPrice || 0,
+      totalValue: (p.stockQuantity || 0) * (p.purchasePrice || 0),
+    })
+  })
 
   // 08 Expenses
-  const expensesData = expenses.map(e => ({
-    Date: new Date(e.date || e.createdAt).toLocaleDateString(),
-    Category: e.category,
-    Title: e.title || e.description || '',
-    Amount: e.amount
-  }))
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expensesData), '08 Expenses')
+  const s8 = workbook.addWorksheet('08 Expenses')
+  s8.columns = [
+    { header: 'Date', key: 'date', width: 15 },
+    { header: 'Category', key: 'category', width: 20 },
+    { header: 'Title', key: 'title', width: 30 },
+    { header: 'Amount', key: 'amount', width: 15 },
+  ]
+  data.expenses.forEach((e) => {
+    s8.addRow({
+      date: new Date(e.date || e.createdAt).toLocaleDateString(),
+      category: e.category,
+      title: e.title || e.description || '',
+      amount: e.amount,
+    })
+  })
 
   // 09 Cancelled Transactions
-  const cancelledSales = sales
-    .filter(s => s.status === 'cancelled')
-    .map(s => ({
-      Date: new Date(s.createdAt).toLocaleDateString(),
-      'Sale Number': s.saleNumber || `SALE-${s.$id.substring(0, 6)}`,
-      Total: s.total
-    }))
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cancelledSales), '09 Cancelled Transactions')
+  const s9 = workbook.addWorksheet('09 Cancelled Transactions')
+  s9.columns = [
+    { header: 'Date', key: 'date', width: 15 },
+    { header: 'Sale Number', key: 'saleNumber', width: 20 },
+    { header: 'Total', key: 'total', width: 15 },
+  ]
+  data.sales
+    .filter((s) => s.status === 'cancelled')
+    .forEach((s) => {
+      s9.addRow({
+        date: new Date(s.createdAt).toLocaleDateString(),
+        saleNumber: s.saleNumber || `SALE-${s.$id.substring(0, 6)}`,
+        total: s.total,
+      })
+    })
 
-  // Save the workbook
-  XLSX.writeFile(wb, `${data.businessName}_Report_${data.yearLabel.replace('/', '_')}.xlsx`)
+  // Trigger browser download via buffer
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${data.businessName}_Report_${data.yearLabel.replace('/', '_')}.xlsx`
+  a.click()
+  window.URL.revokeObjectURL(url)
 }
+

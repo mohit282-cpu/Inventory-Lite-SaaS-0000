@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { rateLimiter } from '@/lib/rate-limiter'
 
+export const dynamic = 'force-dynamic'
+
 const subscribeSchema = z.object({
   email: z
     .string()

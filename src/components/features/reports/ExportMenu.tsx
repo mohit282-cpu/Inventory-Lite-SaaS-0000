@@ -82,27 +82,36 @@ export function ExportMenu({ data }: ExportMenuProps) {
     setExportStatus('Generating Audit Pack...')
     try {
       await new Promise(r => setTimeout(r, 100))
-      const [JSZipModule, XLSXModule, jsPDFModule] = await Promise.all([
+      const [JSZipModule, ExcelJSModule, jsPDFModule] = await Promise.all([
         import('jszip'),
-        import('xlsx'),
-        import('jspdf')
+        import('exceljs'),
+        import('jspdf'),
       ])
       const JSZip = JSZipModule.default || JSZipModule
-      const XLSX = XLSXModule
+      const ExcelJS = ExcelJSModule.default || ExcelJSModule
       const jsPDF = jsPDFModule.default || jsPDFModule
-      
+
       const zip = new JSZip()
       const fileNameBase = `${data.businessName}_AuditPack_${data.yearLabel.replace('/', '_')}`
-      
-      // We will generate the Excel workbook in memory and add to zip
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.sales.map(s => ({
-        Date: new Date(s.createdAt).toLocaleDateString(),
-        'Sale Number': s.saleNumber || s.$id,
-        Total: s.total
-      }))), '01 Sales')
-      
-      const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+
+      // Generate the Excel workbook in memory using ExcelJS and add to zip
+      const wb = new ExcelJS.Workbook()
+      const sheet = wb.addWorksheet('01 Sales')
+      sheet.columns = [
+        { header: 'Date', key: 'date', width: 15 },
+        { header: 'Sale Number', key: 'saleNumber', width: 20 },
+        { header: 'Total', key: 'total', width: 15 },
+      ]
+
+      data.sales.forEach((s) => {
+        sheet.addRow({
+          date: new Date(s.createdAt).toLocaleDateString(),
+          saleNumber: s.saleNumber || s.$id,
+          total: s.total,
+        })
+      })
+
+      const excelBuffer = await wb.xlsx.writeBuffer()
       zip.file(`${fileNameBase}.xlsx`, excelBuffer)
 
       // We will generate the PDF in memory

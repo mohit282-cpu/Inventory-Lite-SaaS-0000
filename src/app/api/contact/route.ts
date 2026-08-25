@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { rateLimiter } from '@/lib/rate-limiter'
 
+export const dynamic = 'force-dynamic'
+
 const contactSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
   businessName: z.string().trim().max(100, 'Business name is too long').optional(),

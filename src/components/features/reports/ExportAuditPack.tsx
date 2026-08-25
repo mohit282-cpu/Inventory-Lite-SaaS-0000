@@ -9,8 +9,9 @@ import { exportToPDF } from '@/lib/export/pdf-export'
 import { exportToCSV } from '@/lib/export/csv-export'
 import { useToast } from '@/components/ui/use-toast'
 import JSZip from 'jszip'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import jsPDF from 'jspdf'
+
 
 export interface ExportAuditPackProps {
   data: ExportDataPayload
@@ -29,33 +30,42 @@ export function ExportAuditPack({ data }: ExportAuditPackProps) {
     setIsExporting(true)
     setExportType(type)
     try {
-      await new Promise(r => setTimeout(r, 100))
-      
+      await new Promise((r) => setTimeout(r, 100))
+
       if (type === 'pdf') {
         exportToPDF(data)
       } else if (type === 'excel') {
-        exportToExcel(data)
+        await exportToExcel(data)
       } else if (type === 'csv') {
         exportToCSV(data, 'sales')
       } else if (type === 'pack') {
         const zip = new JSZip()
         const fileNameBase = `${data.businessName}_AuditPack_${data.yearLabel.replace('/', '_')}`
-        
-        const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.sales.map(s => ({
-          Date: new Date(s.createdAt).toLocaleDateString(),
-          'Sale Number': s.saleNumber || s.$id,
-          Total: s.total
-        }))), '01 Sales')
-        
-        const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+
+        const wb = new ExcelJS.Workbook()
+        const sheet = wb.addWorksheet('01 Sales')
+        sheet.columns = [
+          { header: 'Date', key: 'date', width: 15 },
+          { header: 'Sale Number', key: 'saleNumber', width: 20 },
+          { header: 'Total', key: 'total', width: 15 },
+        ]
+
+        data.sales.forEach((s) => {
+          sheet.addRow({
+            date: new Date(s.createdAt).toLocaleDateString(),
+            saleNumber: s.saleNumber || s.$id,
+            total: s.total,
+          })
+        })
+
+        const excelBuffer = await wb.xlsx.writeBuffer()
         zip.file(`${fileNameBase}.xlsx`, excelBuffer)
-  
+
         const doc = new jsPDF()
         doc.text('Audit Pack Summary', 14, 15)
         doc.text(`Business: ${data.businessName}`, 14, 25)
         doc.text(`Financial Year: ${data.yearLabel}`, 14, 35)
-        
+
         const pdfBlob = doc.output('blob')
         zip.file(`${fileNameBase}.pdf`, pdfBlob)
   
