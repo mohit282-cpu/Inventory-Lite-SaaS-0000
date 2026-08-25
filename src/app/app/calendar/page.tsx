@@ -1,7 +1,5 @@
 "use client"
 
-export const dynamic = 'force-dynamic'
-
 import React, { useState, useEffect, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { useAuth } from '@/context/auth-context'
