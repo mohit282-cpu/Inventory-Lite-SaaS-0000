@@ -77,7 +77,14 @@ export default function SignupPage() {
       title="Create your account"
       subtitle="Set up Inventory Lite for your business."
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 text-left">
+      <form
+        method="POST"
+        onSubmit={(e) => {
+          e.preventDefault()
+          handleSubmit(onSubmit)(e)
+        }}
+        className="space-y-4 text-left"
+      >
         {apiError && (
           <div className="flex items-center gap-2 p-3.5 rounded-lg bg-red-50 text-red-700 text-xs font-semibold border border-red-200">
             <AlertCircle className="h-4 w-4 shrink-0" />

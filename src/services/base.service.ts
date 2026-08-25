@@ -144,6 +144,15 @@ export abstract class BaseService {
             continue
           }
         }
+        if (
+          err?.code === 404 ||
+          (err?.message &&
+            (err.message.includes('could not be found') ||
+              err.message.includes('Collection with the requested ID') ||
+              err.message.includes('collection_not_found')))
+        ) {
+          throw new Error(`Collection '${this.collectionId}' was not found in Appwrite project. Please run 'npx tsx scripts/setup-appwrite.ts' or provision the collection '${this.collectionId}' in Appwrite Console.`)
+        }
         throw err
       }
     }
