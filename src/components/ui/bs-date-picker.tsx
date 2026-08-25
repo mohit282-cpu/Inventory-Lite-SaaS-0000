@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { calendarService } from '@/services/calendar.service'
 import { BS_MONTH_NAMES_EN, BSDate } from '@/lib/nepali-calendar-data'
 import { adToBS, bsToAD, formatBSDate } from '@/lib/date/bs-date'

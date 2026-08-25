@@ -1,4 +1,3 @@
-import React from 'react'
 import { LandingNavbar } from './navbar'
 import { LandingHero } from './hero'
 import { LandingProblemSolution } from './problem-solution'

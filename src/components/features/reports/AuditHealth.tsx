@@ -1,6 +1,5 @@
 "use client"
 
-import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Invoice, Sale } from '@/types'
 import { CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react'

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useLanguage } from '@/context/language-context'
 import { AppLogo } from '@/components/ui/app-logo'

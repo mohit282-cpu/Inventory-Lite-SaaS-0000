@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
 import { Sale, Customer, Expense, Invoice, Product } from '@/types'

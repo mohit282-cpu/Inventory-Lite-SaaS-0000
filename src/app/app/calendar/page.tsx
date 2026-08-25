@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { useAuth } from '@/context/auth-context'
 import { calendarService } from '@/services/calendar.service'

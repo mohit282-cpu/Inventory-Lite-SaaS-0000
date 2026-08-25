@@ -1,10 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   productionBrowserSourceMaps: false,
   images: {
-    domains: ['cloud.appwrite.io', 'fra.cloud.appwrite.io'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cloud.appwrite.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'fra.cloud.appwrite.io',
+      },
+    ],
   },
   env: {
     NEXT_PUBLIC_APPWRITE_PROJECT_ID: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID,

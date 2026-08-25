@@ -1,4 +1,3 @@
-import React from 'react'
 import { AppShellSkeleton } from '@/components/ui/skeleton'
 
 interface AuthLoadingScreenProps {

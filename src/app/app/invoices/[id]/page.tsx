@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import React, { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/context/auth-context'
 import { invoiceService, InvoiceFullDetails } from '@/services/invoice.service'
 import { LoadingPage } from '@/components/ui/loading'

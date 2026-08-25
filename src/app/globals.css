@@ -197,14 +197,15 @@
     margin: 10mm 10mm 10mm 10mm;
   }
 
-  /* 6. Dedicated 80mm Thermal Receipt Page Override */
-  body.print-format-thermal {
-    width: 80mm !important;
-  }
-
-  body.print-format-thermal @page {
+  /* 6. Named page type for 80mm Thermal Receipt printing */
+  @page thermal {
     size: 80mm auto;
     margin: 0;
+  }
+
+  body.print-format-thermal {
+    width: 80mm !important;
+    page: thermal;
   }
 }
 

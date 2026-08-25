@@ -1,6 +1,5 @@
 "use client"
 
-import React from 'react'
 import { useLanguage } from '@/context/language-context'
 import { CheckCircle2 } from 'lucide-react'
 
