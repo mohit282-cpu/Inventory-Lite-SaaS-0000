@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
-import { Sale, Customer, Expense, Invoice, Product } from '@/types'
+import { Sale, Customer, Expense, Invoice, Product, Purchase, Supplier, CreditNote, DebitNote } from '@/types'
 import { ProfitEstimateReport } from '@/services/analytics.service'
 import dynamic from 'next/dynamic'
 import { WhatDoesThisMean } from '../WhatDoesThisMean'
@@ -28,6 +28,10 @@ export interface SimpleReportViewProps {
   customers: Customer[]
   expenses: Expense[]
   invoices: Invoice[]
+  purchases?: Purchase[]
+  suppliers?: Supplier[]
+  creditNotes?: CreditNote[]
+  debitNotes?: DebitNote[]
   profitReport: ProfitEstimateReport
   monthlyData: MonthlyData[]
   dateRange: { isoFrom: string; isoTo: string; label: string }
@@ -40,6 +44,10 @@ export function SimpleReportView({
   customers,
   expenses,
   invoices,
+  purchases: _purchases = [],
+  suppliers: _suppliers = [],
+  creditNotes: _creditNotes = [],
+  debitNotes: _debitNotes = [],
   profitReport,
   monthlyData,
   dateRange,

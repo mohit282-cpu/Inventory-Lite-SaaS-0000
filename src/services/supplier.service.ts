@@ -131,6 +131,7 @@ export class SupplierService extends BaseService {
       panVatNumber: string
       notes: string
       status: SupplierStatus
+      outstandingPayable: number
     }>,
     businessId: string,
     userId: string

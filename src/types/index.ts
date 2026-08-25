@@ -411,6 +411,7 @@ export interface SalesReturn extends Models.Document {
   saleId: string
   saleNumber?: string
   customerId?: string
+  returnDate: string
   subtotal: number
   discount: number
   tax: number
@@ -433,6 +434,44 @@ export interface SalesReturnItem extends Models.Document {
   quantity: number
   unitPrice: number
   total: number
+}
+
+// ==================== Credit Note Entity ====================
+
+export interface CreditNote extends Models.Document {
+  $id: string
+  businessId: string
+  creditNoteNumber: string
+  saleId?: string
+  invoiceId?: string
+  invoiceNumber?: string
+  customerId?: string
+  customerName?: string
+  reason: string
+  taxableAmount: number
+  vatAmount: number
+  totalAmount: number
+  issuedDate: string
+  createdBy: string
+  createdAt: string
+}
+
+// ==================== Debit Note Entity ====================
+
+export interface DebitNote extends Models.Document {
+  $id: string
+  businessId: string
+  debitNoteNumber: string
+  purchaseId?: string
+  supplierId?: string
+  supplierName?: string
+  reason: string
+  taxableAmount: number
+  vatAmount: number
+  totalAmount: number
+  issuedDate: string
+  createdBy: string
+  createdAt: string
 }
 
 

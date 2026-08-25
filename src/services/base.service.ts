@@ -50,6 +50,8 @@ export abstract class BaseService {
       'suppliers',
       'purchases',
       'sales_returns',
+      'credit_notes',
+      'debit_notes',
     ])
 
     const collectionsWithCreatedAt = new Set<string>([
@@ -70,6 +72,8 @@ export abstract class BaseService {
       'supplier_payments',
       'sales_returns',
       'sales_return_items',
+      'credit_notes',
+      'debit_notes',
     ])
 
     const documentData: any = {
@@ -123,7 +127,8 @@ export abstract class BaseService {
     ]
 
     let attempts = 0
-    while (attempts < 5) {
+    let stripCount = 0
+    while (attempts < 5 && stripCount < 20) {
       try {
         const docId = customId ? sanitizeAppwriteDocId(customId) : ID.unique()
         const createdDoc = await databases.createDocument(
@@ -140,7 +145,7 @@ export abstract class BaseService {
           if (match && match[1] && documentData[match[1]] !== undefined) {
             console.warn(`[BaseService] Stripping unknown attribute "${match[1]}" from ${this.collectionId} create payload...`)
             delete documentData[match[1]]
-            attempts++
+            stripCount++
             continue
           }
         }
@@ -153,7 +158,8 @@ export abstract class BaseService {
         ) {
           throw new Error(`Collection '${this.collectionId}' was not found in Appwrite project. Please run 'npx tsx scripts/setup-appwrite.ts' or provision the collection '${this.collectionId}' in Appwrite Console.`)
         }
-        throw err
+        attempts++
+        if (attempts >= 5) throw err
       }
     }
 
@@ -176,6 +182,74 @@ export abstract class BaseService {
     }
 
     return this.mapDocument<T>(document)
+  }
+
+  /**
+   * Update a document with tenant isolation verification
+   */
+  async update<T>(id: string, data: any, businessId: string): Promise<T> {
+    // Verify tenant isolation before update (getById will throw if businessId doesn't match)
+    if (businessId !== 'system') {
+      await this.getById(id, businessId)
+    }
+
+    const { $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...cleanData } = data || {}
+
+    const collectionsWithUpdatedAt = new Set<string>([
+      'users',
+      'businesses',
+      'categories',
+      'products',
+      'customers',
+      'expenses',
+      'suppliers',
+      'purchases',
+      'sales_returns',
+    ])
+
+    const updatePayload = { ...cleanData }
+
+    // Prevent changing businessId to prevent tenant movement
+    delete updatePayload.businessId
+
+    if (this.collectionId === 'expenses') {
+      if (updatePayload.title && !updatePayload.description) {
+        updatePayload.description = updatePayload.title
+      }
+      delete updatePayload.title
+    }
+
+    if (collectionsWithUpdatedAt.has(this.collectionId)) {
+      updatePayload.updatedAt = new Date().toISOString()
+    }
+
+    let attempts = 0
+    let stripCount = 0
+    while (attempts < 5 && stripCount < 20) {
+      try {
+        const updatedDoc = await databases.updateDocument(
+          DATABASE_ID,
+          this.collectionId,
+          id,
+          updatePayload
+        )
+        return this.mapDocument<T>(updatedDoc)
+      } catch (err: any) {
+        if (err?.message && err.message.includes('Unknown attribute')) {
+          const match = err.message.match(/Unknown attribute:\s*"([^"]+)"/i)
+          if (match && match[1] && updatePayload[match[1]] !== undefined) {
+            console.warn(`[BaseService] Stripping unknown attribute "${match[1]}" from ${this.collectionId} update payload...`)
+            delete updatePayload[match[1]]
+            stripCount++
+            continue
+          }
+        }
+        attempts++
+        if (attempts >= 5) throw err
+      }
+    }
+
+    throw new Error(`Failed to update document in ${this.collectionId}: max retries exceeded`)
   }
 
   /**
@@ -238,72 +312,6 @@ export abstract class BaseService {
     }
 
     return allDocuments
-  }
-
-  /**
-   * Update a document with tenant isolation verification
-   */
-  async update<T>(id: string, data: any, businessId: string): Promise<T> {
-    // Verify tenant isolation before update (getById will throw if businessId doesn't match)
-    if (businessId !== 'system') {
-      await this.getById(id, businessId)
-    }
-
-    const { $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...cleanData } = data || {}
-
-    const collectionsWithUpdatedAt = new Set<string>([
-      'users',
-      'businesses',
-      'categories',
-      'products',
-      'customers',
-      'expenses',
-      'suppliers',
-      'purchases',
-      'sales_returns',
-    ])
-
-    const updatePayload = { ...cleanData }
-
-    // Prevent changing businessId to prevent tenant movement
-    delete updatePayload.businessId
-
-    if (this.collectionId === 'expenses') {
-      if (updatePayload.title && !updatePayload.description) {
-        updatePayload.description = updatePayload.title
-      }
-      delete updatePayload.title
-    }
-
-    if (collectionsWithUpdatedAt.has(this.collectionId)) {
-      updatePayload.updatedAt = new Date().toISOString()
-    }
-
-    let attempts = 0
-    while (attempts < 5) {
-      try {
-        const updatedDoc = await databases.updateDocument(
-          DATABASE_ID,
-          this.collectionId,
-          id,
-          updatePayload
-        )
-        return this.mapDocument<T>(updatedDoc)
-      } catch (err: any) {
-        if (err?.message && err.message.includes('Unknown attribute')) {
-          const match = err.message.match(/Unknown attribute:\s*"([^"]+)"/i)
-          if (match && match[1] && updatePayload[match[1]] !== undefined) {
-            console.warn(`[BaseService] Stripping unknown attribute "${match[1]}" from ${this.collectionId} update payload...`)
-            delete updatePayload[match[1]]
-            attempts++
-            continue
-          }
-        }
-        throw err
-      }
-    }
-
-    throw new Error(`Failed to update document in ${this.collectionId}: max retries exceeded`)
   }
 
 

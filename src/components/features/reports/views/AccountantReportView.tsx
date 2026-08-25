@@ -15,7 +15,9 @@ import { InventoryReport } from '../InventoryReport'
 import { ExpenseReport } from '../ExpenseReport'
 import { AuditHealth } from '../AuditHealth'
 import { PrintDisclaimer } from '../PrintDisclaimer'
-import { Sale, Customer, Expense, Invoice, Product } from '@/types'
+import { PurchaseRegister } from '../PurchaseRegister'
+import { TaxVatSummary } from '../TaxVatSummary'
+import { Sale, Customer, Expense, Invoice, Product, Purchase, Supplier, CreditNote, DebitNote } from '@/types'
 import { ProfitEstimateReport, PaymentMethodPoint } from '@/services/analytics.service'
 import { ShieldCheck } from 'lucide-react'
 
@@ -25,6 +27,10 @@ export interface AccountantReportViewProps {
   customers: Customer[]
   expenses: Expense[]
   invoices: Invoice[]
+  purchases?: Purchase[]
+  suppliers?: Supplier[]
+  creditNotes?: CreditNote[]
+  debitNotes?: DebitNote[]
   profitReport: ProfitEstimateReport
   monthlyData: MonthlyData[]
   paymentMethods: PaymentMethodPoint[]
@@ -37,6 +43,10 @@ export function AccountantReportView({
   customers,
   expenses,
   invoices,
+  purchases = [],
+  suppliers = [],
+  creditNotes = [],
+  debitNotes = [],
   profitReport,
   monthlyData,
   paymentMethods,
@@ -48,6 +58,14 @@ export function AccountantReportView({
   const salesTotal = sales.reduce((acc, sale) => acc + (sale.total || 0), 0)
   const collectedTotal = sales.reduce((acc, sale) => acc + (sale.paidAmount || 0), 0)
   const outstandingTotal = sales.reduce((acc, sale) => acc + (sale.dueAmount || 0), 0)
+
+  // Tax calculations
+  const salesTaxable = sales.reduce((acc, sale) => acc + (sale.subtotal || sale.total || 0), 0)
+  const outputVat = sales.reduce((acc, sale) => acc + (sale.tax || 0), 0)
+  const purchasesTaxable = purchases.reduce((acc, p) => acc + (p.subtotal || p.totalAmount || 0), 0)
+  const inputVat = purchases.reduce((acc, p) => acc + (p.taxAmount || 0), 0)
+  const cnVatAdj = creditNotes.reduce((acc, cn) => acc + (cn.vatAmount || 0), 0)
+  const dnVatAdj = debitNotes.reduce((acc, dn) => acc + (dn.vatAmount || 0), 0)
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -90,7 +108,17 @@ export function AccountantReportView({
         }}
       />
 
-      {/* 2. Audit Health & Reconciliation */}
+      {/* 2. Basic Tax & VAT Summary */}
+      <TaxVatSummary
+        salesTaxable={salesTaxable}
+        outputVat={outputVat}
+        purchasesTaxable={purchasesTaxable}
+        inputVat={inputVat}
+        creditNoteVatAdjustments={cnVatAdj}
+        debitNoteVatAdjustments={dnVatAdj}
+      />
+
+      {/* 3. Audit Health & Reconciliation */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <MonthlyFinancialSummary data={monthlyData} hasCostDataError={hasCostDataError} />
         <ReconciliationReport
@@ -103,15 +131,16 @@ export function AccountantReportView({
         <AuditHealth sales={sales} invoices={invoices} />
       </div>
 
-      {/* 3. Customer Dues & Expenses */}
+      {/* 4. Customer Dues & Expenses */}
       <div className="grid gap-6 md:grid-cols-2">
         <CustomerDuesReport customers={customers} />
         <ExpenseReport expenses={expenses} />
       </div>
 
-      {/* 4. Inventory Valuation & Sales Register */}
+      {/* 5. Inventory Valuation, Sales Register & Purchase Register */}
       <InventoryReport products={products} />
       <SalesRegister sales={sales} customers={customers} invoices={invoices} />
+      <PurchaseRegister purchases={purchases} suppliers={suppliers} />
 
       <PrintDisclaimer />
     </div>

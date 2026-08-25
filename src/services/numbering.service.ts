@@ -230,6 +230,24 @@ export class NumberingService extends BaseService {
       }
     })
   }
+
+  async getNextCreditNoteNumber(businessId: string): Promise<string> {
+    try {
+      const allocated = await this.allocateNextNumber(businessId, 'credit_note' as any)
+      return `CN-${allocated.formattedNumber}`
+    } catch {
+      return `CN-${Date.now().toString().slice(-6)}`
+    }
+  }
+
+  async getNextDebitNoteNumber(businessId: string): Promise<string> {
+    try {
+      const allocated = await this.allocateNextNumber(businessId, 'debit_note' as any)
+      return `DN-${allocated.formattedNumber}`
+    } catch {
+      return `DN-${Date.now().toString().slice(-6)}`
+    }
+  }
 }
 
 export const numberingService = new NumberingService()
