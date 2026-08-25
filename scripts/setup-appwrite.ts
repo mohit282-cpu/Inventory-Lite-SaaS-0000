@@ -447,7 +447,6 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'idx_business_productId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'productId'] },
     ],
   },
-<<<<<<< HEAD
   {
     id: 'credit_notes',
     name: 'Credit Notes',
@@ -517,8 +516,6 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
     ],
   },
-=======
->>>>>>> parent of 2620f43 (feat: implement debit note system, integrate with reporting module, and add supporting services and components)
 ]
 
 async function apiRequest(path: string, method: string = 'GET', body?: any) {

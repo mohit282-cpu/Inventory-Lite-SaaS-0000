@@ -40,12 +40,9 @@ export const COLLECTIONS = {
   SUPPLIER_PAYMENTS: 'supplier_payments',
   SALES_RETURNS: 'sales_returns',
   SALES_RETURN_ITEMS: 'sales_return_items',
-<<<<<<< HEAD
   CREDIT_NOTES: 'credit_notes',
   DEBIT_NOTES: 'debit_notes',
   STORE_ASSETS: 'store_assets',
-=======
->>>>>>> parent of 2620f43 (feat: implement debit note system, integrate with reporting module, and add supporting services and components)
 } as const
 
 // Storage Bucket IDs

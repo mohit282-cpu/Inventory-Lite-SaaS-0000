@@ -50,12 +50,9 @@ export abstract class BaseService {
       'suppliers',
       'purchases',
       'sales_returns',
-<<<<<<< HEAD
       'credit_notes',
       'debit_notes',
       'store_assets',
-=======
->>>>>>> parent of 2620f43 (feat: implement debit note system, integrate with reporting module, and add supporting services and components)
     ])
 
     const collectionsWithCreatedAt = new Set<string>([
@@ -76,12 +73,9 @@ export abstract class BaseService {
       'supplier_payments',
       'sales_returns',
       'sales_return_items',
-<<<<<<< HEAD
       'credit_notes',
       'debit_notes',
       'store_assets',
-=======
->>>>>>> parent of 2620f43 (feat: implement debit note system, integrate with reporting module, and add supporting services and components)
     ])
 
     const documentData: any = {
