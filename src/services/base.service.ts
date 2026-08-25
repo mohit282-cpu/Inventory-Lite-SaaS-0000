@@ -47,6 +47,9 @@ export abstract class BaseService {
       'products',
       'customers',
       'expenses',
+      'suppliers',
+      'purchases',
+      'sales_returns',
     ])
 
     const collectionsWithCreatedAt = new Set<string>([
@@ -61,6 +64,12 @@ export abstract class BaseService {
       'invoices',
       'expenses',
       'payments',
+      'suppliers',
+      'purchases',
+      'purchase_items',
+      'supplier_payments',
+      'sales_returns',
+      'sales_return_items',
     ])
 
     const documentData: any = {
@@ -240,6 +249,9 @@ export abstract class BaseService {
       'products',
       'customers',
       'expenses',
+      'suppliers',
+      'purchases',
+      'sales_returns',
     ])
 
     const updatePayload = { ...cleanData }

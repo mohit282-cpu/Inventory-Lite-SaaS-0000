@@ -34,6 +34,12 @@ export const COLLECTIONS = {
   FINANCIAL_SEQUENCES: 'financial_sequences',
   INVENTORY_LOCKS: 'inventory_locks',
   IDEMPOTENCY_KEYS: 'idempotency_keys',
+  SUPPLIERS: 'suppliers',
+  PURCHASES: 'purchases',
+  PURCHASE_ITEMS: 'purchase_items',
+  SUPPLIER_PAYMENTS: 'supplier_payments',
+  SALES_RETURNS: 'sales_returns',
+  SALES_RETURN_ITEMS: 'sales_return_items',
 } as const
 
 // Storage Bucket IDs

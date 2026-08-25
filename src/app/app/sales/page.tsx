@@ -12,13 +12,16 @@ import { customerService } from '@/services/customer.service'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
 import { useDebounce } from '@/hooks/use-debounce'
-import { Plus, Eye, ShoppingCart } from 'lucide-react'
+import { SalesReturnDialog } from '@/components/features/sales/sales-return-dialog'
+import { CancelSaleDialog } from '@/components/features/sales/cancel-sale-dialog'
+import { salesReturnService } from '@/services/sales-return.service'
+import { Plus, Eye, ShoppingCart, RotateCcw, XCircle } from 'lucide-react'
 import { Sale, Customer } from '@/types'
 import { formatBSDateTime } from '@/lib/date/bs-date'
 
 export default function SalesPage() {
   const router = useRouter()
-  const { activeBusiness } = useAuth()
+  const { activeBusiness, user, memberships } = useAuth()
   const { toast } = useToast()
 
   const [sales, setSales] = useState<Sale[]>([])
@@ -26,6 +29,18 @@ export default function SalesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Modal states
+  const [returnSale, setReturnSale] = useState<Sale | null>(null)
+  const [isReturnOpen, setIsReturnOpen] = useState(false)
+
+  const [cancelTargetSale, setCancelTargetSale] = useState<Sale | null>(null)
+  const [isCancelOpen, setIsCancelOpen] = useState(false)
+
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const currentRole = memberships.find((m) => m.businessId === activeBusiness?.$id)?.role || 'owner'
+  const isOwnerOrAdmin = currentRole === 'owner' || currentRole === 'admin'
 
   const fetchSalesData = useCallback(async () => {
     if (!activeBusiness?.$id) return
@@ -51,6 +66,48 @@ export default function SalesPage() {
   useEffect(() => {
     fetchSalesData()
   }, [fetchSalesData])
+
+  const handleProcessSalesReturn = async (data: any) => {
+    if (!activeBusiness?.$id || !user?.$id) return
+    setActionLoading(true)
+    try {
+      await salesReturnService.createSalesReturn(data, activeBusiness.$id, user.$id)
+      toast({
+        title: 'Sales Return Processed',
+        description: 'Returned items restored to inventory and financial balance adjusted.',
+      })
+      await fetchSalesData()
+    } catch (err: any) {
+      toast({
+        title: 'Sales Return Error',
+        description: err.message || 'Failed to process sales return',
+        variant: 'destructive',
+      })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleConfirmCancelSale = async (saleId: string, reason: string) => {
+    if (!activeBusiness?.$id || !user?.$id) return
+    setActionLoading(true)
+    try {
+      await saleService.cancelSale(saleId, activeBusiness.$id, user.$id, reason)
+      toast({
+        title: 'Bill Voided / Cancelled',
+        description: 'Sale status updated to cancelled, stock restored, and customer due reversed.',
+      })
+      await fetchSalesData()
+    } catch (err: any) {
+      toast({
+        title: 'Bill Cancellation Error',
+        description: err.message || 'Failed to cancel bill transaction',
+        variant: 'destructive',
+      })
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   // Memoized Search Filter
   const filteredSales = useMemo(() => {
@@ -147,15 +204,47 @@ export default function SalesPage() {
       key: 'actions',
       header: 'Actions',
       render: (item) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(`/app/sales/${item.$id}`)}
-          className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
-          title="View Receipt / Invoice"
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push(`/app/sales/${item.$id}`)}
+            className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+            title="View Receipt / Invoice"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+
+          {item.status !== 'cancelled' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setReturnSale(item)
+                setIsReturnOpen(true)
+              }}
+              className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50"
+              title="Sales Return"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          )}
+
+          {isOwnerOrAdmin && item.status !== 'cancelled' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setCancelTargetSale(item)
+                setIsCancelOpen(true)
+              }}
+              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+              title="Cancel / Void Bill (Owner/Admin)"
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       ),
     },
   ]
@@ -164,7 +253,7 @@ export default function SalesPage() {
     <div className="space-y-6 text-slate-900">
       <PageHeader
         title="Sales Ledger & POS Orders"
-        description="Audit completed cashier transactions, customer invoices, payment methods, and outstanding dues."
+        description="Audit completed cashier transactions, customer invoices, sales returns, and bill cancellations."
         actions={
           <Button
             onClick={() => router.push('/app/sales/new')}
@@ -198,6 +287,23 @@ export default function SalesPage() {
             <ShoppingCart className="mr-2 h-4 w-4" /> Open POS Terminal
           </Button>
         }
+      />
+
+      {/* Modals */}
+      <SalesReturnDialog
+        isOpen={isReturnOpen}
+        onClose={() => setIsReturnOpen(false)}
+        onSubmit={handleProcessSalesReturn}
+        sale={returnSale}
+        isLoading={actionLoading}
+      />
+
+      <CancelSaleDialog
+        isOpen={isCancelOpen}
+        onClose={() => setIsCancelOpen(false)}
+        onSubmit={handleConfirmCancelSale}
+        sale={cancelTargetSale}
+        isLoading={actionLoading}
       />
     </div>
   )

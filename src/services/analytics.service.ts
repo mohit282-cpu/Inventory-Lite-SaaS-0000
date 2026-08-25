@@ -46,6 +46,41 @@ export interface ProfitEstimateReport {
   hasCostDataError?: boolean
 }
 
+export interface ProductProfitBreakdown {
+  productId: string
+  productName: string
+  categoryName: string
+  unitsSold: number
+  unitsReturned: number
+  netUnitsSold: number
+  revenue: number
+  cogs: number
+  grossProfit: number
+  marginPercent: number
+}
+
+export interface CategoryProfitBreakdown {
+  categoryId: string
+  categoryName: string
+  revenue: number
+  cogs: number
+  grossProfit: number
+  marginPercent: number
+}
+
+export interface DetailedProfitReport extends ProfitEstimateReport {
+  grossSales: number
+  salesReturns: number
+  netSales: number
+  cogs: number
+  grossProfit: number
+  totalExpenses: number
+  netProfit: number
+  netMarginPercent: number
+  productBreakdown: ProductProfitBreakdown[]
+  categoryBreakdown: CategoryProfitBreakdown[]
+}
+
 export class AnalyticsService {
   /**
    * Get core real-time dashboard KPIs for a business (P2 completeness: query full dataset)
@@ -228,16 +263,23 @@ export class AnalyticsService {
   }
 
   /**
-   * Get Net Profit Estimate Report
+   * Get Net Profit Estimate Report with Sales Return & Product/Category breakdowns
    */
   async getProfitEstimateReport(
     businessId: string,
     startDate?: string,
     endDate?: string
-  ): Promise<ProfitEstimateReport & { hasCostDataError?: boolean }> {
-    const [sales, expenses] = await Promise.all([
+  ): Promise<DetailedProfitReport> {
+    let returns: any[] = []
+    try {
+      const { salesReturnService } = await import('./sales-return.service')
+      returns = await salesReturnService.listAllSalesReturns(businessId, { dateFrom: startDate, dateTo: endDate })
+    } catch {}
+
+    const [sales, expenses, products] = await Promise.all([
       saleService.listAllSales(businessId, { dateFrom: startDate, dateTo: endDate }),
       expenseService.listAllExpenses(businessId, { dateFrom: startDate, dateTo: endDate }),
+      productService.listAllProducts(businessId),
     ])
 
     let filteredSales = sales.filter((s) => s.status !== 'cancelled')
@@ -252,47 +294,149 @@ export class AnalyticsService {
       filteredExpenses = filteredExpenses.filter((e) => (e.date || e.createdAt || '') <= endDate)
     }
 
-    let totalRevenue = 0
-    let cogs = 0
+    let grossSales = 0
+    let grossCogs = 0
     let hasCostDataError = false
-    const products = await productService.listAllProducts(businessId)
-    const productCostMap = new Map(products.map(p => [p.$id, p.purchasePrice]))
+
+    const productMap = new Map(products.map((p) => [p.$id, p]))
+    const productAgg = new Map<
+      string,
+      {
+        productId: string
+        productName: string
+        categoryId: string
+        unitsSold: number
+        unitsReturned: number
+        revenue: number
+        cogs: number
+      }
+    >()
 
     for (const sale of filteredSales) {
-      totalRevenue += sale.total || 0
-      
+      grossSales += sale.total || 0
+
       try {
         const items = await saleItemService.listSaleItems(sale.$id, businessId)
-        let saleCogs = 0
         for (const item of items) {
-          const cost = productCostMap.get(item.productId)
-          if (cost === undefined || cost === null || cost <= 0) {
-            // Missing or zero cost price implies unreliable COGS for standard retail
+          const prod = productMap.get(item.productId)
+          const cost = prod ? prod.purchasePrice : 0
+          if (!prod || cost === undefined || cost === null || cost <= 0) {
             hasCostDataError = true
           }
-          saleCogs += (cost || 0) * (item.quantity || 0)
+          const itemCogs = (cost || 0) * (item.quantity || 0)
+          grossCogs += itemCogs
+
+          const existing = productAgg.get(item.productId) || {
+            productId: item.productId,
+            productName: item.productNameSnapshot || prod?.name || 'Unknown Product',
+            categoryId: prod?.categoryId || 'uncategorized',
+            unitsSold: 0,
+            unitsReturned: 0,
+            revenue: 0,
+            cogs: 0,
+          }
+
+          existing.unitsSold += item.quantity || 0
+          existing.revenue += item.total || 0
+          existing.cogs += itemCogs
+          productAgg.set(item.productId, existing)
         }
-        cogs += saleCogs
       } catch (err) {
         console.warn(`Could not load sale items for sale ${sale.$id} to calculate COGS`, err)
         hasCostDataError = true
       }
     }
 
+    // Process Sales Returns to reduce Gross Sales & COGS
+    let totalSalesReturns = 0
+    let returnedCogs = 0
+
+    for (const ret of returns) {
+      totalSalesReturns += ret.totalAmount || 0
+
+      try {
+        const { salesReturnItemService } = await import('./sales-return.service')
+        const retItems = await salesReturnItemService.listReturnItems(ret.$id, businessId)
+        for (const ri of retItems) {
+          const prod = productMap.get(ri.productId)
+          const cost = prod ? prod.purchasePrice : 0
+          const lineRetCogs = (cost || 0) * (ri.quantity || 0)
+          returnedCogs += lineRetCogs
+
+          const existing = productAgg.get(ri.productId)
+          if (existing) {
+            existing.unitsReturned += ri.quantity || 0
+            existing.revenue -= ri.total || 0
+            existing.cogs -= lineRetCogs
+          }
+        }
+      } catch {}
+    }
+
+    const netSales = Math.max(0, grossSales - totalSalesReturns)
+    const netCogs = Math.max(0, grossCogs - returnedCogs)
     const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0)
-    const grossProfit = totalRevenue - cogs
+    const grossProfit = netSales - netCogs
     const netProfit = grossProfit - totalExpenses
-    const netMarginPercent = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
+    const netMarginPercent = netSales > 0 ? (netProfit / netSales) * 100 : 0
+
+    // Build Product & Category profit breakdowns
+    const productBreakdown: ProductProfitBreakdown[] = []
+    const categoryAgg = new Map<string, { revenue: number; cogs: number; grossProfit: number }>()
+
+    for (const p of productAgg.values()) {
+      const netUnits = Math.max(0, p.unitsSold - p.unitsReturned)
+      const gp = p.revenue - p.cogs
+      const margin = p.revenue > 0 ? (gp / p.revenue) * 100 : 0
+
+      productBreakdown.push({
+        productId: p.productId,
+        productName: p.productName,
+        categoryName: p.categoryId === 'uncategorized' ? 'General' : 'Category',
+        unitsSold: p.unitsSold,
+        unitsReturned: p.unitsReturned,
+        netUnitsSold: netUnits,
+        revenue: Math.round(p.revenue * 100) / 100,
+        cogs: Math.round(p.cogs * 100) / 100,
+        grossProfit: Math.round(gp * 100) / 100,
+        marginPercent: Math.round(margin * 10) / 10,
+      })
+
+      const catKey = p.categoryId || 'uncategorized'
+      const catCurr = categoryAgg.get(catKey) || { revenue: 0, cogs: 0, grossProfit: 0 }
+      catCurr.revenue += p.revenue
+      catCurr.cogs += p.cogs
+      catCurr.grossProfit += gp
+      categoryAgg.set(catKey, catCurr)
+    }
+
+    const categoryBreakdown: CategoryProfitBreakdown[] = []
+    for (const [catId, cVal] of categoryAgg.entries()) {
+      const margin = cVal.revenue > 0 ? (cVal.grossProfit / cVal.revenue) * 100 : 0
+      categoryBreakdown.push({
+        categoryId: catId,
+        categoryName: catId === 'uncategorized' ? 'General / Uncategorized' : 'Category',
+        revenue: Math.round(cVal.revenue * 100) / 100,
+        cogs: Math.round(cVal.cogs * 100) / 100,
+        grossProfit: Math.round(cVal.grossProfit * 100) / 100,
+        marginPercent: Math.round(margin * 10) / 10,
+      })
+    }
 
     return {
-      totalRevenue: Math.round(totalRevenue * 100) / 100,
-      cogs: Math.round(cogs * 100) / 100,
+      grossSales: Math.round(grossSales * 100) / 100,
+      salesReturns: Math.round(totalSalesReturns * 100) / 100,
+      netSales: Math.round(netSales * 100) / 100,
+      totalRevenue: Math.round(netSales * 100) / 100,
+      cogs: Math.round(netCogs * 100) / 100,
       grossProfit: Math.round(grossProfit * 100) / 100,
       totalExpenses: Math.round(totalExpenses * 100) / 100,
       netProfit: Math.round(netProfit * 100) / 100,
       netMarginPercent: Math.round(netMarginPercent * 10) / 10,
       totalSalesCount: filteredSales.length,
-      hasCostDataError
+      hasCostDataError,
+      productBreakdown,
+      categoryBreakdown,
     }
   }
 }

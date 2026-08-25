@@ -314,7 +314,7 @@ export interface FormConfig {
 
 // ==================== Financial Year Sequence Entity ====================
 
-export type DocumentType = 'SALE' | 'INVOICE'
+export type DocumentType = 'SALE' | 'INVOICE' | 'PURCHASE' | 'SALES_RETURN'
 
 export interface FinancialSequence extends AppwriteDocument {
   businessId: string
@@ -324,4 +324,115 @@ export interface FinancialSequence extends AppwriteDocument {
   createdAt: string
   updatedAt: string
 }
+
+// ==================== Supplier Entity ====================
+
+export type SupplierStatus = 'active' | 'archived'
+
+export interface Supplier extends Models.Document {
+  $id: string
+  businessId: string
+  name: string
+  phone?: string
+  email?: string
+  address?: string
+  panVatNumber?: string
+  notes?: string
+  status: SupplierStatus
+  totalPurchases: number
+  totalPaid: number
+  outstandingPayable: number
+  createdAt: string
+  updatedAt: string
+}
+
+// ==================== Purchase Entity ====================
+
+export type PurchaseStatus = 'completed' | 'cancelled' | 'pending'
+
+export interface Purchase extends Models.Document {
+  $id: string
+  businessId: string
+  supplierId: string
+  purchaseNumber: string
+  supplierInvoiceNumber?: string
+  purchaseDate: string
+  subtotal: number
+  discount: number
+  tax: number
+  total: number
+  paidAmount: number
+  dueAmount: number
+  paymentMethod: PaymentMethod
+  status: PurchaseStatus
+  notes?: string
+  createdBy: string
+  createdAt: string
+  updatedAt?: string
+}
+
+// ==================== Purchase Item Entity ====================
+
+export interface PurchaseItem extends Models.Document {
+  $id: string
+  businessId: string
+  purchaseId: string
+  productId: string
+  productNameSnapshot: string
+  quantity: number
+  purchasePrice: number
+  discount: number
+  tax: number
+  total: number
+}
+
+// ==================== Supplier Payment Entity ====================
+
+export interface SupplierPayment extends Models.Document {
+  $id: string
+  businessId: string
+  supplierId: string
+  purchaseId?: string
+  amount: number
+  paymentMethod: PaymentMethod
+  paymentDate: string
+  referenceNumber?: string
+  notes?: string
+  createdBy: string
+  createdAt: string
+}
+
+// ==================== Sales Return Entity ====================
+
+export interface SalesReturn extends Models.Document {
+  $id: string
+  businessId: string
+  returnNumber: string
+  saleId: string
+  saleNumber?: string
+  customerId?: string
+  subtotal: number
+  discount: number
+  tax: number
+  totalAmount: number
+  reason: string
+  refundMethod: 'cash' | 'credit_adjustment' | 'bank_transfer' | 'digital_wallet' | 'other'
+  createdBy: string
+  createdAt: string
+}
+
+// ==================== Sales Return Item Entity ====================
+
+export interface SalesReturnItem extends Models.Document {
+  $id: string
+  businessId: string
+  salesReturnId: string
+  saleItemId: string
+  productId: string
+  productNameSnapshot: string
+  quantity: number
+  unitPrice: number
+  total: number
+}
+
 

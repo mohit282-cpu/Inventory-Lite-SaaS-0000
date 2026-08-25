@@ -70,7 +70,13 @@ export class NumberingService extends BaseService {
     const lockKey = `${businessId}_${documentType}_${fyInfo.label}`
 
     return await this.withSequenceLock(lockKey, async () => {
-      const prefix = documentType === 'SALE' ? 'SALE' : 'INV'
+      const prefixMap: Record<DocumentType, string> = {
+        SALE: 'SALE',
+        INVOICE: 'INV',
+        PURCHASE: 'PUR',
+        SALES_RETURN: 'SR',
+      }
+      const prefix = prefixMap[documentType] || 'DOC'
       let allocatedNum: number
 
       if (this.inMemorySequenceMap.has(lockKey)) {
@@ -95,24 +101,30 @@ export class NumberingService extends BaseService {
         } else {
           let maxNum = 0
           for (const doc of (fetchedDocs || [])) {
-            const numStr = doc?.saleNumber || doc?.invoiceNumber
+            const numStr = doc?.saleNumber || doc?.invoiceNumber || doc?.purchaseNumber || doc?.returnNumber
             if (numStr && typeof numStr === 'string' && numStr.includes(fyInfo.shortLabel)) {
-              const val = parseInt(numStr.replace(/^[A-Z]+-\d{2}\/\d{2}-/, ''), 10)
+              const val = parseInt(numStr.replace(/^[A-Z_]+-\d{2}\/\d{2}-/, ''), 10)
               if (!isNaN(val) && val > 0 && val <= 999999 && val > maxNum) maxNum = val
             }
           }
 
           if (maxNum === 0) {
             try {
-              const colName = documentType === 'SALE' ? COLLECTIONS.SALES : COLLECTIONS.INVOICES
+              const colMap: Record<DocumentType, string> = {
+                SALE: COLLECTIONS.SALES,
+                INVOICE: COLLECTIONS.INVOICES,
+                PURCHASE: COLLECTIONS.PURCHASES,
+                SALES_RETURN: COLLECTIONS.SALES_RETURNS,
+              }
+              const colName = colMap[documentType] || COLLECTIONS.SALES
               const existingDocs = await databases.listDocuments(DATABASE_ID, colName, [
                 Query.equal('businessId', businessId),
                 Query.limit(200),
               ])
               for (const doc of (existingDocs?.documents || [])) {
-                const numStr = (doc as any).saleNumber || (doc as any).invoiceNumber
+                const numStr = (doc as any).saleNumber || (doc as any).invoiceNumber || (doc as any).purchaseNumber || (doc as any).returnNumber
                 if (numStr && typeof numStr === 'string' && numStr.includes(fyInfo.shortLabel)) {
-                  const val = parseInt(numStr.replace(/^[A-Z]+-\d{2}\/\d{2}-/, ''), 10)
+                  const val = parseInt(numStr.replace(/^[A-Z_]+-\d{2}\/\d{2}-/, ''), 10)
                   if (!isNaN(val) && val > 0 && val <= 999999 && val > maxNum) maxNum = val
                 }
               }

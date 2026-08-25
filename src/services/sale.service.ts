@@ -380,22 +380,37 @@ export class SaleService extends BaseService {
   }
 
   /**
-   * Delete / Cancel a sale transaction safely.
-   * Restores product stock, adjusts customer due balance, and deletes sale item records.
+   * Cancel / Void a sale transaction safely (Non-destructive).
+   * Restores product stock, adjusts customer due balance, voids payments, and preserves item records.
    */
-  async cancelSale(saleId: string, businessId: string, userId: string): Promise<boolean> {
+  async cancelSale(
+    saleId: string,
+    businessId: string,
+    userId: string,
+    reason: string = 'Manual bill cancellation'
+  ): Promise<boolean> {
     await authorizeBusinessAccess({
       userId,
       businessId,
       requiredRole: ['owner', 'admin'],
     })
 
+    if (!reason || reason.trim() === '') {
+      throw new Error('Cancellation reason is required')
+    }
+
     const sale = await this.getSale(saleId, businessId)
     if (!sale) {
       throw new Error('Sale transaction not found')
     }
 
-    // 1. Fetch sale items and restore stock
+    if (sale.status === 'cancelled') {
+      throw new Error('Sale transaction has already been cancelled')
+    }
+
+    const cancelledAt = new Date().toISOString()
+
+    // 1. Fetch sale items and restore stock (compensating stock movement)
     const items = await saleItemService.listSaleItems(saleId, businessId)
     for (const item of items) {
       try {
@@ -404,16 +419,11 @@ export class SaleService extends BaseService {
           item.quantity,
           businessId,
           userId,
-          `Sale Cancellation: #${sale.saleNumber || sale.$id}`,
+          `Bill Void: Sale #${sale.saleNumber || sale.$id} (${reason})`,
           sale.$id
         )
       } catch (stockErr) {
         console.error('Failed to restore stock on sale cancellation:', stockErr)
-      }
-      try {
-        await saleItemService.delete(item.$id, businessId)
-      } catch {
-        // Non-fatal
       }
     }
 
@@ -426,13 +436,29 @@ export class SaleService extends BaseService {
       }
     }
 
-    // 3. Update Sale document status to 'cancelled' (non-destructive financial reversal)
+    // 3. Void/Reverse any associated payment records
+    try {
+      const { paymentService } = await import('./payment.service')
+      const payments = await paymentService.listPayments(businessId, { saleId })
+      for (const p of payments) {
+        if (p.status !== 'VOIDED' && p.status !== 'REVERSED') {
+          await paymentService.reversePayment(p.$id, businessId, userId, `Bill voided: ${reason}`)
+        }
+      }
+    } catch (payErr) {
+      console.warn('Payment reversal warning on sale cancellation:', payErr)
+    }
+
+    // 4. Update Sale document status to 'cancelled' (preserving sale document and items)
     await this.update<Sale>(
       saleId,
       {
         status: 'cancelled',
         dueAmount: 0,
-        notes: `${sale.notes || ''} [CANCELLED by ${userId} on ${new Date().toISOString()}]`.trim(),
+        cancelledBy: userId,
+        cancelledAt,
+        cancellationReason: reason.trim(),
+        notes: `${sale.notes || ''} [CANCELLED by ${userId} on ${cancelledAt}: ${reason.trim()}]`.trim(),
       },
       businessId
     )
@@ -443,7 +469,7 @@ export class SaleService extends BaseService {
         userId,
         'sale_cancelled',
         saleId,
-        { saleNumber: sale.saleNumber, total: sale.total, reason: 'Manual sale cancellation' }
+        { saleNumber: sale.saleNumber, total: sale.total, cancelledBy: userId, reason: reason.trim() }
       )
     } catch {
       // Non-fatal audit log

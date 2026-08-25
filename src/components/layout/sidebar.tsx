@@ -24,6 +24,8 @@ import {
   Building,
   Check,
   Plus,
+  Truck,
+  ShoppingBag,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -54,6 +56,8 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     items: [
       { name: 'Customers', href: '/app/customers', icon: Users },
       { name: 'Sales', href: '/app/sales', icon: ShoppingCart },
+      { name: 'Suppliers', href: '/app/suppliers', icon: Truck },
+      { name: 'Purchases', href: '/app/purchases', icon: ShoppingBag },
       { name: 'Invoices', href: '/app/invoices', icon: FileText },
       { name: 'Credit / Udha', href: '/app/credit', icon: Wallet },
       { name: 'Expenses', href: '/app/expenses', icon: Receipt },
