@@ -67,11 +67,7 @@ export default function LoginPage() {
   return (
     <AuthLayout title="Welcome back" subtitle="Sign in to manage your business.">
       <form
-        method="POST"
-        onSubmit={(e) => {
-          e.preventDefault()
-          handleSubmit(onSubmit)(e)
-        }}
+        onSubmit={handleSubmit(onSubmit)}
         className="space-y-4 text-left"
       >
         {isOffline && (

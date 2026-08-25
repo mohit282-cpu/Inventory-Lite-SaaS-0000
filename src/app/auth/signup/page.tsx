@@ -78,11 +78,7 @@ export default function SignupPage() {
       subtitle="Set up Inventory Lite for your business."
     >
       <form
-        method="POST"
-        onSubmit={(e) => {
-          e.preventDefault()
-          handleSubmit(onSubmit)(e)
-        }}
+        onSubmit={handleSubmit(onSubmit)}
         className="space-y-4 text-left"
       >
         {apiError && (

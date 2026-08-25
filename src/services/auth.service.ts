@@ -68,14 +68,25 @@ export class AuthService {
     } catch {
       // No active session to delete, proceed with login
     }
-    return await account.createEmailPasswordSession(email, password)
+    const session = await account.createEmailPasswordSession(email, password)
+    if (typeof document !== 'undefined') {
+      document.cookie = 'appwrite_session=true; path=/; max-age=31536000; SameSite=Lax'
+    }
+    return session
   }
 
   /**
    * Logout current session
    */
   async logout(): Promise<{}> {
-    return await account.deleteSession('current')
+    if (typeof document !== 'undefined') {
+      document.cookie = 'appwrite_session=; path=/; max-age=0; SameSite=Lax'
+    }
+    try {
+      return await account.deleteSession('current')
+    } catch {
+      return {}
+    }
   }
 
   /**
@@ -83,8 +94,15 @@ export class AuthService {
    */
   async getCurrentUser(): Promise<Models.User<Models.Preferences> | null> {
     try {
-      return await account.get()
+      const user = await account.get()
+      if (user && typeof document !== 'undefined') {
+        document.cookie = 'appwrite_session=true; path=/; max-age=31536000; SameSite=Lax'
+      }
+      return user
     } catch (error) {
+      if (typeof document !== 'undefined') {
+        document.cookie = 'appwrite_session=; path=/; max-age=0; SameSite=Lax'
+      }
       return null
     }
   }
