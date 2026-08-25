@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useLanguage } from '@/context/language-context'
 import { AppLogo } from '@/components/ui/app-logo'
 import { LegalModal } from './legal-modal'
+import { NewsletterForm } from './newsletter-form'
 
 export function LandingFooter() {
   const { t } = useLanguage()
@@ -14,14 +15,15 @@ export function LandingFooter() {
     <footer className="bg-slate-950 border-t border-slate-800 text-slate-400 text-sm py-12 sm:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10 border-b border-slate-800">
-          {/* Brand Col */}
-          <div className="md:col-span-5 space-y-4">
+          {/* Brand Col & Newsletter */}
+          <div className="md:col-span-5 space-y-6">
             <Link href="/" className="flex items-center gap-2 inline-block">
               <AppLogo size={36} textColor="text-white" />
             </Link>
             <p className="text-slate-300 max-w-sm text-sm sm:text-base leading-relaxed">
               {t('footer.subtitle')}
             </p>
+            <NewsletterForm />
           </div>
 
           {/* Navigation Links */}
@@ -108,40 +110,29 @@ export function LandingFooter() {
               </h4>
               <ul className="space-y-2.5">
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => setModalType('contact')}
-                    className="text-sm text-slate-400 hover:text-white transition-colors text-left inline-block"
-                  >
-                    {t('footer.help')}
-                  </button>
+                  <Link href="/demo" className="text-sm text-slate-400 hover:text-white transition-colors inline-block font-semibold text-indigo-400">
+                    Try Interactive Demo
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => setModalType('contact')}
-                    className="text-sm text-slate-400 hover:text-white transition-colors text-left inline-block"
-                  >
+                  <Link href="/docs" className="text-sm text-slate-400 hover:text-white transition-colors inline-block">
+                    {t('footer.help')} & Docs
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="text-sm text-slate-400 hover:text-white transition-colors inline-block">
                     {t('footer.contact')}
-                  </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => setModalType('privacy')}
-                    className="text-sm text-slate-400 hover:text-white transition-colors text-left inline-block"
-                  >
+                  <Link href="/privacy" className="text-sm text-slate-400 hover:text-white transition-colors inline-block">
                     {t('footer.privacy')}
-                  </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => setModalType('terms')}
-                    className="text-sm text-slate-400 hover:text-white transition-colors text-left inline-block"
-                  >
+                  <Link href="/terms" className="text-sm text-slate-400 hover:text-white transition-colors inline-block">
                     {t('footer.terms')}
-                  </button>
+                  </Link>
                 </li>
               </ul>
             </div>

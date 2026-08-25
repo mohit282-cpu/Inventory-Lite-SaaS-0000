@@ -46,6 +46,7 @@ export function LandingFAQ() {
             return (
               <div key={idx} className="py-4 sm:py-5">
                 <button
+                  id={`faq-trigger-${idx}`}
                   type="button"
                   onClick={() => toggle(idx)}
                   aria-expanded={isOpen}
@@ -61,9 +62,14 @@ export function LandingFAQ() {
                 </button>
 
                 {isOpen && (
-                  <p id={`faq-answer-${idx}`} className="mt-3 text-base text-slate-700 leading-[1.7] pr-4 sm:pr-6">
-                    {item.a}
-                  </p>
+                  <div
+                    id={`faq-answer-${idx}`}
+                    role="region"
+                    aria-labelledby={`faq-trigger-${idx}`}
+                    className="mt-3 text-base text-slate-700 leading-[1.7] pr-4 sm:pr-6"
+                  >
+                    <p>{item.a}</p>
+                  </div>
                 )}
               </div>
             )

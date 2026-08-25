@@ -74,8 +74,26 @@ export function LanguageSwitcher({ className = '', align = 'right' }: LanguageSw
           aria-orientation="vertical"
           className={`absolute ${
             align === 'right' ? 'right-0' : 'left-0'
-          } mt-1.5 w-36 rounded-lg bg-white border border-slate-200 shadow-lg ring-1 ring-black/5 z-50 py-1 animate-fade-in`}
+          } mt-1.5 w-44 rounded-lg bg-white border border-slate-200 shadow-lg ring-1 ring-black/5 z-50 py-1 animate-fade-in`}
         >
+          <button
+            type="button"
+            role="menuitem"
+            aria-current={language === 'ne' ? 'true' : undefined}
+            onClick={() => selectLanguage('ne')}
+            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors ${
+              language === 'ne'
+                ? 'bg-indigo-50 text-indigo-700 font-bold'
+                : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <span>🇳🇵</span>
+              <span>नेपाली (NPR - रु)</span>
+            </span>
+            {language === 'ne' && <Check className="h-3.5 w-3.5 text-indigo-600" />}
+          </button>
+
           <button
             type="button"
             role="menuitem"
@@ -94,23 +112,11 @@ export function LanguageSwitcher({ className = '', align = 'right' }: LanguageSw
             {language === 'en' && <Check className="h-3.5 w-3.5 text-indigo-600" />}
           </button>
 
-          <button
-            type="button"
-            role="menuitem"
-            aria-current={language === 'ne' ? 'true' : undefined}
-            onClick={() => selectLanguage('ne')}
-            className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors ${
-              language === 'ne'
-                ? 'bg-indigo-50 text-indigo-700 font-bold'
-                : 'text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <span>🇳🇵</span>
-              <span>नेपाली</span>
+          <div className="mt-1 pt-1.5 border-t border-slate-100 px-3 py-1">
+            <span className="inline-block w-full text-center text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+              More Locales Coming Soon
             </span>
-            {language === 'ne' && <Check className="h-3.5 w-3.5 text-indigo-600" />}
-          </button>
+          </div>
         </div>
       )}
     </div>

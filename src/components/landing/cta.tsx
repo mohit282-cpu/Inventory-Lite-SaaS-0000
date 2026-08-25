@@ -27,8 +27,8 @@ export function LandingCTA() {
             size="lg"
             className="w-full sm:w-auto h-13 px-8 bg-white hover:bg-slate-100 text-indigo-950 font-bold shadow-lg text-base sm:text-lg"
           >
-            <Link href="/auth/signup">
-              {t('cta.startFree')} <ArrowRight className="ml-2 h-5 w-5 text-indigo-950 shrink-0" />
+            <Link href="/demo">
+              Launch Interactive Demo <ArrowRight className="ml-2 h-5 w-5 text-indigo-950 shrink-0" />
             </Link>
           </Button>
 
@@ -38,7 +38,7 @@ export function LandingCTA() {
             variant="outline"
             className="w-full sm:w-auto h-13 px-7 border-indigo-500/50 bg-transparent text-white hover:bg-indigo-800 hover:text-white font-semibold text-base"
           >
-            <a href="#product">{t('cta.seeHow')}</a>
+            <Link href="/auth/signup">{t('cta.startFree')}</Link>
           </Button>
         </div>
       </div>

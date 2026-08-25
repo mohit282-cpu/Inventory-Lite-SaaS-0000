@@ -12,14 +12,25 @@ import { expenseService } from '@/services/expense.service'
 import { invoiceService } from '@/services/invoice.service'
 import { Product, Sale, Customer, Expense, Invoice } from '@/types'
 import { adToBS, formatBSMonth } from '@/lib/date/bs-date'
+import dynamic from 'next/dynamic'
 import { FinancialYearSelector } from '@/components/features/reports/FinancialYearSelector'
 import { PrintHeader } from '@/components/features/reports/PrintHeader'
 
-import { ExportMenu } from '@/components/features/reports/ExportMenu'
-import { ExportDataPayload } from '@/lib/export/excel-export'
-import { SimpleReportView } from '@/components/features/reports/views/SimpleReportView'
-import { AccountantReportView } from '@/components/features/reports/views/AccountantReportView'
-import { MonthlyData } from '@/components/features/reports/MonthlyFinancialSummary'
+import type { ExportDataPayload } from '@/lib/export/excel-export'
+import type { MonthlyData } from '@/components/features/reports/MonthlyFinancialSummary'
+
+const ExportMenu = dynamic(
+  () => import('@/components/features/reports/ExportMenu').then((mod) => mod.ExportMenu),
+  { ssr: false }
+)
+const SimpleReportView = dynamic(
+  () => import('@/components/features/reports/views/SimpleReportView').then((mod) => mod.SimpleReportView),
+  { ssr: false }
+)
+const AccountantReportView = dynamic(
+  () => import('@/components/features/reports/views/AccountantReportView').then((mod) => mod.AccountantReportView),
+  { ssr: false }
+)
 
 export default function ReportsPage() {
   const { activeBusiness } = useAuth()

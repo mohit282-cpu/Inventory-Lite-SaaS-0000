@@ -182,7 +182,7 @@ export function LandingProductPreview() {
           className="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-6 lg:p-8 shadow-2xl space-y-8"
         >
           {/* Main Screenshot Container */}
-          <div className="rounded-xl overflow-hidden border border-slate-800 bg-slate-900 ring-1 ring-slate-800/80">
+          <div className="rounded-xl overflow-x-auto overflow-y-hidden border border-slate-800 bg-slate-900 ring-1 ring-slate-800/80">
             {/* Window bar */}
             <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 text-xs text-slate-400 font-mono">
               <div className="flex items-center gap-2">

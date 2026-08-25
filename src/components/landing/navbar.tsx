@@ -59,6 +59,13 @@ export function LandingNavbar() {
           ) : (
             <>
               <Button
+                variant="outline"
+                asChild
+                className="border-indigo-200 bg-indigo-50/50 text-indigo-700 hover:bg-indigo-100 font-semibold text-xs sm:text-sm"
+              >
+                <Link href="/demo">Try Demo</Link>
+              </Button>
+              <Button
                 variant="ghost"
                 asChild
                 className="text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-xs sm:text-sm"

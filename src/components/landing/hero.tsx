@@ -46,8 +46,8 @@ export function LandingHero() {
                 size="lg"
                 className="h-12 sm:h-13 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md text-base sm:text-lg"
               >
-                <Link href="/auth/signup">
-                  {t('hero.startFree')} <ArrowRight className="ml-2 h-5 w-5 shrink-0" />
+                <Link href="/demo">
+                  Try Demo Workspace <ArrowRight className="ml-2 h-5 w-5 shrink-0" />
                 </Link>
               </Button>
 
@@ -57,7 +57,7 @@ export function LandingHero() {
                 variant="outline"
                 className="h-12 sm:h-13 px-6 border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold text-base"
               >
-                <a href="#product">{t('hero.seeProduct')}</a>
+                <Link href="/auth/signup">Get Started Free</Link>
               </Button>
             </div>
 

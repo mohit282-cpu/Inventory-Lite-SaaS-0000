@@ -72,7 +72,7 @@ export function LandingBusinessReports() {
           
           {/* Left Side: Large Real Application Screenshot */}
           <div className="lg:col-span-7">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3.5 sm:p-5 shadow-2xl overflow-hidden ring-1 ring-slate-800/80">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3.5 sm:p-5 shadow-2xl overflow-x-auto overflow-y-hidden ring-1 ring-slate-800/80">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3 px-1">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-red-500/80" />
@@ -88,7 +88,7 @@ export function LandingBusinessReports() {
               </div>
 
               {!imgError ? (
-                <div className="rounded-xl overflow-hidden border border-slate-800 bg-slate-900">
+                <div className="rounded-xl overflow-x-auto overflow-y-hidden border border-slate-800 bg-slate-900">
                   <Image
                     src="/screenshots/business-reports.png"
                     alt="Inventory Lite Business Reports & Audit Center"

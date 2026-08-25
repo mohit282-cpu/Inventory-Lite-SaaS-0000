@@ -5,12 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
 import { Sale, Customer, Expense, Invoice, Product } from '@/types'
 import { ProfitEstimateReport } from '@/services/analytics.service'
+import dynamic from 'next/dynamic'
 import { WhatDoesThisMean } from '../WhatDoesThisMean'
 import { PrintDisclaimer } from '../PrintDisclaimer'
-import { MonthlyFinancialSummary, MonthlyData } from '../MonthlyFinancialSummary'
+import type { MonthlyData } from '../MonthlyFinancialSummary'
 import { WhatNeedsAttention } from '../WhatNeedsAttention'
 import { TraceableMetricCard, TraceableItem } from '../TraceableMetricCard'
 import { YearEndReviewChecklist } from '../YearEndReviewChecklist'
+
+const MonthlyFinancialSummary = dynamic(
+  () => import('../MonthlyFinancialSummary').then((m) => m.MonthlyFinancialSummary),
+  { ssr: false, loading: () => <div className="h-[400px] w-full bg-slate-100 animate-pulse rounded-xl" /> }
+)
 import { analyzeBusinessHealth } from '@/lib/report-auditor'
 import { Button } from '@/components/ui/button'
 import { CheckCircle2, AlertTriangle, Sparkles, ArrowRight } from 'lucide-react'

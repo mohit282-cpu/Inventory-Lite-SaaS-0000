@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  productionBrowserSourceMaps: false,
   images: {
     domains: ['cloud.appwrite.io', 'fra.cloud.appwrite.io'],
   },
@@ -16,7 +17,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains; preload',
+            value: 'max-age=63072000; includeSubDomains; preload',
           },
           {
             key: 'X-Frame-Options',
@@ -32,19 +33,22 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(self), microphone=(), geolocation=()',
+            value: 'camera=(), microphone=(), geolocation=()',
           },
           {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://cloud.appwrite.io https://fra.cloud.appwrite.io",
               "font-src 'self' data:",
-              "connect-src 'self' https://cloud.appwrite.io https://fra.cloud.appwrite.io wss://cloud.appwrite.io wss://fra.cloud.appwrite.io",
+              "connect-src 'self' https://cloud.appwrite.io https://fra.cloud.appwrite.io wss://cloud.appwrite.io wss://fra.cloud.appwrite.io https://*.vercel-insights.com",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
             ].join('; '),
           },
         ],

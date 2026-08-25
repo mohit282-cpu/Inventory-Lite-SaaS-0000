@@ -26,7 +26,6 @@ import {
   FilterX,
 } from 'lucide-react'
 import { StockMovement, Product } from '@/types'
-import { generateStockLedgerPdf, sanitizeFilename } from '@/lib/pdf/stock-ledger-pdf'
 import { formatBSDateTime } from '@/lib/date/bs-date'
 
 // Dynamic Dialog Imports for Bundle Optimization
@@ -235,6 +234,7 @@ export default function StockMovementsPage() {
       }
 
       // 2. Generate PDF document using read-only pdf engine
+      const { generateStockLedgerPdf, sanitizeFilename } = await import('@/lib/pdf/stock-ledger-pdf')
       const doc = generateStockLedgerPdf({
         business: activeBusiness,
         movements: finalMovements,

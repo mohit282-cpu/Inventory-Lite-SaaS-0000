@@ -10,13 +10,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Download, Printer, FileText, Table, FileSpreadsheet, PackageOpen, Loader2 } from 'lucide-react'
-import { ExportDataPayload, exportToExcel } from '@/lib/export/excel-export'
-import { exportToPDF } from '@/lib/export/pdf-export'
-import { exportToCSV } from '@/lib/export/csv-export'
+import type { ExportDataPayload } from '@/lib/export/excel-export'
 import { useToast } from '@/components/ui/use-toast'
-import JSZip from 'jszip'
-import * as XLSX from 'xlsx'
-import jsPDF from 'jspdf'
 
 export interface ExportMenuProps {
   data: ExportDataPayload
@@ -35,8 +30,8 @@ export function ExportMenu({ data }: ExportMenuProps) {
     setIsExporting(true)
     setExportStatus('Generating PDF...')
     try {
-      // Add small delay to let UI update
       await new Promise(r => setTimeout(r, 100))
+      const { exportToPDF } = await import('@/lib/export/pdf-export')
       exportToPDF(data)
       toast({ title: 'Export Complete', description: 'PDF has been generated successfully.' })
     } catch (e) {
@@ -53,6 +48,7 @@ export function ExportMenu({ data }: ExportMenuProps) {
     setExportStatus('Generating Excel...')
     try {
       await new Promise(r => setTimeout(r, 100))
+      const { exportToExcel } = await import('@/lib/export/excel-export')
       exportToExcel(data)
       toast({ title: 'Export Complete', description: 'Excel has been generated successfully.' })
     } catch (e) {
@@ -69,6 +65,7 @@ export function ExportMenu({ data }: ExportMenuProps) {
     setExportStatus('Generating CSV...')
     try {
       await new Promise(r => setTimeout(r, 100))
+      const { exportToCSV } = await import('@/lib/export/csv-export')
       exportToCSV(data, 'sales')
       toast({ title: 'Export Complete', description: 'Sales CSV has been generated successfully.' })
     } catch (e) {
@@ -85,6 +82,14 @@ export function ExportMenu({ data }: ExportMenuProps) {
     setExportStatus('Generating Audit Pack...')
     try {
       await new Promise(r => setTimeout(r, 100))
+      const [JSZipModule, XLSXModule, jsPDFModule] = await Promise.all([
+        import('jszip'),
+        import('xlsx'),
+        import('jspdf')
+      ])
+      const JSZip = JSZipModule.default || JSZipModule
+      const XLSX = XLSXModule
+      const jsPDF = jsPDFModule.default || jsPDFModule
       
       const zip = new JSZip()
       const fileNameBase = `${data.businessName}_AuditPack_${data.yearLabel.replace('/', '_')}`

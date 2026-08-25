@@ -1,8 +1,13 @@
 "use client"
 
-import React from 'react'
+import dynamic from 'next/dynamic'
 import { ExecutiveSummary } from '../ExecutiveSummary'
-import { MonthlyFinancialSummary, MonthlyData } from '../MonthlyFinancialSummary'
+import type { MonthlyData } from '../MonthlyFinancialSummary'
+
+const MonthlyFinancialSummary = dynamic(
+  () => import('../MonthlyFinancialSummary').then((m) => m.MonthlyFinancialSummary),
+  { ssr: false, loading: () => <div className="h-[400px] w-full bg-slate-100 animate-pulse rounded-xl" /> }
+)
 import { SalesRegister } from '../SalesRegister'
 import { ReconciliationReport } from '../ReconciliationReport'
 import { CustomerDuesReport } from '../CustomerDuesReport'
