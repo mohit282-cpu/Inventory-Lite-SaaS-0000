@@ -38,11 +38,7 @@ export function LandingProductPreview() {
       icon: LayoutDashboard,
       titleKey: 'productPreview.dashTitle',
       descKey: 'productPreview.dashDesc',
-      benefits: [
-        'productPreview.dashB1',
-        'productPreview.dashB2',
-        'productPreview.dashB3',
-      ],
+      benefits: ['productPreview.dashB1', 'productPreview.dashB2', 'productPreview.dashB3'],
       imageSrc: '/screenshots/hero-dashboard.png',
     },
     {
@@ -51,11 +47,7 @@ export function LandingProductPreview() {
       icon: ShoppingCart,
       titleKey: 'productPreview.posTitle',
       descKey: 'productPreview.posDesc',
-      benefits: [
-        'productPreview.posB1',
-        'productPreview.posB2',
-        'productPreview.posB3',
-      ],
+      benefits: ['productPreview.posB1', 'productPreview.posB2', 'productPreview.posB3'],
       imageSrc: '/screenshots/pos.png',
     },
     {
@@ -64,11 +56,7 @@ export function LandingProductPreview() {
       icon: Package,
       titleKey: 'productPreview.productsTitle',
       descKey: 'productPreview.productsDesc',
-      benefits: [
-        'productPreview.productsB1',
-        'productPreview.productsB2',
-        'productPreview.productsB3',
-      ],
+      benefits: ['productPreview.productsB1', 'productPreview.productsB2', 'productPreview.productsB3'],
       imageSrc: '/screenshots/products.png',
     },
     {
@@ -77,11 +65,7 @@ export function LandingProductPreview() {
       icon: Boxes,
       titleKey: 'productPreview.stockTitle',
       descKey: 'productPreview.stockDesc',
-      benefits: [
-        'productPreview.stockB1',
-        'productPreview.stockB2',
-        'productPreview.stockB3',
-      ],
+      benefits: ['productPreview.stockB1', 'productPreview.stockB2', 'productPreview.stockB3'],
       imageSrc: '/screenshots/stock.png',
     },
     {
@@ -90,11 +74,7 @@ export function LandingProductPreview() {
       icon: Users,
       titleKey: 'productPreview.udhaarTitle',
       descKey: 'productPreview.udhaarDesc',
-      benefits: [
-        'productPreview.udhaarB1',
-        'productPreview.udhaarB2',
-        'productPreview.udhaarB3',
-      ],
+      benefits: ['productPreview.udhaarB1', 'productPreview.udhaarB2', 'productPreview.udhaarB3'],
       imageSrc: '/screenshots/udhaar.png',
     },
     {
@@ -103,11 +83,7 @@ export function LandingProductPreview() {
       icon: FileText,
       titleKey: 'productPreview.invoicesTitle',
       descKey: 'productPreview.invoicesDesc',
-      benefits: [
-        'productPreview.invoicesB1',
-        'productPreview.invoicesB2',
-        'productPreview.invoicesB3',
-      ],
+      benefits: ['productPreview.invoicesB1', 'productPreview.invoicesB2', 'productPreview.invoicesB3'],
       imageSrc: '/screenshots/invoices.png',
     },
     {
@@ -116,11 +92,7 @@ export function LandingProductPreview() {
       icon: LineChart,
       titleKey: 'productPreview.reportsTitle',
       descKey: 'productPreview.reportsDesc',
-      benefits: [
-        'productPreview.reportsB1',
-        'productPreview.reportsB2',
-        'productPreview.reportsB3',
-      ],
+      benefits: ['productPreview.reportsB1', 'productPreview.reportsB2', 'productPreview.reportsB3'],
       imageSrc: '/screenshots/reports.png',
     },
   ]
@@ -138,7 +110,7 @@ export function LandingProductPreview() {
         {/* Section Headline */}
         <div className="max-w-3xl text-left space-y-2">
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-md border border-indigo-500/20">
-            Interactive Showcase
+            {t('productPreview.badge')}
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.2]">
             {t('productPreview.headline')}
@@ -193,7 +165,7 @@ export function LandingProductPreview() {
                   inventorylite.app/app/{currentTab.id}
                 </span>
               </div>
-              <span className="text-indigo-400 font-sans font-semibold">
+              <span className="text-indigo-400 font-sans font-semibold text-xs">
                 Live Software View
               </span>
             </div>
@@ -202,7 +174,7 @@ export function LandingProductPreview() {
             {!failedImages[currentTab.id] ? (
               <Image
                 src={currentTab.imageSrc}
-                alt={`Inventory Lite ${t(currentTab.labelKey)} Interface`}
+                alt={`Inventory Lite ${t(currentTab.labelKey)} interface screenshot`}
                 width={1280}
                 height={800}
                 unoptimized
@@ -231,7 +203,7 @@ export function LandingProductPreview() {
 
             <div className="lg:col-span-6 space-y-3 bg-slate-900 p-5 rounded-xl border border-slate-800">
               <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2">
-                Key Benefits
+                {t('productPreview.keyBenefits')}
               </h4>
               <ul className="space-y-2.5">
                 {currentTab.benefits.map((bKey, idx) => (

@@ -168,16 +168,6 @@ export default function LoginPage() {
             </>
           )}
         </Button>
-
-        <div className="pt-4 text-center text-xs text-slate-600 border-t border-slate-200">
-          Don&apos;t have an account?{' '}
-          <Link
-            href="/auth/signup"
-            className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
-          >
-            Create one
-          </Link>
-        </div>
       </form>
     </AuthLayout>
   )

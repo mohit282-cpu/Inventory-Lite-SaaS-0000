@@ -53,16 +53,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof document !== 'undefined') {
       if (language === 'ne') {
-        document.title = "Inventory Lite — नेपाली पसलका लागि स्टक, बिक्री र उधारो व्यवस्थापन"
+        document.title = "Inventory Lite — नेपालका साना व्यवसायका लागि स्टक, बिक्री र उधारो व्यवस्थापन"
         const metaDesc = document.querySelector('meta[name="description"]')
         if (metaDesc) {
-          metaDesc.setAttribute('content', "Inventory Lite प्रयोग गरेर आफ्नो पसलको स्टक, बिक्री, उधारो, खर्च, बिल र व्यापारका रेकर्डहरू एउटै सरल प्रणालीबाट व्यवस्थापन गर्नुहोस्।")
+          metaDesc.setAttribute('content', "Inventory Lite बाट आफ्नो स्टक, बिक्री, उधारो, खर्च, बिल र व्यापारिक रेकर्डहरू सजिलै व्यवस्थापन गर्नुहोस्। योजना NPR ६९९/महिनाबाट सुरु।")
         }
       } else {
         document.title = "Inventory Lite — Simple Inventory & Billing for Small Businesses in Nepal"
         const metaDesc = document.querySelector('meta[name="description"]')
         if (metaDesc) {
-          metaDesc.setAttribute('content', "Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal.")
+          metaDesc.setAttribute('content', "Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal. Plans from NPR 699/month.")
         }
       }
     }

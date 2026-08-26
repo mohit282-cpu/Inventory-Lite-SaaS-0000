@@ -58,7 +58,7 @@ export function LandingBusinessReports() {
         {/* Section Header */}
         <div className="max-w-3xl text-left space-y-3">
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-md border border-indigo-100">
-            Business Intelligence
+            {t('reports.badge')}
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.2]">
             {t('reports.headline')}
@@ -82,16 +82,13 @@ export function LandingBusinessReports() {
                     inventorylite.app/reports
                   </span>
                 </div>
-                <span className="text-xs font-bold text-emerald-400 font-mono">
-                  Audit Center Active
-                </span>
               </div>
 
               {!imgError ? (
                 <div className="rounded-xl overflow-x-auto overflow-y-hidden border border-slate-800 bg-slate-900">
                   <Image
                     src="/screenshots/business-reports.png"
-                    alt="Inventory Lite Business Reports & Audit Center"
+                    alt="Inventory Lite business reports and audit center overview"
                     width={1280}
                     height={800}
                     unoptimized

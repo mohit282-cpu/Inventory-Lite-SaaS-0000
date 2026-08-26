@@ -89,7 +89,7 @@ export function LandingProblemSolution() {
         {/* Strong Statement Container */}
         <div className="mt-10 sm:mt-14 p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-850 to-slate-900 text-white text-center border border-indigo-800 shadow-xl max-w-4xl mx-auto space-y-2.5">
           <div className="inline-flex items-center gap-2 text-emerald-400 font-bold text-xs sm:text-sm tracking-wider uppercase bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-            <CheckCircle2 className="h-4 w-4" /> Simple Solution
+            <CheckCircle2 className="h-4 w-4" /> {t('problemSolution.simpleSolution')}
           </div>
           <h3 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight leading-snug">
             {t('problemSolution.afterResult')}

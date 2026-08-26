@@ -52,7 +52,7 @@ export function LandingNepalSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         <div className="max-w-4xl text-left space-y-3">
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100/80 px-3 py-1.5 rounded-md border border-indigo-200">
-            Local Context & Adaptation
+            {t('nepal.badge')}
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.2]">
             {t('nepal.headline')}

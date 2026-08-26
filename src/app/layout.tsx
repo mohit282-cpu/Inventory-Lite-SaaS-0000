@@ -18,12 +18,15 @@ const devanagari = Noto_Sans_Devanagari({
   subsets: ["devanagari"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-devanagari",
-  fallback: ["Kalimati", "sans-serif"],
+  fallback: ["Kalimati", "Mangal", "sans-serif"],
 })
 
 export const metadata: Metadata = {
-  title: "Inventory Lite — Simple Inventory & Billing for Small Businesses in Nepal",
-  description: "Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal.",
+  title: {
+    default: "Inventory Lite — Simple Inventory & Billing for Small Businesses in Nepal",
+    template: "%s | Inventory Lite",
+  },
+  description: "Manage products, stock, sales, customers, and invoices with simple inventory software built for small businesses in Nepal. Plans from NPR 699/month.",
   applicationName: "Inventory Lite",
   manifest: "/manifest.json",
   appleWebApp: {
@@ -53,8 +56,6 @@ export const viewport: Viewport = {
   themeColor: "#4f46e5",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
 }
 
@@ -64,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${devanagari.variable}`}>
+    <html lang="ne" className={`${inter.variable} ${devanagari.variable}`}>
       <body className="font-sans antialiased bg-background text-foreground">
         <LanguageProvider>
           <AuthProvider>
@@ -80,5 +81,3 @@ export default function RootLayout({
     </html>
   )
 }
-
-

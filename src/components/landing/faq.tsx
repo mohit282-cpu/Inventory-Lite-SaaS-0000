@@ -19,8 +19,6 @@ export function LandingFAQ() {
     { q: t('faq.q8'), a: t('faq.a8') },
     { q: t('faq.q9'), a: t('faq.a9') },
     { q: t('faq.q10'), a: t('faq.a10') },
-    { q: t('faq.q11'), a: t('faq.a11') },
-    { q: t('faq.q12'), a: t('faq.a12') },
   ]
 
   const toggle = (idx: number) => {
@@ -32,7 +30,7 @@ export function LandingFAQ() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="text-left space-y-2">
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-3 py-1 rounded-md border border-indigo-100">
-            Answers & Clarifications
+            {t('faq.badge')}
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.2]">
             {t('faq.headline')}

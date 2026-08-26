@@ -56,15 +56,15 @@ export function LandingHowItWorks() {
 
           {/* Visual Flow Indicator */}
           <div className="inline-flex items-center gap-1.5 flex-wrap text-xs sm:text-sm font-bold text-indigo-800 bg-indigo-50 px-3.5 py-1.5 rounded-lg border border-indigo-100">
-            <span>उत्पादन</span>
+            <span>{t('howItWorks.flow1')}</span>
             <ChevronRight className="h-3.5 w-3.5 text-indigo-500" />
-            <span>स्टक</span>
+            <span>{t('howItWorks.flow2')}</span>
             <ChevronRight className="h-3.5 w-3.5 text-indigo-500" />
-            <span>बिक्री</span>
+            <span>{t('howItWorks.flow3')}</span>
             <ChevronRight className="h-3.5 w-3.5 text-indigo-500" />
-            <span>भुक्तानी/उधारो</span>
+            <span>{t('howItWorks.flow4')}</span>
             <ChevronRight className="h-3.5 w-3.5 text-indigo-500" />
-            <span>रिपोर्ट</span>
+            <span>{t('howItWorks.flow5')}</span>
           </div>
         </div>
 

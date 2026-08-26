@@ -27,23 +27,23 @@ export function LandingCTA() {
           <Button
             asChild
             size="lg"
-            className="w-full sm:w-auto h-13 px-8 bg-white hover:bg-slate-100 text-indigo-950 font-bold shadow-lg text-base sm:text-lg"
+            className="w-full sm:w-auto h-13 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg text-base sm:text-lg"
           >
-            <Link href="/demo">
-              Launch Interactive Demo <ArrowRight className="ml-2 h-5 w-5 text-indigo-950 shrink-0" />
-            </Link>
+            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+              <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0" />
+              {t('cta.startFree')}
+            </a>
           </Button>
 
           <Button
             asChild
             size="lg"
             variant="outline"
-            className="w-full sm:w-auto h-13 px-7 border-emerald-500/50 bg-transparent text-white hover:bg-emerald-800 hover:text-white font-semibold text-base"
+            className="w-full sm:w-auto h-13 px-7 border-white/30 bg-transparent text-white hover:bg-white/10 font-semibold text-base"
           >
-            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
-              <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0" />
-              {t('cta.startFree')}
-            </a>
+            <Link href="/demo">
+              {t('cta.seeHow')} <ArrowRight className="ml-2 h-5 w-5 shrink-0" />
+            </Link>
           </Button>
         </div>
       </div>

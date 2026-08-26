@@ -47,11 +47,12 @@ export function LandingHero() {
               <Button
                 asChild
                 size="lg"
-                className="h-12 sm:h-13 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md text-base sm:text-lg"
+                className="h-12 sm:h-13 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-base sm:text-lg"
               >
-                <Link href="/demo">
-                  Try Demo Workspace <ArrowRight className="ml-2 h-5 w-5 shrink-0" />
-                </Link>
+                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                  <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0" />
+                  {t('hero.startFree')}
+                </a>
               </Button>
 
               <Button
@@ -60,15 +61,19 @@ export function LandingHero() {
                 variant="outline"
                 className="h-12 sm:h-13 px-6 border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold text-base"
               >
-                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
-                  <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0 text-emerald-600" />
-                  {t('hero.startFree')}
-                </a>
+                <Link href="/demo">
+                  {t('hero.seeProduct')} <ArrowRight className="ml-2 h-5 w-5 shrink-0" />
+                </Link>
               </Button>
             </div>
 
+            {/* Pricing hint */}
+            <p className="text-sm text-slate-500 font-medium">
+              {t('hero.pricingHint')}
+            </p>
+
             {/* 4 Small Trust Indicators */}
-            <div className="pt-4 grid grid-cols-2 gap-3 text-xs sm:text-sm text-slate-800 font-bold">
+            <div className="pt-2 grid grid-cols-2 gap-3 text-xs sm:text-sm text-slate-800 font-bold">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                 <span>{t('hero.trustBadge1')}</span>
@@ -113,7 +118,7 @@ export function LandingHero() {
                 <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
                   <Image
                     src="/screenshots/hero-dashboard.png"
-                    alt="Inventory Lite Dashboard - Real Product Software UI"
+                    alt="Inventory Lite Dashboard — Stock, sales, Udhaar and business overview"
                     width={1280}
                     height={800}
                     priority
@@ -121,6 +126,19 @@ export function LandingHero() {
                     className="w-full h-auto object-cover object-top max-h-[500px] sm:max-h-[580px]"
                     onError={() => setImgError(true)}
                   />
+                  {/* Callout badges overlaid on screenshot */}
+                  <div className="absolute bottom-3 left-3 right-3 flex flex-wrap gap-2">
+                    {[
+                      { label: 'hero.calloutSales', color: 'bg-emerald-500/90 text-white' },
+                      { label: 'hero.calloutStock', color: 'bg-blue-500/90 text-white' },
+                      { label: 'hero.calloutUdhaar', color: 'bg-amber-500/90 text-white' },
+                      { label: 'hero.calloutReports', color: 'bg-indigo-500/90 text-white' },
+                    ].map((c) => (
+                      <span key={c.label} className={`text-[10px] sm:text-xs font-bold px-2 py-1 rounded-md backdrop-blur-sm ${c.color}`}>
+                        {t(c.label)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 /* High-fidelity Fallback UI */

@@ -80,27 +80,53 @@
     @apply bg-background text-foreground;
   }
 
-  /* Language-Specific Typography Systems */
+  /* ── Nepali (Devanagari) Typography ── */
   html[lang="ne"] body {
-    font-family: var(--font-devanagari), var(--font-inter), "Kalimati", system-ui, sans-serif;
-    line-height: 1.7;
-    letter-spacing: 0.01em;
+    font-family: var(--font-devanagari), var(--font-inter), "Kalimati", "Mangal", system-ui, sans-serif;
+    font-size: 1rem;
+    line-height: 1.75;
+    letter-spacing: 0.02em;
   }
 
-  html[lang="ne"] h1,
+  html[lang="ne"] h1 {
+    font-size: clamp(1.75rem, 5vw, 3rem);
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+    word-break: break-word;
+  }
+
   html[lang="ne"] h2 {
-    line-height: 1.18;
-    letter-spacing: -0.01em;
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    line-height: 1.22;
+    letter-spacing: 0;
+    word-break: break-word;
   }
 
-  html[lang="ne"] h3,
+  html[lang="ne"] h3 {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    line-height: 1.32;
+  }
+
   html[lang="ne"] h4 {
-    line-height: 1.28;
+    line-height: 1.35;
   }
 
+  html[lang="ne"] p,
+  html[lang="ne"] li,
+  html[lang="ne"] span {
+    word-break: break-word;
+  }
+
+  /* Devanagari numerals for Nepali */
+  html[lang="ne"] .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── English Typography ── */
   html[lang="en"] body {
     font-family: var(--font-inter), system-ui, sans-serif;
     line-height: 1.5;
+    letter-spacing: 0;
   }
 
   /* Selection color */

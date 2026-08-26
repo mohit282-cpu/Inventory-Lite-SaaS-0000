@@ -14,7 +14,7 @@ const PLANS = [
   { key: 'monthly' as const, price: '699', priceSuffix: 'NPR', period: 'perMonth' as const, billNote: 'billedMonthly' as const, badge: null },
   { key: 'sixMonth' as const, price: '4,194', priceSuffix: 'NPR', period: 'perSixMonth' as const, billNote: 'billedSixMonth' as const, badge: 'bestValue' as const },
   { key: 'yearly' as const, price: '7,689', priceSuffix: 'NPR', period: 'perYear' as const, billNote: 'billedYearly' as const, badge: 'mostSavings' as const },
-]
+] as const
 
 const FEATURES = ['allFeaturesIncluded', 'oneStore', 'regularUpdates', 'prioritySupport'] as const
 
@@ -83,9 +83,14 @@ export function LandingPricing() {
                   <p className="text-xs text-slate-400 mt-0.5">
                     {t(`pricing.${plan.billNote}`)}
                   </p>
+                  {plan.key === 'yearly' && (
+                    <span className="inline-block mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                      {t('pricing.yearlySavings')}
+                    </span>
+                  )}
                 </div>
 
-                <ul className="space-y-3 mb-8 flex-1">
+                <ul className="space-y-3 mb-6 flex-1">
                   {FEATURES.map((feat) => (
                     <li key={feat} className="flex items-start gap-2.5 text-sm text-slate-700 font-medium">
                       <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
@@ -95,6 +100,10 @@ export function LandingPricing() {
                     </li>
                   ))}
                 </ul>
+
+                <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                  {t('pricing.oneStoreNote')}
+                </p>
 
                 <Button
                   asChild

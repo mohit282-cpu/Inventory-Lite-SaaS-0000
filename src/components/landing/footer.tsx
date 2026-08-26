@@ -111,12 +111,12 @@ export function LandingFooter() {
               <ul className="space-y-2.5">
                 <li>
                   <Link href="/demo" className="text-sm text-slate-400 hover:text-white transition-colors inline-block font-semibold text-indigo-400">
-                    Try Interactive Demo
+                    {t('footer.tryDemo')}
                   </Link>
                 </li>
                 <li>
                   <Link href="/docs" className="text-sm text-slate-400 hover:text-white transition-colors inline-block">
-                    {t('footer.help')} & Docs
+                    {t('footer.helpDocs')}
                   </Link>
                 </li>
                 <li>
