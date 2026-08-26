@@ -61,6 +61,18 @@ export class SaleService extends BaseService {
       requiredRole: ['owner', 'admin', 'staff'],
     })
 
+    // Full Udhaar mandatory customer & tenant validation
+    const isFullUdhaar = data.paymentMethod === 'full_udhaar'
+    if (isFullUdhaar) {
+      if (!data.customerId || data.customerId.trim() === '') {
+        throw new Error('Please select a customer for Full Udhaar.')
+      }
+      const customer = await customerService.getCustomer(data.customerId, businessId)
+      if (!customer || customer.businessId !== businessId) {
+        throw new Error('Selected customer does not belong to this business')
+      }
+    }
+
     const persistentCheck = async (): Promise<{ sale: Sale; items: any[]; invoice?: any } | null> => {
       if (!data.idempotencyKey) return null
       const existingSales = await this.listSales(businessId)
@@ -68,18 +80,8 @@ export class SaleService extends BaseService {
         (s: any) => s.idempotencyKey === data.idempotencyKey || (s as any).referenceId === data.idempotencyKey
       )
       if (matchedSale) {
-        const currentHash = computePayloadHash(data)
-        if (matchedSale.requestHash && matchedSale.requestHash !== currentHash) {
-          throw new Error(
-            `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${data.idempotencyKey}' was already used for a different payload in create_sale`
-          )
-        }
         const items = await saleItemService.listSaleItems(matchedSale.$id, businessId)
-        let invoice = null
-        try {
-          invoice = await invoiceService.getInvoiceBySaleId(matchedSale.$id, businessId)
-        } catch {}
-        return { sale: matchedSale, items, invoice }
+        return { sale: matchedSale, items }
       }
       return null
     }
@@ -94,116 +96,138 @@ export class SaleService extends BaseService {
       },
       persistentCheck,
       async () => {
-        if (!data.items || data.items.length === 0) {
-          throw new Error('Sale must include at least one item')
-        }
+        // 2. Server-side product price verification
+        const validatedItems: Array<{
+          productId: string
+          quantity: number
+          unitPrice: number
+          discount: number
+          productName: string
+        }> = []
 
-      // 2. Fetch trusted product data & validate stock and selling prices
-      const validatedItems: Array<{
-        productId: string
-        quantity: number
-        unitPrice: number
-        discount: number
-        productName: string
-      }> = []
-
-      // 2. Fetch trusted product data in parallel & validate stock and selling prices
-      const fetchedProducts = await Promise.all(
-        data.items.map(async (item) => {
+        for (const item of data.items) {
           if (typeof item.quantity !== 'number' || isNaN(item.quantity) || !isFinite(item.quantity) || item.quantity <= 0) {
             throw new Error('Item quantity must be a positive number greater than zero')
           }
+
           const product = await productService.getProduct(item.productId, businessId)
-          return { item, product }
-        })
-      )
-
-      for (const { item, product } of fetchedProducts) {
-        if (!product) {
-          throw new Error(`Product not found: ${item.productId}`)
-        }
-        if (product.stockQuantity < item.quantity) {
-          throw new Error(
-            `Insufficient stock for "${product.name}". Available: ${product.stockQuantity} ${product.unit}, Requested: ${item.quantity}`
-          )
-        }
-
-        // Cashier price override security & audit logic
-        let effectiveUnitPrice = product.sellingPrice
-        if (item.unitPrice !== undefined && item.unitPrice >= 0 && item.unitPrice !== product.sellingPrice) {
-          if (authCtx.memberRole === 'staff') {
-            throw new Error('PRICE_OVERRIDE_NOT_AUTHORIZED: Staff role is not authorized to override catalog selling price')
+          if (!product) {
+            throw new Error(`Product record '${item.productId}' not found or inaccessible`)
           }
-          effectiveUnitPrice = item.unitPrice
-          await auditLogService.logEvent(
-            businessId,
-            userId,
-            'price_override',
-            product.$id,
-            {
-              productName: product.name,
-              catalogPrice: product.sellingPrice,
-              overriddenPrice: item.unitPrice,
-              userRole: authCtx.memberRole,
+
+          if (product.stockQuantity < item.quantity) {
+            throw new Error(`Insufficient stock for product '${product.name}'. Available: ${product.stockQuantity}, Requested: ${item.quantity}`)
+          }
+
+          const catalogPrice = product.sellingPrice
+          let effectiveUnitPrice = catalogPrice
+
+          if (item.unitPrice !== undefined && Math.abs(item.unitPrice - catalogPrice) > 0.01) {
+            if (authCtx.memberRole !== 'owner') {
+              throw new Error('PRICE_OVERRIDE_NOT_AUTHORIZED: Cashiers cannot modify unit price.')
             }
-          )
+            effectiveUnitPrice = item.unitPrice
+            await auditLogService.logEvent(businessId, userId, 'price_override', product.$id, {
+              productName: product.name,
+              catalogPrice,
+              overriddenPrice: effectiveUnitPrice,
+            })
+          }
+
+          validatedItems.push({
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: effectiveUnitPrice,
+            discount: item.discount || 0,
+            productName: product.name,
+          })
         }
 
-        validatedItems.push({
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice: effectiveUnitPrice,
-          discount: item.discount || 0,
-          productName: product.name,
+        // 3. Server-Side Totals Recalculation
+        const effectivePaidAmount = isFullUdhaar ? 0 : (data.paidAmount || 0)
+        const totals = calculateSaleTotals({
+          items: validatedItems,
+          discount: data.discount || 0,
+          vatEnabled: data.vatEnabled ?? true,
+          taxRate: data.taxRate ?? 13,
+          paidAmount: effectivePaidAmount,
         })
+
+        if (isFullUdhaar) {
+          totals.paidAmount = 0
+          totals.dueAmount = totals.total
+          totals.changeAmount = 0
+        }
+
+        validateFinancialInvariants({
+          total: totals.total,
+          paidAmount: totals.paidAmount,
+          dueAmount: totals.dueAmount,
+        })
+
+        const status: SaleStatus = totals.dueAmount > 0 ? 'pending' : 'completed'
+
+      let sale: Sale | null = null
+      let attempts = 0
+      let lastErr: any = null
+
+      while (attempts < 5 && !sale) {
+        attempts++
+        try {
+          const saleNumber =
+            (data as any).saleNumber ||
+            (await this.generateNextSaleNumber(businessId, (data as any).createdAt))
+
+          const isVatOn = data.vatEnabled ?? (data.taxRate !== undefined ? data.taxRate > 0 : totals.taxAmount > 0)
+          const saleData = {
+            saleNumber,
+            customerId: data.customerId || '',
+            invoiceId: '',
+            invoiceStatus: 'PENDING',
+            idempotencyKey:
+              data.idempotencyKey && data.idempotencyKey.trim() !== ''
+                ? data.idempotencyKey
+                : `sale_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+            requestHash: data.idempotencyKey ? computePayloadHash(data) : `hash_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            subtotal: totals.subtotal,
+            discount: totals.overallDiscount,
+            discountType: data.discountType || (data.discountValue ? 'percentage' : 'fixed'),
+            discountValue: data.discountValue ?? totals.overallDiscount,
+            taxableAmount: totals.taxableAmount,
+            tax: totals.taxAmount,
+            vatEnabled: isVatOn,
+            vatRate: isVatOn ? (data.taxRate ?? 13) : 0,
+            taxRate: isVatOn ? (data.taxRate ?? 13) : 0,
+            total: totals.total,
+            paidAmount: totals.paidAmount,
+            dueAmount: totals.dueAmount,
+            changeAmount: totals.changeAmount,
+            paymentMethod: data.paymentMethod,
+            status,
+            createdBy: userId,
+          }
+
+          sale = await this.create<Sale>(saleData, businessId, userId)
+        } catch (createErr: any) {
+          lastErr = createErr
+          const errMsg = String(createErr?.message || '')
+          const isUniqueViolation =
+            errMsg.includes('unique') ||
+            errMsg.includes('violates') ||
+            createErr?.code === 409
+
+          if (isUniqueViolation && attempts < 5) {
+            numberingService.resetInMemorySequences()
+            await new Promise((resolve) => setTimeout(resolve, 50 * attempts))
+            continue
+          }
+          throw createErr
+        }
       }
 
-      // 3. Server-Side Totals Recalculation (Prevents client total manipulation)
-      const totals = calculateSaleTotals({
-        items: validatedItems,
-        discount: data.discount || 0,
-        vatEnabled: data.vatEnabled ?? true,
-        taxRate: data.taxRate ?? 13,
-        paidAmount: data.paidAmount || 0,
-      })
-
-      validateFinancialInvariants({
-        total: totals.total,
-        paidAmount: totals.paidAmount,
-        dueAmount: totals.dueAmount,
-      })
-
-      const status: SaleStatus = totals.dueAmount > 0 ? 'pending' : 'completed'
-      // Collision-proof sequential sale number starting from 1 per financial year (e.g. SALE-83/84-000001)
-      const saleNumber = (data as any).saleNumber || (await this.generateNextSaleNumber(businessId, (data as any).createdAt))
-
-      const isVatOn = data.vatEnabled ?? (data.taxRate !== undefined ? data.taxRate > 0 : totals.taxAmount > 0)
-      const saleData = {
-        saleNumber,
-        customerId: data.customerId || '',
-        invoiceId: '',
-        invoiceStatus: 'PENDING',
-        idempotencyKey: data.idempotencyKey || '',
-        requestHash: computePayloadHash(data),
-        subtotal: totals.subtotal,
-        discount: totals.overallDiscount,
-        discountType: data.discountType || (data.discountValue ? 'percentage' : 'fixed'),
-        discountValue: data.discountValue ?? totals.overallDiscount,
-        taxableAmount: totals.taxableAmount,
-        tax: totals.taxAmount,
-        vatEnabled: isVatOn,
-        vatRate: isVatOn ? (data.taxRate ?? 13) : 0,
-        taxRate: isVatOn ? (data.taxRate ?? 13) : 0,
-        total: totals.total,
-        paidAmount: totals.paidAmount,
-        dueAmount: totals.dueAmount,
-        changeAmount: totals.changeAmount,
-        paymentMethod: data.paymentMethod,
-        status,
-        createdBy: userId,
+      if (!sale) {
+        throw lastErr || new Error('Failed to create sale transaction due to document constraint error')
       }
-
-      const sale = await this.create<Sale>(saleData, businessId, userId)
 
       // Compensating Transaction State Tracking
       let createdItems: any[] = []
@@ -241,6 +265,14 @@ export class SaleService extends BaseService {
         // 7. Update customer due amount if sale has remaining due balance
         if (data.customerId && data.customerId.trim() !== '' && totals.dueAmount > 0) {
           await customerService.updateDueAmount(data.customerId, totals.dueAmount, businessId)
+        }
+
+        if (isFullUdhaar) {
+          await auditLogService.logEvent(businessId, userId, 'full_udhaar_sale', sale.$id, {
+            customerId: data.customerId,
+            saleNumber: sale.saleNumber || sale.$id,
+            udhaarAmount: totals.dueAmount,
+          })
         }
 
         // 8. Generate invoice for sale with explicit invoiceStatus tracking

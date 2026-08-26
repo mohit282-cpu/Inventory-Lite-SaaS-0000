@@ -86,32 +86,47 @@ export class InvoiceService extends BaseService {
           return existingInvoice
         }
 
-        // 5. Generate collision-proof sequential invoice number
-        const invoiceNumber = data.invoiceNumber || (await this.generateNextInvoiceNumber(businessId, data.issueDate))
         const issueDate = data.issueDate || new Date().toISOString()
+        let invoice: Invoice | null = null
+        let attempts = 0
+        let lastErr: any = null
 
-        // 6. Verify invoice number uniqueness for business
-        try {
-          const existingByNum = await this.list<Invoice>(businessId, [
-            Query.equal('invoiceNumber', invoiceNumber),
-            Query.limit(1),
-          ])
-          if (existingByNum.length > 0 && existingByNum[0].saleId !== data.saleId) {
-            throw new Error(`DUPLICATE_INVOICE_NUMBER: Invoice number '${invoiceNumber}' already exists for business '${businessId}'`)
+        while (attempts < 5 && !invoice) {
+          attempts++
+          try {
+            const invoiceNumber = data.invoiceNumber || (await this.generateNextInvoiceNumber(businessId, data.issueDate))
+
+            const invoiceData = {
+              saleId: data.saleId,
+              invoiceNumber,
+              issueDate,
+              dueDate: data.dueDate || issueDate,
+              pdfUrl: data.pdfUrl || '',
+            }
+
+            invoice = await this.create<Invoice>(invoiceData, businessId, userId)
+          } catch (createErr: any) {
+            lastErr = createErr
+            const errMsg = String(createErr?.message || '')
+            const isUniqueViolation =
+              errMsg.includes('unique') ||
+              errMsg.includes('violates') ||
+              createErr?.code === 409
+
+            if (isUniqueViolation && attempts < 5) {
+              numberingService.resetInMemorySequences()
+              await new Promise((resolve) => setTimeout(resolve, 50 * attempts))
+              continue
+            }
+            throw createErr
           }
-        } catch (err: any) {
-          if (err.message?.includes('DUPLICATE_INVOICE_NUMBER')) throw err
         }
 
-        const invoiceData = {
-          saleId: data.saleId,
-          invoiceNumber,
-          issueDate,
-          dueDate: data.dueDate || issueDate,
-          pdfUrl: data.pdfUrl || '',
+        if (!invoice) {
+          throw lastErr || new Error('Failed to create invoice document due to constraint error')
         }
 
-        return await this.create<Invoice>(invoiceData, businessId, userId)
+        return invoice
       }
     )
   }

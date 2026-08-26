@@ -1,8 +1,9 @@
 import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
-import { SupplierPayment, PaymentMethod } from '@/types'
+import { SupplierPayment, PaymentMethod, Purchase } from '@/types'
 import { Query } from 'appwrite'
 import { supplierService } from './supplier.service'
+import { purchaseService } from './purchase.service'
 import { authorizeBusinessAccess } from '@/lib/authorization'
 import { toMinorUnits, fromMinorUnits } from '@/lib/money'
 import { auditLogService } from './audit-log.service'
@@ -83,6 +84,27 @@ export class SupplierPaymentService extends BaseService {
         )
 
         // Update Supplier balances
+        // Allocate payment to outstanding purchases for the supplier
+        let remainingPaisa = paymentPaisa
+        const purchases = await purchaseService.listPurchases(businessId, { supplierId: data.supplierId })
+        // Sort purchases by creation date (oldest first) to allocate
+        purchases.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        for (const purchase of purchases) {
+          if (remainingPaisa <= 0) break
+          const duePaisa = toMinorUnits(purchase.dueAmount || 0)
+          if (duePaisa <= 0) continue
+          const allocatePaisa = Math.min(remainingPaisa, duePaisa)
+          const newPaidPaisa = toMinorUnits(purchase.paidAmount || 0) + allocatePaisa
+          const newDuePaisa = duePaisa - allocatePaisa
+          const newStatus = newDuePaisa === 0 ? 'completed' : 'pending'
+          await purchaseService.update<Purchase>(purchase.$id, {
+            paidAmount: fromMinorUnits(newPaidPaisa),
+            dueAmount: fromMinorUnits(newDuePaisa),
+            status: newStatus as any,
+          }, businessId)
+          remainingPaisa -= allocatePaisa
+        }
+        // Update supplier balances: totalPaid increased, totalPurchases unchanged
         await supplierService.updateBalances(data.supplierId, 0, fromMinorUnits(paymentPaisa), businessId)
 
         try {
@@ -91,7 +113,7 @@ export class SupplierPaymentService extends BaseService {
             supplierName: supplier.name,
             amount: paymentDoc.amount,
           })
-        } catch {}
+        } catch { }
 
         return paymentDoc
       }

@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, DollarSign } from 'lucide-react'
-import { Supplier, PaymentMethod } from '@/types'
+import { Supplier } from '@/types'
 import { formatMoney } from '@/lib/money'
 
 interface SupplierPaymentDialogProps {
@@ -139,7 +139,7 @@ export function SupplierPaymentDialog({
             <Label htmlFor="paymentMethod" className="text-xs font-bold text-slate-700">Payment Method *</Label>
             <Select
               value={selectedPaymentMethod}
-              onValueChange={(val) => setValue('paymentMethod', val as PaymentMethod)}
+              onValueChange={(val) => setValue('paymentMethod', val as any)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select payment method" />

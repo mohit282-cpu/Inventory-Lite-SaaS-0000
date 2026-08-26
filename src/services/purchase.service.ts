@@ -227,7 +227,7 @@ export class PurchaseService extends BaseService {
             total: purchase.total,
             paidAmount: purchase.paidAmount,
           })
-        } catch {}
+        } catch { }
 
         return { purchase, items: createdItems }
       }
@@ -360,7 +360,7 @@ export class PurchaseService extends BaseService {
         supplierId: purchase.supplierId,
         reason: reason || 'Manual cancellation',
       })
-    } catch {}
+    } catch { }
 
     return true
   }

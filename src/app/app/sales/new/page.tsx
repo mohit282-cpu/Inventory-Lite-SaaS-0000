@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   AlertCircle,
   UserPlus,
+  CreditCard,
 } from 'lucide-react'
 import {
   Dialog,
@@ -112,6 +113,8 @@ export default function CreateSalePage() {
   const [isVatEnabled, setIsVatEnabled] = useState<boolean>(true)
   const [taxRate, setTaxRate] = useState<number>(DEFAULT_VAT_RATE) // Default 13% VAT Nepal
 
+  // Payment Mode State: 'full_payment' | 'partial_udhaar' | 'full_udhaar'
+  const [paymentMode, setPaymentMode] = useState<'full_payment' | 'partial_udhaar' | 'full_udhaar'>('full_payment')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [paidAmountInput, setPaidAmountInput] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -313,13 +316,42 @@ export default function CreateSalePage() {
       return
     }
 
-    if (dueAmount > 0 && (!selectedCustomerId || selectedCustomerId === 'guest')) {
-      toast({
-        title: 'Customer Required for Credit Sale',
-        description: 'Please select or add a customer to record outstanding credit/due (Udhaar).',
-        variant: 'destructive',
-      })
-      return
+    if (paymentMode === 'full_udhaar' || paymentMethod === 'full_udhaar') {
+      if (!selectedCustomerId || selectedCustomerId === 'guest') {
+        toast({
+          title: 'Customer Required for Full Udhaar',
+          description: 'Please select a customer for Full Udhaar.',
+          variant: 'destructive',
+        })
+        return
+      }
+    } else if (paymentMode === 'partial_udhaar' || dueAmount > 0) {
+      if (!selectedCustomerId || selectedCustomerId === 'guest') {
+        toast({
+          title: 'Customer Required for Partial Udhaar',
+          description: 'Please select a customer for Partial Udhaar.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      if (effectivePaidAmount <= 0) {
+        toast({
+          title: 'Invalid Paid Amount',
+          description: 'Partial Udhaar requires a paid amount greater than NPR 0.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      if (effectivePaidAmount >= grandTotal) {
+        toast({
+          title: 'Invalid Partial Udhaar',
+          description: 'Paid amount cannot equal or exceed grand total for Partial Udhaar. Use Full Payment instead.',
+          variant: 'destructive',
+        })
+        return
+      }
     }
 
     setIsSubmitting(true)
@@ -769,25 +801,80 @@ export default function CreateSalePage() {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center text-slate-900 font-bold py-3 px-3.5 border border-indigo-100 bg-indigo-50/60 rounded-xl my-2">
-                <span className="text-xs uppercase tracking-wider text-indigo-900 font-extrabold">Grand Total</span>
-                <span className="font-mono text-2xl text-indigo-700 font-extrabold">
-                  Rs. {grandTotal.toFixed(2)}
-                </span>
+              {/* Payment Mode Selector Bar */}
+              <div className="space-y-1.5 pt-1">
+                <Label className="text-[11px] font-extrabold text-slate-700">Select Payment Method</Label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMode('full_payment')
+                      setPaymentMethod('cash')
+                      setPaidAmountInput(grandTotal.toString())
+                    }}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                      paymentMode === 'full_payment'
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs font-extrabold'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Full Payment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMode('partial_udhaar')
+                      setPaymentMethod('cash')
+                      if (parseFloat(paidAmountInput || '0') <= 0 || parseFloat(paidAmountInput || '0') >= grandTotal) {
+                        setPaidAmountInput((grandTotal / 2).toFixed(2))
+                      }
+                    }}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                      paymentMode === 'partial_udhaar'
+                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs font-extrabold'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <AlertCircle className="h-3.5 w-3.5" /> Partial Udhaar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentMode('full_udhaar')
+                      setPaymentMethod('full_udhaar')
+                      setPaidAmountInput('0')
+                    }}
+                    className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                      paymentMode === 'full_udhaar'
+                        ? 'bg-amber-600 text-white border-amber-700 shadow-xs font-extrabold'
+                        : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
+                    }`}
+                  >
+                    <CreditCard className="h-3.5 w-3.5" /> Full Udhaar
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <div>
-                  <Label className="text-[10px] font-bold text-slate-700">Payment Method</Label>
+                  <Label className="text-[10px] font-bold text-slate-700">Payment Channel</Label>
                   <Select
                     value={paymentMethod}
-                    onValueChange={(val) => setPaymentMethod(val as PaymentMethod)}
+                    onValueChange={(val) => {
+                      const method = val as PaymentMethod
+                      setPaymentMethod(method)
+                      if (method === 'full_udhaar') {
+                        setPaymentMode('full_udhaar')
+                        setPaidAmountInput('0')
+                      }
+                    }}
                   >
                     <SelectTrigger className="h-8 text-xs font-medium">
                       <SelectValue placeholder="Payment Method" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="full_udhaar">Full Udhaar</SelectItem>
                       <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                       <SelectItem value="card">Card / Fonepay</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
@@ -796,34 +883,99 @@ export default function CreateSalePage() {
                 </div>
 
                 <div>
-                  <Label className="text-[10px] font-bold text-slate-700">Paid Amount (Rs.)</Label>
+                  <Label className="text-[10px] font-bold text-slate-700">Amount Paid (NPR)</Label>
                   <Input
                     type="number"
                     inputMode="decimal"
                     min="0"
-                    placeholder={`Full (Rs. ${grandTotal.toFixed(2)})`}
-                    value={paidAmountInput}
+                    disabled={paymentMode === 'full_udhaar' || paymentMethod === 'full_udhaar'}
+                    placeholder={`NPR ${grandTotal.toFixed(2)}`}
+                    value={paymentMode === 'full_udhaar' || paymentMethod === 'full_udhaar' ? '0' : paidAmountInput}
                     onChange={(e) => setPaidAmountInput(e.target.value)}
-                    className="h-8 font-mono text-xs"
+                    className="h-8 font-mono text-xs disabled:bg-slate-100 disabled:text-slate-500"
                   />
                 </div>
               </div>
 
-              {dueAmount > 0 ? (
-                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs flex justify-between text-red-700 font-bold">
-                  <span className="flex items-center gap-1">
-                    <AlertCircle className="h-3.5 w-3.5 text-red-600" /> Outstanding Due (Udhaar):
-                  </span>
-                  <span className="font-mono font-extrabold">Rs. {dueAmount.toFixed(2)}</span>
+              {/* Dynamic Payment Mode Summaries */}
+              {paymentMode === 'full_payment' && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-1 text-xs">
+                  <div className="font-extrabold flex items-center justify-between text-emerald-900">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Full Payment Summary
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-950 font-black text-[10px]">
+                      PAID IN FULL
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-[11px] pt-1 font-mono">
+                    <div>Grand Total: <span className="font-bold">NPR {grandTotal.toFixed(2)}</span></div>
+                    <div>Paid Amount: <span className="font-bold text-emerald-700">NPR {effectivePaidAmount.toFixed(2)}</span></div>
+                    <div>Udhaar Due: <span className="font-bold text-slate-700">NPR 0.00</span></div>
+                    {changeAmount > 0 && <div>Change Return: <span className="font-bold text-emerald-700">NPR {changeAmount.toFixed(2)}</span></div>}
+                  </div>
                 </div>
-              ) : changeAmount > 0 ? (
-                <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs flex justify-between text-emerald-800 font-bold">
-                  <span className="flex items-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Change Return to Customer:
-                  </span>
-                  <span className="font-mono font-extrabold">Rs. {changeAmount.toFixed(2)}</span>
+              )}
+
+              {paymentMode === 'partial_udhaar' && (
+                <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-950 space-y-1 text-xs">
+                  <div className="font-extrabold flex items-center justify-between text-indigo-900">
+                    <span className="flex items-center gap-1.5">
+                      <AlertCircle className="h-4 w-4 text-indigo-600" /> Partial Udhaar Summary
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-indigo-200 text-indigo-950 font-black text-[10px]">
+                      PARTIAL / DUE
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-[11px] pt-1">
+                    <div>
+                      Customer:{' '}
+                      <span className="font-bold text-slate-900">
+                        {customers.find((c) => c.$id === selectedCustomerId)?.name || 'None (Mandatory)'}
+                      </span>
+                    </div>
+                    <div>
+                      Grand Total: <span className="font-mono font-bold text-slate-900">NPR {grandTotal.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      Paid Received: <span className="font-mono font-bold text-emerald-700">NPR {effectivePaidAmount.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      Udhaar Added: <span className="font-mono font-extrabold text-indigo-800">NPR {dueAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
-              ) : null}
+              )}
+
+              {paymentMode === 'full_udhaar' && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 space-y-1 text-xs">
+                  <div className="font-extrabold flex items-center justify-between text-amber-900">
+                    <span className="flex items-center gap-1.5">
+                      <CreditCard className="h-4 w-4 text-amber-600" /> Full Udhaar Summary
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-950 font-black text-[10px]">
+                      UNPAID / FULL UDHAAR
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1 text-[11px] pt-1">
+                    <div>
+                      Customer:{' '}
+                      <span className="font-bold text-slate-900">
+                        {customers.find((c) => c.$id === selectedCustomerId)?.name || 'None (Mandatory)'}
+                      </span>
+                    </div>
+                    <div>
+                      Grand Total: <span className="font-mono font-bold text-slate-900">NPR {grandTotal.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      Paid Received: <span className="font-mono font-bold text-emerald-700">NPR 0.00</span>
+                    </div>
+                    <div>
+                      Udhaar Added: <span className="font-mono font-extrabold text-amber-800">NPR {grandTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Complete Sale Action Trigger */}

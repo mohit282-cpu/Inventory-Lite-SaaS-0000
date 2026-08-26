@@ -12,7 +12,7 @@ export type UserRole = 'owner' | 'admin' | 'staff' | 'auditor'
 
 export type Currency = 'NPR' | 'USD' | 'EUR' | 'INR'
 
-export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'digital_wallet' | 'credit' | 'eSewa' | 'Khalti' | 'other'
+export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'digital_wallet' | 'credit' | 'full_udhaar' | 'eSewa' | 'Khalti' | 'other'
 
 export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'refunded'
 
