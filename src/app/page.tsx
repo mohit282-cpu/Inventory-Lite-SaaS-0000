@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { LandingPageView } from '@/components/landing/landing-page'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://inventorylite.app'),
   title: 'Inventory Lite — Simple Stock, Sales & Udhaar Management for Nepal',
   description:
     'Inventory Lite helps small businesses in Nepal manage stock, sales, customer Udhaar, expenses, invoices and business records in one simple system. Plans from NPR 699/month.',

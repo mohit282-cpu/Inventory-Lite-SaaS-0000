@@ -24,30 +24,30 @@ export function LandingHero() {
   const [imgError, setImgError] = useState(false)
 
   return (
-    <section className="relative py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b border-slate-200 overflow-hidden">
+    <section className="relative py-10 sm:py-16 lg:py-20 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b border-slate-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
           {/* Left Column: Headline, Copy & Primary Actions */}
-          <div className="lg:col-span-5 text-left space-y-6">
-            <div className="inline-block text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-md border border-indigo-100">
+          <div className="lg:col-span-5 text-left space-y-5">
+            <div className="inline-block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-indigo-100">
               {t('hero.badge')}
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.15]">
+            <h1 className="text-[1.75rem] sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
               <span className="block">{t('hero.titleLine1')}</span>
               <span className="block text-indigo-600 mt-1 sm:mt-2">{t('hero.titleLine2')}</span>
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-600 leading-[1.7]">
+            <p className="text-[0.9375rem] sm:text-lg text-slate-600 leading-[1.65]">
               {t('hero.description')}
             </p>
 
-            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+            <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <Button
                 asChild
                 size="lg"
-                className="h-12 sm:h-13 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-base sm:text-lg"
+                className="h-12 sm:h-13 px-7 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-sm sm:text-base lg:text-lg"
               >
                 <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
                   <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0" />
@@ -59,35 +59,35 @@ export function LandingHero() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="h-12 sm:h-13 px-6 border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold text-base"
+                className="h-12 sm:h-13 px-6 border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold text-sm sm:text-base"
               >
                 <Link href="/demo">
-                  {t('hero.seeProduct')} <ArrowRight className="ml-2 h-5 w-5 shrink-0" />
+                  {t('hero.seeProduct')} <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
                 </Link>
               </Button>
             </div>
 
             {/* Pricing hint */}
-            <p className="text-sm text-slate-500 font-medium">
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">
               {t('hero.pricingHint')}
             </p>
 
             {/* 4 Small Trust Indicators */}
-            <div className="pt-2 grid grid-cols-2 gap-3 text-xs sm:text-sm text-slate-800 font-bold">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm text-slate-800 font-bold">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 shrink-0" />
                 <span>{t('hero.trustBadge1')}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 shrink-0" />
                 <span>{t('hero.trustBadge2')}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 shrink-0" />
                 <span>{t('hero.trustBadge3')}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 shrink-0" />
                 <span>{t('hero.trustBadge4')}</span>
               </div>
             </div>
@@ -95,7 +95,7 @@ export function LandingHero() {
 
           {/* Right Column: LARGE, READABLE Product UI Showcase */}
           <div className="lg:col-span-7">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl p-3.5 sm:p-5 text-left overflow-hidden ring-1 ring-slate-800/80">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl p-2.5 sm:p-5 text-left overflow-hidden ring-1 ring-slate-800/80">
               
               {/* Window Header */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3 px-1">
@@ -107,9 +107,9 @@ export function LandingHero() {
                     inventorylite.app/dashboard
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-slate-200 font-semibold bg-slate-950 px-3 py-1 rounded-md border border-slate-800">
+                <div className="flex items-center gap-1.5 text-xs text-slate-200 font-semibold bg-slate-950 px-2 sm:px-3 py-1 rounded-md border border-slate-800">
                   <Building className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
-                  <span className="truncate max-w-[180px] sm:max-w-none">{t('hero.storeName')}</span>
+                  <span className="truncate max-w-[140px] sm:max-w-none text-[11px] sm:text-xs">{t('hero.storeName')}</span>
                 </div>
               </div>
 
@@ -123,18 +123,18 @@ export function LandingHero() {
                     height={800}
                     priority
                     unoptimized
-                    className="w-full h-auto object-cover object-top max-h-[500px] sm:max-h-[580px]"
+                    className="w-full h-auto object-cover object-top max-h-[300px] sm:max-h-[500px] lg:max-h-[580px]"
                     onError={() => setImgError(true)}
                   />
                   {/* Callout badges overlaid on screenshot */}
-                  <div className="absolute bottom-3 left-3 right-3 flex flex-wrap gap-2">
+                  <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 right-2 sm:right-3 flex flex-wrap gap-1.5 sm:gap-2">
                     {[
                       { label: 'hero.calloutSales', color: 'bg-emerald-500/90 text-white' },
                       { label: 'hero.calloutStock', color: 'bg-blue-500/90 text-white' },
                       { label: 'hero.calloutUdhaar', color: 'bg-amber-500/90 text-white' },
                       { label: 'hero.calloutReports', color: 'bg-indigo-500/90 text-white' },
                     ].map((c) => (
-                      <span key={c.label} className={`text-[10px] sm:text-xs font-bold px-2 py-1 rounded-md backdrop-blur-sm ${c.color}`}>
+                      <span key={c.label} className={`text-[9px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md backdrop-blur-sm ${c.color}`}>
                         {t(c.label)}
                       </span>
                     ))}
@@ -142,46 +142,46 @@ export function LandingHero() {
                 </div>
               ) : (
                 /* High-fidelity Fallback UI */
-                <div className="space-y-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                      <div className="flex items-center justify-between text-xs text-slate-400 font-semibold uppercase">
+                <div className="space-y-3 sm:space-y-4 bg-slate-950 p-3 sm:p-4 rounded-xl border border-slate-800">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                    <div className="p-2.5 sm:p-3 rounded-lg bg-slate-900 border border-slate-800">
+                      <div className="flex items-center justify-between text-[10px] sm:text-xs text-slate-400 font-semibold uppercase">
                         <span>{t('hero.todaysSales')}</span>
-                        <ShoppingCart className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <ShoppingCart className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-400 shrink-0" />
                       </div>
-                      <div className="text-lg font-bold font-mono text-emerald-400 mt-1">Rs. 14,250</div>
+                      <div className="text-sm sm:text-lg font-bold font-mono text-emerald-400 mt-1">Rs. 14,250</div>
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                      <div className="flex items-center justify-between text-xs text-slate-400 font-semibold uppercase">
+                    <div className="p-2.5 sm:p-3 rounded-lg bg-slate-900 border border-slate-800">
+                      <div className="flex items-center justify-between text-[10px] sm:text-xs text-slate-400 font-semibold uppercase">
                         <span>{t('hero.thisMonth')}</span>
-                        <TrendingUp className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                        <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400 shrink-0" />
                       </div>
-                      <div className="text-lg font-bold font-mono text-white mt-1">Rs. 185,400</div>
+                      <div className="text-sm sm:text-lg font-bold font-mono text-white mt-1">Rs. 185,400</div>
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                      <div className="flex items-center justify-between text-xs text-slate-400 font-semibold uppercase">
+                    <div className="p-2.5 sm:p-3 rounded-lg bg-slate-900 border border-slate-800">
+                      <div className="flex items-center justify-between text-[10px] sm:text-xs text-slate-400 font-semibold uppercase">
                         <span>{t('hero.products')}</span>
-                        <Package className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                        <Package className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-400 shrink-0" />
                       </div>
-                      <div className="text-lg font-bold font-mono text-white mt-1">{t('hero.itemsCount')}</div>
+                      <div className="text-sm sm:text-lg font-bold font-mono text-white mt-1">{t('hero.itemsCount')}</div>
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                      <div className="flex items-center justify-between text-xs text-slate-400 font-semibold uppercase">
+                    <div className="p-2.5 sm:p-3 rounded-lg bg-slate-900 border border-slate-800">
+                      <div className="flex items-center justify-between text-[10px] sm:text-xs text-slate-400 font-semibold uppercase">
                         <span>{t('hero.lowStock')}</span>
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                        <AlertTriangle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-400 shrink-0" />
                       </div>
-                      <div className="text-lg font-bold font-mono text-amber-400 mt-1">{t('hero.alertsCount')}</div>
+                      <div className="text-sm sm:text-lg font-bold font-mono text-amber-400 mt-1">{t('hero.alertsCount')}</div>
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-lg bg-slate-900 border border-slate-800 overflow-x-auto">
+                  <div className="p-3 sm:p-3.5 rounded-lg bg-slate-900 border border-slate-800 overflow-x-auto">
                     <div className="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
-                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-indigo-400" /> {t('hero.liveActivity')}
+                      <span className="text-[10px] sm:text-xs font-bold text-white flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" /> {t('hero.liveActivity')}
                       </span>
-                      <span className="text-xs text-emerald-400 font-mono">{t('hero.realtime')}</span>
+                      <span className="text-[10px] sm:text-xs text-emerald-400 font-mono">{t('hero.realtime')}</span>
                     </div>
-                    <table className="w-full text-left text-xs min-w-[300px]">
+                    <table className="w-full text-left text-[10px] sm:text-xs min-w-[280px]">
                       <thead>
                         <tr className="text-slate-400 border-b border-slate-800">
                           <th className="pb-1.5">{t('hero.colSaleNo')}</th>
@@ -192,16 +192,16 @@ export function LandingHero() {
                       </thead>
                       <tbody className="divide-y divide-slate-800/60 font-mono">
                         <tr>
-                          <td className="py-2 text-indigo-400 font-bold">#INV-1048</td>
-                          <td className="py-2 text-slate-200 font-sans">Ram Bahadur Construction</td>
-                          <td className="py-2 text-slate-400 font-sans">{t('hero.fonepay')}</td>
-                          <td className="py-2 text-right text-emerald-400 font-bold">Rs. 4,800</td>
+                          <td className="py-1.5 sm:py-2 text-indigo-400 font-bold">#INV-1048</td>
+                          <td className="py-1.5 sm:py-2 text-slate-200 font-sans">Ram Bahadur Construction</td>
+                          <td className="py-1.5 sm:py-2 text-slate-400 font-sans">{t('hero.fonepay')}</td>
+                          <td className="py-1.5 sm:py-2 text-right text-emerald-400 font-bold">Rs. 4,800</td>
                         </tr>
                         <tr>
-                          <td className="py-2 text-indigo-400 font-bold">#INV-1047</td>
-                          <td className="py-2 text-slate-200 font-sans">{t('hero.walkinCustomer')}</td>
-                          <td className="py-2 text-slate-400 font-sans">{t('hero.cash')}</td>
-                          <td className="py-2 text-right text-emerald-400 font-bold">Rs. 1,250</td>
+                          <td className="py-1.5 sm:py-2 text-indigo-400 font-bold">#INV-1047</td>
+                          <td className="py-1.5 sm:py-2 text-slate-200 font-sans">{t('hero.walkinCustomer')}</td>
+                          <td className="py-1.5 sm:py-2 text-slate-400 font-sans">{t('hero.cash')}</td>
+                          <td className="py-1.5 sm:py-2 text-right text-emerald-400 font-bold">Rs. 1,250</td>
                         </tr>
                       </tbody>
                     </table>

@@ -26,13 +26,13 @@ export function LandingFAQ() {
   }
 
   return (
-    <section id="faq" className="py-12 sm:py-16 lg:py-20 bg-white border-b border-slate-200 text-slate-900">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <section id="faq" className="py-10 sm:py-16 lg:py-20 bg-white border-b border-slate-200 text-slate-900">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7 sm:space-y-8">
         <div className="text-left space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-3 py-1 rounded-md border border-indigo-100">
+          <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-indigo-100">
             {t('faq.badge')}
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.2]">
+          <h2 className="text-[1.5rem] sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.2]">
             {t('faq.headline')}
           </h2>
         </div>
@@ -42,14 +42,14 @@ export function LandingFAQ() {
           {faqItems.map((item, idx) => {
             const isOpen = openIndex === idx
             return (
-              <div key={idx} className="py-4 sm:py-5">
+              <div key={idx}>
                 <button
                   id={`faq-trigger-${idx}`}
                   type="button"
                   onClick={() => toggle(idx)}
                   aria-expanded={isOpen}
                   aria-controls={`faq-answer-${idx}`}
-                  className="w-full flex items-center justify-between text-left text-lg sm:text-xl font-bold text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded-lg py-1 gap-4"
+                  className="w-full flex items-center justify-between text-left min-h-[48px] py-3 sm:py-4 text-base sm:text-lg lg:text-xl font-bold text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded-lg gap-3 sm:gap-4"
                 >
                   <span className="leading-snug">{item.q}</span>
                   <ChevronDown
@@ -64,7 +64,7 @@ export function LandingFAQ() {
                     id={`faq-answer-${idx}`}
                     role="region"
                     aria-labelledby={`faq-trigger-${idx}`}
-                    className="mt-3 text-base text-slate-700 leading-[1.7] pr-4 sm:pr-6"
+                    className="pb-3 sm:pb-4 text-sm sm:text-base text-slate-700 leading-[1.7] pr-4 sm:pr-8"
                   >
                     <p>{item.a}</p>
                   </div>
