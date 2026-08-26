@@ -28,6 +28,9 @@ export function LandingPageView() {
         {/* Core Workflow Step Journey */}
         <LandingHowItWorks />
 
+        {/* Pricing Plans */}
+        <LandingPricing />
+
         {/* Actual Product Canvas Showcase */}
         <LandingProductPreview />
 
@@ -42,9 +45,6 @@ export function LandingPageView() {
 
         {/* 16 Feature Grid Section */}
         <LandingFeatures />
-
-        {/* Free Model Access Section (NPR 0) */}
-        <LandingPricing />
 
         {/* Clean Accordion FAQ */}
         <LandingFAQ />

@@ -15,6 +15,9 @@ import {
   AlertTriangle,
   Clock,
 } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/ui/whatsapp-icon'
+
+const WHATSAPP_URL = "https://wa.me/9779805330808?text=Hello%2C%20I%27m%20interested%20in%20Inventory%20Lite%20for%20my%20business.%20I%20would%20like%20to%20know%20more%20about%20the%20software%20and%20how%20I%20can%20get%20an%20account."
 
 export function LandingHero() {
   const { t } = useLanguage()
@@ -57,7 +60,10 @@ export function LandingHero() {
                 variant="outline"
                 className="h-12 sm:h-13 px-6 border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold text-base"
               >
-                <Link href="/auth/signup">Get Started Free</Link>
+                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                  <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0 text-emerald-600" />
+                  {t('hero.startFree')}
+                </a>
               </Button>
             </div>
 

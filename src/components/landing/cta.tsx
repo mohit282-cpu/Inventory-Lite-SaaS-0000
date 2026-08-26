@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { useLanguage } from '@/context/language-context'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/ui/whatsapp-icon'
+
+const WHATSAPP_URL = "https://wa.me/9779805330808?text=Hello%2C%20I%27m%20interested%20in%20Inventory%20Lite%20for%20my%20business.%20I%20would%20like%20to%20know%20more%20about%20the%20software%20and%20how%20I%20can%20get%20an%20account."
 
 export function LandingCTA() {
   const { t } = useLanguage()
@@ -35,9 +38,12 @@ export function LandingCTA() {
             asChild
             size="lg"
             variant="outline"
-            className="w-full sm:w-auto h-13 px-7 border-indigo-500/50 bg-transparent text-white hover:bg-indigo-800 hover:text-white font-semibold text-base"
+            className="w-full sm:w-auto h-13 px-7 border-emerald-500/50 bg-transparent text-white hover:bg-emerald-800 hover:text-white font-semibold text-base"
           >
-            <Link href="/auth/signup">{t('cta.startFree')}</Link>
+            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+              <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0" />
+              {t('cta.startFree')}
+            </a>
           </Button>
         </div>
       </div>
