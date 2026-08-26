@@ -3,6 +3,7 @@ import { customerService } from './customer.service'
 import { saleService } from './sale.service'
 import { saleItemService } from './sale-item.service'
 import { expenseService } from './expense.service'
+import { categoryService } from './category.service'
 
 export interface DashboardMetrics {
   todaySales: number
@@ -276,11 +277,14 @@ export class AnalyticsService {
       returns = await salesReturnService.listAllSalesReturns(businessId, { dateFrom: startDate, dateTo: endDate })
     } catch {}
 
-    const [sales, expenses, products] = await Promise.all([
+    const [sales, expenses, products, categories] = await Promise.all([
       saleService.listAllSales(businessId, { dateFrom: startDate, dateTo: endDate }),
       expenseService.listAllExpenses(businessId, { dateFrom: startDate, dateTo: endDate }),
       productService.listAllProducts(businessId),
+      categoryService.listCategories(businessId),
     ])
+
+    const categoryMap = new Map(categories.map((c) => [c.$id, c.name]))
 
     let filteredSales = sales.filter((s) => s.status !== 'cancelled')
     let filteredExpenses = expenses
@@ -319,7 +323,7 @@ export class AnalyticsService {
         const items = await saleItemService.listSaleItems(sale.$id, businessId)
         for (const item of items) {
           const prod = productMap.get(item.productId)
-          const cost = prod ? prod.purchasePrice : 0
+          const cost = prod ? (prod.costPrice || prod.purchasePrice || 0) : 0
           if (!prod || cost === undefined || cost === null || cost <= 0) {
             hasCostDataError = true
           }
@@ -359,7 +363,7 @@ export class AnalyticsService {
         const retItems = await salesReturnItemService.listReturnItems(ret.$id, businessId)
         for (const ri of retItems) {
           const prod = productMap.get(ri.productId)
-          const cost = prod ? prod.purchasePrice : 0
+          const cost = prod ? (prod.costPrice || prod.purchasePrice || 0) : 0
           const lineRetCogs = (cost || 0) * (ri.quantity || 0)
           returnedCogs += lineRetCogs
 
@@ -392,7 +396,7 @@ export class AnalyticsService {
       productBreakdown.push({
         productId: p.productId,
         productName: p.productName,
-        categoryName: p.categoryId === 'uncategorized' ? 'General' : 'Category',
+        categoryName: categoryMap.get(p.categoryId) || 'General',
         unitsSold: p.unitsSold,
         unitsReturned: p.unitsReturned,
         netUnitsSold: netUnits,
@@ -415,7 +419,7 @@ export class AnalyticsService {
       const margin = cVal.revenue > 0 ? (cVal.grossProfit / cVal.revenue) * 100 : 0
       categoryBreakdown.push({
         categoryId: catId,
-        categoryName: catId === 'uncategorized' ? 'General / Uncategorized' : 'Category',
+        categoryName: categoryMap.get(catId) || 'General / Uncategorized',
         revenue: Math.round(cVal.revenue * 100) / 100,
         cogs: Math.round(cVal.cogs * 100) / 100,
         grossProfit: Math.round(cVal.grossProfit * 100) / 100,

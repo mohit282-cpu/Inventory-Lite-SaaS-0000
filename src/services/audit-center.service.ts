@@ -1,4 +1,5 @@
 import { saleService } from './sale.service'
+import { saleItemService } from './sale-item.service'
 import { purchaseService } from './purchase.service'
 import { customerService } from './customer.service'
 import { supplierService } from './supplier.service'
@@ -15,7 +16,7 @@ import {
   InvoiceSequenceAudit,
 } from '@/types'
 import { getCurrentFiscalYear, bsToAD } from '@/lib/date/bs-date'
-import { calculateTaxForItems, calculateNetVatPosition } from '@/lib/vat-engine'
+import { calculateNetVatPosition } from '@/lib/vat-engine'
 import { toMinorUnits, fromMinorUnits } from '@/lib/money'
 import { formatHumanInvoiceNumber, formatHumanPurchaseNumber } from '@/lib/utils'
 import { calendarService } from './calendar.service'
@@ -342,37 +343,42 @@ export class AuditCenterService {
       productCostMap.set(p.$id, p.costPrice || p.purchasePrice || 0)
     }
 
+    // Fetch all sale items in batch for COGS computation
+    const nonCancelledSales = filteredSales.filter((s) => s.status !== 'cancelled')
+    const allSaleItems: any[] = []
+    await Promise.all(
+      nonCancelledSales.map(async (s) => {
+        try {
+          const items = await saleItemService.listSaleItems(s.$id, businessId)
+          for (const item of items) {
+            allSaleItems.push({ ...item, _saleId: s.$id })
+          }
+        } catch {}
+      })
+    )
+    const saleItemsBySale = new Map<string, any[]>()
+    for (const item of allSaleItems) {
+      const existing = saleItemsBySale.get(item._saleId) || []
+      existing.push(item)
+      saleItemsBySale.set(item._saleId, existing)
+    }
+
     for (const sale of filteredSales) {
       if (sale.status === 'cancelled') continue
       totalSalesCount += 1
       totalSales += sale.total || 0
 
-      // Centralized Output VAT computation
-      if (sale.vatAmount !== undefined) {
-        outputVat += sale.vatAmount
-      } else {
-        const taxCalc = calculateTaxForItems(
-          (sale.items || []).map((i: any) => ({
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            discount: i.discount,
-          })),
-          { vatEnabled: sale.vatEnabled ?? true, defaultTaxRate: sale.taxRate ?? 13 }
-        )
-        outputVat += taxCalc.vatAmount
-      }
+      // Output VAT: use stored tax field on sale record (computed at sale creation)
+      outputVat += sale.tax || 0
 
-      // WAC COGS computation
-      if (sale.cogsAmount && sale.cogsAmount > 0) {
-        cogs += sale.cogsAmount
-      } else if (sale.items && Array.isArray(sale.items)) {
-        for (const item of sale.items) {
-          const wac = item.costPrice || productCostMap.get(item.productId) || 0
-          if (wac <= 0) {
-            costDataMissingCount += 1
-          }
-          cogs += wac * (item.quantity || 0)
+      // WAC COGS computation from sale items
+      const items = saleItemsBySale.get(sale.$id) || []
+      for (const item of items) {
+        const wac = productCostMap.get(item.productId) || 0
+        if (wac <= 0) {
+          costDataMissingCount += 1
         }
+        cogs += wac * (item.quantity || 0)
       }
     }
 
@@ -384,12 +390,12 @@ export class AuditCenterService {
       if ((purch as any).status === 'cancelled') continue
       totalPurchaseCount += 1
       totalPurchases += purch.total || 0
-      inputVat += purch.vatAmount || 0
+      inputVat += purch.tax || 0
     }
 
     let salesReturnsAmount = 0
     for (const ret of filteredReturns) {
-      salesReturnsAmount += ret.totalRefund || 0
+      salesReturnsAmount += ret.totalAmount || 0
     }
 
     const purchaseReturns = 0
@@ -463,9 +469,17 @@ export class AuditCenterService {
    */
   async getSalesRegister(businessId: string, filters?: AuditFilterParams) {
     const f = resolveFilters(filters)
-    const sales = await saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo, customerId: f.customerId })
+    const [sales, allCustomers] = await Promise.all([
+      saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo, customerId: f.customerId }),
+      customerService.listAllCustomers(businessId),
+    ])
     const filtered = this.applyFilters(sales, f)
       .filter((s) => !f.customerId || s.customerId === f.customerId)
+
+    const customerMap = new Map<string, any>()
+    for (const c of allCustomers) {
+      customerMap.set(c.$id, c)
+    }
 
     let totalInvoices = 0
     let totalSales = 0
@@ -476,28 +490,46 @@ export class AuditCenterService {
 
     const rows = filtered.map((s) => {
       const formattedInvoiceNumber = formatHumanInvoiceNumber(s)
+      const cust = s.customerId ? customerMap.get(s.customerId) : null
+      const customerName = cust?.name || 'Walk-in Customer'
+      const customerPan = cust?.panNumber || 'N/A'
+
+      const discount = s.discount || 0
+      const taxableAmount = s.taxableAmount || Math.max(0, (s.subtotal || 0) - discount)
+      const vat = s.tax || 0
+
+      let paymentStatus = 'UNPAID'
+      if (s.status === 'cancelled') {
+        paymentStatus = 'CANCELLED'
+      } else if ((s.dueAmount || 0) <= 0) {
+        paymentStatus = 'PAID'
+      } else if ((s.paidAmount || 0) > 0) {
+        paymentStatus = 'PARTIAL'
+      }
 
       if (s.status === 'cancelled') {
         totalCancelled += 1
       } else {
         totalInvoices += 1
         totalSales += s.total || 0
-        totalDiscount += s.discountAmount || 0
-        totalTaxable += s.taxableAmount || 0
-        totalVat += s.vatAmount || 0
+        totalDiscount += discount
+        totalTaxable += taxableAmount
+        totalVat += vat
       }
 
       return {
         id: s.$id,
         invoiceNumber: formattedInvoiceNumber,
         date: s.createdAt ? s.createdAt.slice(0, 10) : '',
-        customerName: s.customerName || 'Walk-in Customer',
-        customerPan: s.customerPan || 'N/A',
-        taxableAmount: s.taxableAmount || 0,
-        discount: s.discountAmount || 0,
-        vat: s.vatAmount || 0,
+        customerName,
+        customerPan,
+        taxableAmount,
+        discount,
+        vat,
         total: s.total || 0,
-        paymentStatus: s.paymentStatus || 'PAID',
+        paidAmount: s.paidAmount || 0,
+        outstanding: s.dueAmount || 0,
+        paymentStatus,
         invoiceStatus: s.status || 'completed',
         createdBy: s.createdBy || 'System',
         createdAt: s.createdAt || new Date().toISOString(),
@@ -523,33 +555,61 @@ export class AuditCenterService {
    */
   async getPurchaseRegister(businessId: string, filters?: AuditFilterParams) {
     const f = resolveFilters(filters)
-    const purchases = await purchaseService.listAllPurchases(businessId, {
-      dateFrom: f.dateFrom,
-      dateTo: f.dateTo,
-      supplierId: f.supplierId,
-    })
+    const [purchases, allSuppliers] = await Promise.all([
+      purchaseService.listAllPurchases(businessId, {
+        dateFrom: f.dateFrom,
+        dateTo: f.dateTo,
+        supplierId: f.supplierId,
+      }),
+      supplierService.listAllSuppliers(businessId),
+    ])
     const filtered = this.applyFilters(purchases, f)
       .filter((p) => !f.supplierId || p.supplierId === f.supplierId)
+
+    const supplierMap = new Map<string, any>()
+    for (const s of allSuppliers) {
+      supplierMap.set(s.$id, s)
+    }
 
     let totalPurchases = 0
     let taxablePurchases = 0
     let inputVat = 0
 
     const rows = filtered.map((p) => {
+      const supp = supplierMap.get(p.supplierId)
+      const supplierName = supp?.name || 'Unknown Supplier'
+      const supplierPan = supp?.panVatNumber || 'N/A'
+
+      const discount = p.discount || 0
+      const taxableAmount = p.subtotal ? Math.max(0, p.subtotal - discount) : 0
+      const vat = p.tax || 0
+
+      let paymentStatus = 'UNPAID'
+      if (p.status === 'cancelled') {
+        paymentStatus = 'CANCELLED'
+      } else if ((p.dueAmount || 0) <= 0) {
+        paymentStatus = 'PAID'
+      } else if ((p.paidAmount || 0) > 0) {
+        paymentStatus = 'PARTIAL'
+      }
+
       totalPurchases += p.total || 0
-      taxablePurchases += p.taxableAmount || 0
-      inputVat += p.vatAmount || 0
+      taxablePurchases += taxableAmount
+      inputVat += vat
 
       return {
         id: p.$id,
         purchaseReference: formatHumanPurchaseNumber(p),
         date: p.purchaseDate || (p.createdAt ? p.createdAt.slice(0, 10) : ''),
-        supplierName: p.supplierName || 'Unknown Supplier',
-        supplierPan: p.supplierPan || 'N/A',
-        taxableAmount: p.taxableAmount || 0,
-        vatAmount: p.vatAmount || 0,
+        supplierName,
+        supplierPan,
+        taxableAmount,
+        discount,
+        vatAmount: vat,
         total: p.total || 0,
-        paymentStatus: p.paymentStatus || 'PAID',
+        paidAmount: p.paidAmount || 0,
+        outstanding: p.dueAmount || 0,
+        paymentStatus,
         returnStatus: 'NONE',
         createdBy: p.createdBy || 'System',
         createdAt: p.createdAt || new Date().toISOString(),
@@ -611,7 +671,7 @@ export class AuditCenterService {
 
       const invoicesTotal = custSales.reduce((sum, s) => sum + (s.total || 0), 0)
       const paymentsTotal = custSales.reduce((sum, s) => sum + (s.paidAmount || 0), 0)
-      const returnsTotal = custReturns.reduce((sum, r) => sum + (r.totalRefund || 0), 0)
+      const returnsTotal = custReturns.reduce((sum, r) => sum + (r.totalAmount || 0), 0)
 
       const netReceivableP = toMinorUnits(invoicesTotal) - toMinorUnits(paymentsTotal) - toMinorUnits(returnsTotal)
       let closingBalance = 0
@@ -758,14 +818,21 @@ export class AuditCenterService {
    */
   async getPaymentAudit(businessId: string, filters?: AuditFilterParams): Promise<PaymentAuditRecord[]> {
     const f = resolveFilters(filters)
-    const [sales, purchases] = await Promise.all([
+    const [sales, purchases, allCustomers, allSuppliers] = await Promise.all([
       saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo, customerId: f.customerId }),
       purchaseService.listAllPurchases(businessId, {
         dateFrom: f.dateFrom,
         dateTo: f.dateTo,
         supplierId: f.supplierId,
       }),
+      customerService.listAllCustomers(businessId),
+      supplierService.listAllSuppliers(businessId),
     ])
+
+    const customerMap = new Map<string, any>()
+    for (const c of allCustomers) customerMap.set(c.$id, c)
+    const supplierMap = new Map<string, any>()
+    for (const s of allSuppliers) supplierMap.set(s.$id, s)
 
     const filteredSales = this.applyFilters(sales, f)
       .filter((s) => !f.customerId || s.customerId === f.customerId)
@@ -776,37 +843,37 @@ export class AuditCenterService {
 
     for (const s of filteredSales) {
       if (s.paidAmount && s.paidAmount > 0) {
-        const isUnallocated = !s.invoiceNumber && !s.billNumber && !s.$id
+        const cust = s.customerId ? customerMap.get(s.customerId) : null
+        let paymentStatus: PaymentAuditRecord['status'] = 'COMPLETED'
+        if (s.status === 'cancelled') {
+          paymentStatus = 'CANCELLED'
+        } else if ((s.dueAmount || 0) > 0 && (s.paidAmount || 0) < (s.total || 0)) {
+          paymentStatus = 'PARTIAL'
+        }
         records.push({
           id: `pay_sale_${s.$id}`,
           date: s.createdAt ? s.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
           entityType: 'customer',
           entityId: s.customerId,
-          entityName: s.customerName || 'Walk-in Customer',
+          entityName: cust?.name || 'Walk-in Customer',
           reference: formatHumanInvoiceNumber(s),
           amount: s.paidAmount,
           method: s.paymentMethod || 'cash',
-          transactionReference: s.paymentDetails?.referenceNumber || undefined,
           createdBy: s.createdBy || 'System',
-          status: s.status === 'cancelled'
-            ? 'CANCELLED'
-            : isUnallocated
-            ? 'UNALLOCATED PAYMENT'
-            : s.paymentStatus === 'PARTIAL'
-            ? 'PARTIAL'
-            : 'COMPLETED',
+          status: paymentStatus,
         })
       }
     }
 
     for (const p of filteredPurchases) {
       if (p.paidAmount && p.paidAmount > 0) {
+        const supp = supplierMap.get(p.supplierId)
         records.push({
           id: `pay_purch_${p.$id}`,
           date: p.purchaseDate || (p.createdAt ? p.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10)),
           entityType: 'supplier',
           entityId: p.supplierId,
-          entityName: p.supplierName || 'Supplier',
+          entityName: supp?.name || 'Supplier',
           reference: formatHumanPurchaseNumber(p),
           amount: p.paidAmount,
           method: p.paymentMethod || 'bank_transfer',
@@ -883,22 +950,54 @@ export class AuditCenterService {
     const totalPotentialMargin = Math.max(0, totalRetailValue - closingStockValue)
     const potentialGrossMarginPercent = totalRetailValue > 0 ? (totalPotentialMargin / totalRetailValue) * 100 : 0
 
+    // Compute inventory movement summary from actual stock movements
+    let stockInValue = 0
+    let stockOutValue = 0
+    let positiveAdjustmentsValue = 0
+    let returnsValue = 0
+    let damagedValue = 0
+
+    for (const m of stockMovements) {
+      const product = products.find((p) => p.$id === m.productId)
+      const unitCost = product?.costPrice || product?.purchasePrice || 0
+      const movementValue = (m.quantity || 0) * unitCost
+
+      if (m.type === 'stock_in') {
+        if (m.reason && (m.reason.toLowerCase().includes('return') || m.reason.toLowerCase().includes('restock'))) {
+          returnsValue += movementValue
+        } else {
+          stockInValue += movementValue
+        }
+      } else if (m.type === 'stock_out') {
+        if (m.reason && (m.reason.toLowerCase().includes('damage') || m.reason.toLowerCase().includes('expired'))) {
+          damagedValue += movementValue
+        } else {
+          stockOutValue += movementValue
+        }
+      } else if (m.type === 'adjustment') {
+        const delta = (m.newQuantity || 0) - (m.previousQuantity || 0)
+        if (delta > 0) {
+          positiveAdjustmentsValue += delta * unitCost
+        }
+      }
+    }
+
     return {
       products: productValuationList,
       movements: stockMovements,
       summary: {
-        openingStockValue: closingStockValue * 0.9,
-        stockInValue: closingStockValue * 0.2,
-        positiveAdjustmentsValue: 0,
-        returnsValue: 0,
-        salesValue: closingStockValue * 0.3,
-        stockOutValue: 0,
-        damagedValue: 0,
+        openingStockValue: closingStockValue + stockOutValue - stockInValue - returnsValue,
+        stockInValue,
+        positiveAdjustmentsValue,
+        returnsValue,
+        salesValue: stockOutValue,
+        stockOutValue,
+        damagedValue,
         closingStockValue,
         totalRetailValue,
         totalPotentialMargin,
         potentialGrossMarginPercent,
-        totalCogs: closingStockValue * 0.3,
+        totalCogs: stockOutValue,
         lowStockCount,
         outOfStockCount,
         costDataMissingCount,
@@ -914,8 +1013,8 @@ export class AuditCenterService {
     const f = resolveFilters(filters)
     const kpis = await this.getAuditOverviewKPIs(businessId, f)
 
-    const grossSales = kpis.totalSales + kpis.salesReturns
-    const netSales = kpis.totalSales
+    const grossSales = kpis.totalSales
+    const netSales = Math.max(0, kpis.totalSales - kpis.salesReturns)
     const grossProfit = kpis.grossProfit
     const grossMarginPercent = netSales > 0 ? (grossProfit / netSales) * 100 : 0
     const netProfit = kpis.netProfit
@@ -947,10 +1046,10 @@ export class AuditCenterService {
 
     return filtered.map((r) => ({
       id: r.$id,
-      originalDocumentNumber: r.salesReturnNumber || formatHumanInvoiceNumber(r.saleId || r.$id),
+      originalDocumentNumber: r.returnNumber || formatHumanInvoiceNumber(r.saleId || r.$id),
       date: r.createdAt ? r.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
       type: 'SALES_RETURN' as const,
-      amount: r.totalRefund || 0,
+      amount: r.totalAmount || 0,
       reason: r.reason || 'Customer Return',
       user: r.createdBy || 'System',
       timestamp: r.createdAt || new Date().toISOString(),
@@ -965,20 +1064,29 @@ export class AuditCenterService {
    */
   async getCancelledDocuments(businessId: string, filters?: AuditFilterParams): Promise<CancelledDocumentRecord[]> {
     const f = resolveFilters(filters)
-    const sales = await saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo })
+    const [sales, allCustomers] = await Promise.all([
+      saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo }),
+      customerService.listAllCustomers(businessId),
+    ])
     const cancelled = this.applyFilters(sales, f).filter((s) => s.status === 'cancelled')
 
-    return cancelled.map((s) => ({
-      id: s.$id,
-      documentType: 'INVOICE' as const,
-      originalNumber: formatHumanInvoiceNumber(s),
-      date: s.createdAt ? s.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
-      amount: s.total || 0,
-      partyName: s.customerName || 'Walk-in Customer',
-      reason: s.cancellationReason || 'User requested cancellation',
-      cancelledBy: s.cancelledBy || s.createdBy || 'System',
-      cancelledAt: s.cancelledAt || s.updatedAt || s.createdAt || new Date().toISOString(),
-    }))
+    const customerMap = new Map<string, any>()
+    for (const c of allCustomers) customerMap.set(c.$id, c)
+
+    return cancelled.map((s) => {
+      const cust = s.customerId ? customerMap.get(s.customerId) : null
+      return {
+        id: s.$id,
+        documentType: 'INVOICE' as const,
+        originalNumber: formatHumanInvoiceNumber(s),
+        date: s.createdAt ? s.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        amount: s.total || 0,
+        partyName: cust?.name || 'Walk-in Customer',
+        reason: s.cancellationReason || 'User requested cancellation',
+        cancelledBy: s.cancelledBy || s.createdBy || 'System',
+        cancelledAt: s.cancelledAt || s.updatedAt || s.createdAt || new Date().toISOString(),
+      }
+    })
   }
 
   /**
@@ -1101,19 +1209,28 @@ export class AuditCenterService {
    */
   async getIrdReconciliation(businessId: string, filters?: AuditFilterParams): Promise<IrdReconciliationItem[]> {
     const f = resolveFilters(filters)
-    const sales = await saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo })
+    const [sales, allCustomers] = await Promise.all([
+      saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo }),
+      customerService.listAllCustomers(businessId),
+    ])
     const filtered = this.applyFilters(sales, f)
 
-    return filtered.map((s) => ({
-      id: s.$id,
-      invoiceNumber: formatHumanInvoiceNumber(s),
-      invoiceDate: s.createdAt ? s.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
-      customerName: s.customerName || 'Walk-in Customer',
-      totalAmount: s.total || 0,
-      localStatus: s.status || 'completed',
-      irdStatus: 'NOT_CONFIGURED' as const,
-      resultMessage: 'CBMS Integration is not configured for this environment.',
-    }))
+    const customerMap = new Map<string, any>()
+    for (const c of allCustomers) customerMap.set(c.$id, c)
+
+    return filtered.map((s) => {
+      const cust = s.customerId ? customerMap.get(s.customerId) : null
+      return {
+        id: s.$id,
+        invoiceNumber: formatHumanInvoiceNumber(s),
+        invoiceDate: s.createdAt ? s.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        customerName: cust?.name || 'Walk-in Customer',
+        totalAmount: s.total || 0,
+        localStatus: s.status || 'completed',
+        irdStatus: 'NOT_CONFIGURED' as const,
+        resultMessage: 'CBMS Integration is not configured for this environment.',
+      }
+    })
   }
 
   /**
