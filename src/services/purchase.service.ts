@@ -363,6 +363,7 @@ export class PurchaseService extends BaseService {
     } catch { }
 
     return true
+  }
   /**
    * Apply a supplier payment amount to a purchase.
    * Adjust `paidAmount`, `dueAmount` and `status`.
@@ -420,7 +421,8 @@ export class PurchaseService extends BaseService {
     return outstanding;
   }
 
-  }
-}
+
+
+
 
 export const purchaseService = new PurchaseService()
