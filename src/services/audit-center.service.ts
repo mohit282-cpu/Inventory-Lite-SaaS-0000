@@ -14,10 +14,65 @@ import {
   IrdReconciliationItem,
   InvoiceSequenceAudit,
 } from '@/types'
-import { getCurrentFiscalYear } from '@/lib/date/bs-date'
+import { getCurrentFiscalYear, bsToAD } from '@/lib/date/bs-date'
 import { calculateTaxForItems, calculateNetVatPosition } from '@/lib/vat-engine'
 import { toMinorUnits, fromMinorUnits } from '@/lib/money'
 import { formatHumanInvoiceNumber, formatHumanPurchaseNumber } from '@/lib/utils'
+import { calendarService } from './calendar.service'
+
+/**
+ * Convert a BS fiscal year label like "2079/80" into AD ISO date bounds.
+ * Nepal FY: Shrawan 1 (BS Month 4, Day 1) → Ashadh last day (BS Month 3) of next year.
+ * Returns { dateFrom, dateTo } as "YYYY-MM-DD" strings (AD Gregorian).
+ */
+function resolveFiscalYearDateRange(fiscalYear: string): { dateFrom: string; dateTo: string } | null {
+  if (!fiscalYear) return null
+  // Expect format "2079/80" or "79/80"
+  const parts = fiscalYear.split('/')
+  if (parts.length !== 2) return null
+
+  // Handle both "2079/80" and "79/80"
+  let bsStart = parseInt(parts[0], 10)
+  if (isNaN(bsStart)) return null
+  // If short year (e.g. 79), prefix with 20
+  if (bsStart < 100) bsStart = 2000 + bsStart
+  const bsEnd = bsStart + 1
+
+  try {
+    // Shrawan 1 of bsStart = FY start
+    const adStart = bsToAD(bsStart, 4, 1)
+    adStart.setHours(0, 0, 0, 0)
+
+    // Ashadh last day of bsEnd = FY end
+    const ashadhDays = calendarService.getBSMonthDays(bsEnd, 3)
+    const adEnd = bsToAD(bsEnd, 3, ashadhDays)
+    adEnd.setHours(23, 59, 59, 999)
+
+    const toISO = (d: Date) => d.toISOString().slice(0, 10) // "YYYY-MM-DD"
+    return { dateFrom: toISO(adStart), dateTo: toISO(adEnd) }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Merge fiscal year date bounds into filters.
+ * If user also picked explicit dateFrom/dateTo, those take precedence (they narrow inside the FY).
+ */
+function resolveFilters(filters?: AuditFilterParams): AuditFilterParams {
+  if (!filters) return {}
+  if (!filters.fiscalYear) return filters
+
+  const fyRange = resolveFiscalYearDateRange(filters.fiscalYear)
+  if (!fyRange) return filters
+
+  return {
+    ...filters,
+    // Use explicit dates if provided (they narrow within FY), else use FY bounds
+    dateFrom: filters.dateFrom || fyRange.dateFrom,
+    dateTo: filters.dateTo || fyRange.dateTo,
+  }
+}
 
 export interface AuditOverviewKPIs {
   totalSales: number
@@ -190,23 +245,58 @@ export class AuditCenterService {
   /**
    * Filter items by date range / parameters
    */
-  private applyFilters<T extends { createdAt?: string; date?: string; issuedDate?: string }>(
+  private applyFilters<T extends {
+    createdAt?: string
+    date?: string
+    issuedDate?: string
+    purchaseDate?: string
+    fiscalYear?: string
+    customerId?: string
+    supplierId?: string
+    status?: string
+    paymentMethod?: string
+    paymentStatus?: string
+  }>(
     items: T[],
     filters?: AuditFilterParams
   ): T[] {
     if (!filters) return items
 
     return items.filter((item) => {
-      const dateStr = item.issuedDate || item.date || item.createdAt
-      if (!dateStr) return true
+      const dateStr = item.purchaseDate || item.issuedDate || item.date || item.createdAt
 
-      if (filters.dateFrom && dateStr < filters.dateFrom) return false
-      if (filters.dateTo && dateStr > filters.dateTo) return false
+      // Date range filter
+      if (dateStr) {
+        const datePart = dateStr.slice(0, 10)
+        if (filters.dateFrom && datePart < filters.dateFrom) return false
+        if (filters.dateTo && datePart > filters.dateTo) return false
+      }
 
-      if (filters.month) {
+      // Month filter
+      if (filters.month && dateStr) {
         const itemMonth = dateStr.slice(0, 7)
         if (itemMonth !== filters.month) return false
       }
+
+      // Fiscal Year filter
+      if (filters.fiscalYear && item.fiscalYear && item.fiscalYear !== filters.fiscalYear) return false
+
+      // Customer filter
+      if (filters.customerId && item.customerId !== undefined && item.customerId !== filters.customerId) return false
+
+      // Supplier filter
+      if (filters.supplierId && item.supplierId !== undefined && item.supplierId !== filters.supplierId) return false
+
+      // Document status filter
+      if (filters.documentStatus && filters.documentStatus !== 'all') {
+        const itemStatus = (item.status || '').toLowerCase()
+        if (filters.documentStatus === 'completed' && itemStatus !== 'completed' && itemStatus !== 'issued' && itemStatus !== 'active') return false
+        if (filters.documentStatus === 'cancelled' && itemStatus !== 'cancelled' && itemStatus !== 'voided') return false
+        if (filters.documentStatus === 'pending' && itemStatus !== 'pending' && itemStatus !== 'draft') return false
+      }
+
+      // Payment method filter
+      if (filters.paymentMethod && item.paymentMethod !== undefined && item.paymentMethod !== filters.paymentMethod) return false
 
       return true
     })
@@ -216,20 +306,29 @@ export class AuditCenterService {
    * 1. Overview KPIs (Single Source of Truth)
    */
   async getAuditOverviewKPIs(businessId: string, filters?: AuditFilterParams): Promise<AuditOverviewKPIs> {
+    const f = resolveFilters(filters)
     const [sales, purchases, salesReturns, customers, suppliers, products, expenses] = await Promise.all([
-      saleService.listAllSales(businessId, filters ? { dateFrom: filters.dateFrom, dateTo: filters.dateTo } : undefined),
+      saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo, customerId: f.customerId }),
       purchaseService.listAllPurchases(businessId),
       salesReturnService.listAllSalesReturns(businessId),
       customerService.listAllCustomers(businessId),
       supplierService.listAllSuppliers(businessId),
       productService.listAllProducts(businessId),
-      expenseService.listAllExpenses(businessId, filters ? { dateFrom: filters.dateFrom, dateTo: filters.dateTo } : undefined),
+      expenseService.listAllExpenses(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo }),
     ])
 
-    const filteredSales = this.applyFilters(sales, filters)
-    const filteredPurchases = this.applyFilters(purchases, filters)
-    const filteredReturns = this.applyFilters(salesReturns, filters)
-    const filteredExpenses = this.applyFilters(expenses, filters)
+    const filteredSales = this.applyFilters(sales, f)
+    const filteredPurchases = this.applyFilters(purchases, f)
+    const filteredReturns = this.applyFilters(salesReturns, f)
+    const filteredExpenses = this.applyFilters(expenses, f)
+
+    // Scope customers/suppliers to filter if selected
+    const scopedCustomers = f.customerId
+      ? customers.filter((c) => c.$id === f.customerId)
+      : customers
+    const scopedSuppliers = f.supplierId
+      ? suppliers.filter((s) => s.$id === f.supplierId)
+      : suppliers
 
     let totalSales = 0
     let outputVat = 0
@@ -299,7 +398,7 @@ export class AuditCenterService {
     // Customer Receivables & Overpayments
     let outstandingCustomerCredit = 0
     let customerOverpayments = 0
-    for (const c of customers) {
+    for (const c of scopedCustomers) {
       const custSales = filteredSales.filter((s) => s.customerId === c.$id && s.status !== 'cancelled')
       const totalInv = custSales.reduce((sum, s) => sum + (s.total || 0), 0)
       const totalPaid = custSales.reduce((sum, s) => sum + (s.paidAmount || 0), 0)
@@ -315,7 +414,7 @@ export class AuditCenterService {
     // Supplier Payables & Overpayments
     let supplierPayables = 0
     let supplierOverpayments = 0
-    for (const s of suppliers) {
+    for (const s of scopedSuppliers) {
       const suppPurchases = filteredPurchases.filter((p) => p.supplierId === s.$id)
       const totalPurch = suppPurchases.reduce((sum, p) => sum + (p.total || 0), 0)
       const totalPaid = suppPurchases.reduce((sum, p) => sum + (p.paidAmount || 0), 0)
@@ -363,8 +462,10 @@ export class AuditCenterService {
    * 2. Sales Register (Human-Readable Invoice Numbers)
    */
   async getSalesRegister(businessId: string, filters?: AuditFilterParams) {
-    const sales = await saleService.listAllSales(businessId, filters ? { dateFrom: filters.dateFrom, dateTo: filters.dateTo } : undefined)
-    const filtered = this.applyFilters(sales, filters)
+    const f = resolveFilters(filters)
+    const sales = await saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo, customerId: f.customerId })
+    const filtered = this.applyFilters(sales, f)
+      .filter((s) => !f.customerId || s.customerId === f.customerId)
 
     let totalInvoices = 0
     let totalSales = 0
@@ -421,8 +522,14 @@ export class AuditCenterService {
    * 3. Purchase Register (Human-Readable Purchase Numbers)
    */
   async getPurchaseRegister(businessId: string, filters?: AuditFilterParams) {
-    const purchases = await purchaseService.listAllPurchases(businessId)
-    const filtered = this.applyFilters(purchases, filters)
+    const f = resolveFilters(filters)
+    const purchases = await purchaseService.listAllPurchases(businessId, {
+      dateFrom: f.dateFrom,
+      dateTo: f.dateTo,
+      supplierId: f.supplierId,
+    })
+    const filtered = this.applyFilters(purchases, f)
+      .filter((p) => !f.supplierId || p.supplierId === f.supplierId)
 
     let totalPurchases = 0
     let taxablePurchases = 0
@@ -463,7 +570,8 @@ export class AuditCenterService {
    * 4. VAT Summary Statement (Centralized Tax Engine)
    */
   async getVatSummary(businessId: string, filters?: AuditFilterParams) {
-    const kpis = await this.getAuditOverviewKPIs(businessId, filters)
+    const f = resolveFilters(filters)
+    const kpis = await this.getAuditOverviewKPIs(businessId, f)
 
     return {
       taxableSales: kpis.totalSales - kpis.outputVat,
@@ -482,14 +590,23 @@ export class AuditCenterService {
    * 5. Customer Ledger & Aging (Handles Customer Overpayments / Credits)
    */
   async getCustomerLedgers(businessId: string, filters?: AuditFilterParams): Promise<CustomerLedgerEntry[]> {
-    const [customers, sales, salesReturns] = await Promise.all([
+    const f = resolveFilters(filters)
+    const [allCustomers, sales, salesReturns] = await Promise.all([
       customerService.listAllCustomers(businessId),
-      saleService.listAllSales(businessId, filters ? { dateFrom: filters.dateFrom, dateTo: filters.dateTo } : undefined),
+      saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo }),
       salesReturnService.listAllSalesReturns(businessId),
     ])
 
+    // Filter to selected customer if specified
+    const customers = f.customerId
+      ? allCustomers.filter((c) => c.$id === f.customerId)
+      : allCustomers
+
+    // Apply date/fiscal year filters to sales
+    const filteredSales = this.applyFilters(sales, { ...f, customerId: undefined, supplierId: undefined, documentStatus: undefined })
+
     return customers.map((c) => {
-      const custSales = sales.filter((s) => s.customerId === c.$id && s.status !== 'cancelled')
+      const custSales = filteredSales.filter((s) => s.customerId === c.$id && s.status !== 'cancelled')
       const custReturns = salesReturns.filter((r) => r.customerId === c.$id)
 
       const invoicesTotal = custSales.reduce((sum, s) => sum + (s.total || 0), 0)
@@ -558,14 +675,27 @@ export class AuditCenterService {
   /**
    * 6. Supplier Ledger & Aging (Handles Supplier Overpayments / Credits)
    */
-  async getSupplierLedgers(businessId: string, _filters?: AuditFilterParams): Promise<SupplierLedgerEntry[]> {
-    const [suppliers, purchases] = await Promise.all([
+  async getSupplierLedgers(businessId: string, filters?: AuditFilterParams): Promise<SupplierLedgerEntry[]> {
+    const f = resolveFilters(filters)
+    const [allSuppliers, purchases] = await Promise.all([
       supplierService.listAllSuppliers(businessId),
-      purchaseService.listAllPurchases(businessId),
+      purchaseService.listAllPurchases(businessId, {
+        dateFrom: f.dateFrom,
+        dateTo: f.dateTo,
+        supplierId: f.supplierId,
+      }),
     ])
 
+    // Filter to selected supplier if specified
+    const suppliers = f.supplierId
+      ? allSuppliers.filter((s) => s.$id === f.supplierId)
+      : allSuppliers
+
+    // Apply date/fiscal year filters to purchases
+    const filteredPurchases = this.applyFilters(purchases, { ...f, customerId: undefined, supplierId: undefined, documentStatus: undefined })
+
     return suppliers.map((s) => {
-      const suppPurchases = purchases.filter((p) => p.supplierId === s.$id)
+      const suppPurchases = filteredPurchases.filter((p) => p.supplierId === s.$id)
       const purchasesTotal = suppPurchases.reduce((sum, p) => sum + (p.total || 0), 0)
       const paymentsTotal = suppPurchases.reduce((sum, p) => sum + (p.paidAmount || 0), 0)
 
@@ -627,14 +757,24 @@ export class AuditCenterService {
    * 7. Payment Audit & Human-Readable References
    */
   async getPaymentAudit(businessId: string, filters?: AuditFilterParams): Promise<PaymentAuditRecord[]> {
+    const f = resolveFilters(filters)
     const [sales, purchases] = await Promise.all([
-      saleService.listAllSales(businessId, filters ? { dateFrom: filters.dateFrom, dateTo: filters.dateTo } : undefined),
-      purchaseService.listAllPurchases(businessId),
+      saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo, customerId: f.customerId }),
+      purchaseService.listAllPurchases(businessId, {
+        dateFrom: f.dateFrom,
+        dateTo: f.dateTo,
+        supplierId: f.supplierId,
+      }),
     ])
+
+    const filteredSales = this.applyFilters(sales, f)
+      .filter((s) => !f.customerId || s.customerId === f.customerId)
+    const filteredPurchases = this.applyFilters(purchases, { ...f, customerId: undefined })
+      .filter((p) => !f.supplierId || p.supplierId === f.supplierId)
 
     const records: PaymentAuditRecord[] = []
 
-    for (const s of sales) {
+    for (const s of filteredSales) {
       if (s.paidAmount && s.paidAmount > 0) {
         const isUnallocated = !s.invoiceNumber && !s.billNumber && !s.$id
         records.push({
@@ -659,7 +799,7 @@ export class AuditCenterService {
       }
     }
 
-    for (const p of purchases) {
+    for (const p of filteredPurchases) {
       if (p.paidAmount && p.paidAmount > 0) {
         records.push({
           id: `pay_purch_${p.$id}`,
@@ -676,7 +816,12 @@ export class AuditCenterService {
       }
     }
 
-    return records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    // Filter by payment method if specified
+    const methodFiltered = f.paymentMethod
+      ? records.filter((r) => r.method === f.paymentMethod)
+      : records
+
+    return methodFiltered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }
 
   /**
@@ -766,7 +911,8 @@ export class AuditCenterService {
    * 9. Profitability Audit (P&L Waterfall)
    */
   async getProfitabilityAudit(businessId: string, filters?: AuditFilterParams): Promise<ProfitabilityAuditSummary> {
-    const kpis = await this.getAuditOverviewKPIs(businessId, filters)
+    const f = resolveFilters(filters)
+    const kpis = await this.getAuditOverviewKPIs(businessId, f)
 
     const grossSales = kpis.totalSales + kpis.salesReturns
     const netSales = kpis.totalSales
@@ -793,10 +939,13 @@ export class AuditCenterService {
   /**
    * 10. Returns & Adjustments Audit
    */
-  async getReturnsAdjustmentsAudit(businessId: string, _filters?: AuditFilterParams): Promise<ReturnsAdjustmentsRecord[]> {
+  async getReturnsAdjustmentsAudit(businessId: string, filters?: AuditFilterParams): Promise<ReturnsAdjustmentsRecord[]> {
+    const f = resolveFilters(filters)
     const returns = await salesReturnService.listAllSalesReturns(businessId)
+    const filtered = this.applyFilters(returns, f)
+      .filter((r) => !f.customerId || (r as any).customerId === f.customerId)
 
-    return returns.map((r) => ({
+    return filtered.map((r) => ({
       id: r.$id,
       originalDocumentNumber: r.salesReturnNumber || formatHumanInvoiceNumber(r.saleId || r.$id),
       date: r.createdAt ? r.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
@@ -810,12 +959,14 @@ export class AuditCenterService {
     }))
   }
 
+
   /**
    * 11. Cancelled Documents Audit (Preserves Human-Readable Numbers)
    */
   async getCancelledDocuments(businessId: string, filters?: AuditFilterParams): Promise<CancelledDocumentRecord[]> {
-    const sales = await saleService.listAllSales(businessId, filters ? { dateFrom: filters.dateFrom, dateTo: filters.dateTo } : undefined)
-    const cancelled = sales.filter((s) => s.status === 'cancelled')
+    const f = resolveFilters(filters)
+    const sales = await saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo })
+    const cancelled = this.applyFilters(sales, f).filter((s) => s.status === 'cancelled')
 
     return cancelled.map((s) => ({
       id: s.$id,
@@ -834,9 +985,10 @@ export class AuditCenterService {
    * 12. Audit Trail
    */
   async getAuditTrail(businessId: string, filters?: AuditFilterParams): Promise<AuditLogEntry[]> {
+    const f = resolveFilters(filters)
     return await auditLogService.getBusinessAuditLogs(businessId, {
-      dateFrom: filters?.dateFrom,
-      dateTo: filters?.dateTo,
+      dateFrom: f.dateFrom,
+      dateTo: f.dateTo,
     })
   }
 
@@ -948,8 +1100,9 @@ export class AuditCenterService {
    * 15. Reconciliation Data (Human-Readable Invoice Numbers)
    */
   async getIrdReconciliation(businessId: string, filters?: AuditFilterParams): Promise<IrdReconciliationItem[]> {
-    const sales = await saleService.listAllSales(businessId, filters ? { dateFrom: filters.dateFrom, dateTo: filters.dateTo } : undefined)
-    const filtered = this.applyFilters(sales, filters)
+    const f = resolveFilters(filters)
+    const sales = await saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo })
+    const filtered = this.applyFilters(sales, f)
 
     return filtered.map((s) => ({
       id: s.$id,
@@ -971,14 +1124,15 @@ export class AuditCenterService {
     businessId: string,
     filters?: AuditFilterParams
   ): Promise<ReconciliationCheckResult[]> {
+    const f = resolveFilters(filters)
     const results: ReconciliationCheckResult[] = []
 
     const [kpis, salesRegister, vatSummary, customerLedgers, supplierLedgers] = await Promise.all([
-      this.getAuditOverviewKPIs(businessId, filters),
-      this.getSalesRegister(businessId, filters),
-      this.getVatSummary(businessId, filters),
-      this.getCustomerLedgers(businessId, filters),
-      this.getSupplierLedgers(businessId, filters),
+      this.getAuditOverviewKPIs(businessId, f),
+      this.getSalesRegister(businessId, f),
+      this.getVatSummary(businessId, f),
+      this.getCustomerLedgers(businessId, f),
+      this.getSupplierLedgers(businessId, f),
     ])
 
     // Check 1: Sales Register Total vs Overview KPI Total Sales

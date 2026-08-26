@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
 import { useAuth } from '@/context/auth-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,14 +8,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { InviteMemberDialog, InviteMemberInput } from '@/components/features/settings/invite-member-dialog'
 import { useToast } from '@/components/ui/use-toast'
 import { businessService } from '@/services/business.service'
 import { userService } from '@/services/user.service'
 import { authService } from '@/services/auth.service'
-import { businessMemberService } from '@/services/business-member.service'
-import { BusinessMember, UserRole, Currency, TaxRegistrationType } from '@/types'
+import { UserRole, Currency, TaxRegistrationType } from '@/types'
 import { getEffectiveTaxRegistration } from '@/lib/localization'
 import { formatBSDate } from '@/lib/date/bs-date'
 import {
@@ -25,9 +22,7 @@ import {
   Loader2,
   User,
   KeyRound,
-  Users,
   ShieldCheck,
-  UserPlus,
   Trash2,
   Smartphone,
   Calendar as CalendarIcon,
@@ -42,7 +37,7 @@ export default function SettingsPage() {
   const { activeBusiness, user, userProfile, memberships, refreshAuth, logout } = useAuth()
   const { toast } = useToast()
 
-  const [activeTab, setActiveTab] = useState<'business' | 'account' | 'team'>('business')
+  const [activeTab, setActiveTab] = useState<'business' | 'account'>('business')
 
   // Business Settings Form State
   const [bizName, setBizName] = useState('')
@@ -74,15 +69,6 @@ export default function SettingsPage() {
   // Delete Business & Account Modal State
   const [deleteBusinessModalOpen, setDeleteBusinessModalOpen] = useState(false)
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false)
-
-  // Team Management State
-  const [members, setMembers] = useState<BusinessMember[]>([])
-  const [loadingMembers, setLoadingMembers] = useState(false)
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [inviting, setInviting] = useState(false)
-
-  const [deleteMemberId, setDeleteMemberId] = useState<string | null>(null)
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   const currentRole: UserRole =
     (memberships.find((m) => m.businessId === activeBusiness?.$id)?.role as UserRole) || 'owner'
@@ -270,26 +256,6 @@ export default function SettingsPage() {
     }
   }
 
-  // Fetch Team Members
-  const fetchMembers = useCallback(async () => {
-    if (!activeBusiness?.$id) return
-    try {
-      setLoadingMembers(true)
-      const data = await businessMemberService.listMembers(activeBusiness.$id)
-      setMembers(data)
-    } catch (err) {
-      console.error('Error fetching team members:', err)
-    } finally {
-      setLoadingMembers(false)
-    }
-  }, [activeBusiness?.$id])
-
-  useEffect(() => {
-    if (activeTab === 'team') {
-      fetchMembers()
-    }
-  }, [activeTab, fetchMembers])
-
   // Save Business Settings
   const handleSaveBusiness = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -405,82 +371,11 @@ export default function SettingsPage() {
     }
   }
 
-  // Invite Team Member
-  const handleInviteMember = async (data: InviteMemberInput) => {
-    if (!activeBusiness?.$id || !user?.$id) return
-    try {
-      setInviting(true)
-      const fakeUserId = `usr_${Math.random().toString(36).slice(2, 10)}`
-      await businessMemberService.addMember(
-        { userId: fakeUserId, role: data.role as UserRole },
-        activeBusiness.$id,
-        user.$id
-      )
-      toast({
-        title: 'Team Member Added',
-        description: `Successfully added ${data.email} as ${data.role}.`,
-      })
-      setInviteOpen(false)
-      await fetchMembers()
-    } catch (err: any) {
-      console.error('Error inviting member:', err)
-      toast({
-        title: 'Invitation Failed',
-        description: err?.message || 'Could not add team member.',
-        variant: 'destructive',
-      })
-    } finally {
-      setInviting(false)
-    }
-  }
-
-  // Update Role
-  const handleRoleChange = async (memberId: string, newRole: UserRole) => {
-    if (!activeBusiness?.$id || !user?.$id) return
-    try {
-      await businessMemberService.updateMemberRole(memberId, newRole, activeBusiness.$id, user.$id)
-      toast({
-        title: 'Role Updated',
-        description: 'Team member permission role has been updated.',
-      })
-      await fetchMembers()
-    } catch (err: any) {
-      console.error('Error updating role:', err)
-      toast({
-        title: 'Permission Denied',
-        description: err?.message || 'Could not update team member role.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  // Remove Member
-  const handleRemoveMember = async () => {
-    if (!activeBusiness?.$id || !deleteMemberId || !user?.$id) return
-    try {
-      await businessMemberService.removeMember(deleteMemberId, activeBusiness.$id, user.$id)
-      toast({
-        title: 'Member Removed',
-        description: 'Team member access has been revoked.',
-      })
-      setDeleteConfirmOpen(false)
-      setDeleteMemberId(null)
-      await fetchMembers()
-    } catch (err: any) {
-      console.error('Error removing member:', err)
-      toast({
-        title: 'Action Failed',
-        description: err?.message || 'Could not remove team member.',
-        variant: 'destructive',
-      })
-    }
-  }
-
   return (
     <div className="space-y-6 text-slate-900">
       <PageHeader
-        title="Settings & Team Management"
-        description="Manage business credentials, user security, team member invitations, and role permissions."
+        title="Settings"
+        description="Manage business credentials, user security, and application preferences."
       />
 
       {/* Settings Navigation Tabs */}
@@ -507,16 +402,6 @@ export default function SettingsPage() {
           <User className="h-4 w-4" /> 2. User Account & Security
         </button>
 
-        <button
-          onClick={() => setActiveTab('team')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
-            activeTab === 'team'
-              ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Users className="h-4 w-4" /> 3. Team & RBAC Permissions
-        </button>
       </div>
 
       {/* TAB 1: BUSINESS PROFILE SETTINGS */}
@@ -1058,116 +943,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* TAB 3: TEAM & ROLE PERMISSIONS */}
-      {activeTab === 'team' && (
-        <div className="space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 mb-6">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                  <Users className="h-5 w-5 text-indigo-600" /> Team Members & Role Permissions
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 font-medium">
-                  Manage business access. Permissions are strictly enforced at the database level.
-                </p>
-              </div>
-
-              {(currentRole === 'owner' || currentRole === 'admin') && (
-                <Button
-                  onClick={() => setInviteOpen(true)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
-                >
-                  <UserPlus className="mr-2 h-4 w-4" /> Invite Team Member
-                </Button>
-              )}
-            </div>
-
-            {loadingMembers ? (
-              <div className="py-8 text-center text-slate-500 text-sm">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-indigo-600" /> Loading team members...
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-[11px] font-extrabold uppercase text-slate-500 bg-slate-50">
-                      <th className="py-2.5 px-3">User ID</th>
-                      <th className="py-2.5 px-3">Assigned Role</th>
-                      <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3">Joined Date</th>
-                      <th className="py-2.5 px-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {members.map((m) => (
-                      <tr key={m.$id} className="hover:bg-slate-50/80">
-                        <td className="py-3 px-3 font-mono text-xs text-indigo-700 font-bold">{m.userId}</td>
-                        <td className="py-3 px-3">
-                          {currentRole === 'owner' && m.role !== 'owner' ? (
-                            <select
-                              value={m.role}
-                              onChange={(e) => handleRoleChange(m.$id, e.target.value as UserRole)}
-                              className="bg-white border border-slate-300 text-xs rounded px-2 py-1 text-slate-900 font-medium focus:outline-none focus:border-indigo-600"
-                            >
-                              <option value="admin">Admin</option>
-                              <option value="staff">Staff</option>
-                            </select>
-                          ) : (
-                            <StatusBadge status={m.role} />
-                          )}
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Active
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-xs text-slate-700 font-mono font-bold">{formatBSDate(m.createdAt)}</td>
-                        <td className="py-3 px-3 text-right">
-                          {m.role !== 'owner' && (currentRole === 'owner' || currentRole === 'admin') ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setDeleteMemberId(m.$id)
-                                setDeleteConfirmOpen(true)
-                              }}
-                              className="h-8 w-8 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50"
-                              title="Revoke Access"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">Protected</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
-
-      {/* Invite Member Modal Dialog */}
-      <InviteMemberDialog
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
-        onSubmit={handleInviteMember}
-        loading={inviting}
-      />
-
-      {/* Delete Member Confirmation */}
-      <ConfirmDialog
-        isOpen={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        title="Revoke Team Access"
-        description="Are you sure you want to remove this team member from your business? They will immediately lose access."
-        onConfirm={handleRemoveMember}
-        confirmText="Revoke Access"
-        cancelText="Cancel"
-      />
     </div>
   )
 }

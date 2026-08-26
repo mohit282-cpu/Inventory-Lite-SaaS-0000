@@ -270,17 +270,6 @@ export const paymentSchema = z.object({
   notes: z.string().optional(),
 })
 
-// ==================== Member Validations ====================
-
-export const inviteMemberSchema = z.object({
-  email: emailSchema,
-  role: z.enum(['owner', 'admin', 'manager', 'staff', 'viewer']),
-})
-
-export const updateMemberRoleSchema = z.object({
-  role: z.enum(['owner', 'admin', 'manager', 'staff', 'viewer']),
-})
-
 // ==================== Expense Validations ====================
 
 export const expenseSchema = z.object({
@@ -372,8 +361,6 @@ export type CustomerInput = z.infer<typeof customerSchema>
 export type InvoiceItemInput = z.infer<typeof invoiceItemSchema>
 export type InvoiceInput = z.infer<typeof invoiceSchema>
 export type PaymentInput = z.infer<typeof paymentSchema>
-export type InviteMemberInput = z.infer<typeof inviteMemberSchema>
-export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>
 export type ExpenseInput = z.infer<typeof expenseSchema>
 export type SupplierInput = z.infer<typeof supplierSchema>
 export type SupplierPaymentInput = z.infer<typeof supplierPaymentSchema>

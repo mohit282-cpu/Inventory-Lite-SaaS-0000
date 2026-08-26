@@ -189,7 +189,6 @@ export const en = {
       "PAN / VAT Settings",
       "Payment Tracking",
       "Data Export",
-      "Team Permissions",
     ]
   },
   pricing: {

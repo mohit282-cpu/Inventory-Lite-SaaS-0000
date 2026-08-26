@@ -22,7 +22,6 @@ export function LandingFeatures() {
     "PAN / VAT Settings",
     "Payment Tracking",
     "Data Export",
-    "Team & RBAC Permissions",
   ]
 
   const nepaliFeatures = [
@@ -41,7 +40,6 @@ export function LandingFeatures() {
     "PAN / VAT सेटिङ",
     "भुक्तानी रेकर्ड",
     "डेटा निर्यात",
-    "टोली तथा पहुँच अधिकार",
   ]
 
   const featureList = language === 'ne' ? nepaliFeatures : defaultEnglishFeatures

@@ -522,7 +522,7 @@ export interface AuditFilterParams {
   customerId?: string
   supplierId?: string
   productId?: string
-  paymentMethod?: string
+  paymentMethod?: PaymentMethod
   documentStatus?: string
 }
 

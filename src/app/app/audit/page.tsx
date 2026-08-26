@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/auth-context'
+import { getCurrentFiscalYear } from '@/lib/date/bs-date'
 import { PageHeader } from '@/components/ui/page-header'
 import { AuditFilterBar } from '@/components/features/audit/AuditFilterBar'
 import { AuditorDrillDownDrawer } from '@/components/features/audit/AuditorDrillDownDrawer'
@@ -72,7 +73,7 @@ export default function AuditCenterPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('accountant')
   const [activeTab, setActiveTab] = useState<string>('overview')
 
-  const [filters, setFilters] = useState<AuditFilterParams>({})
+  const [filters, setFilters] = useState<AuditFilterParams>({ fiscalYear: getCurrentFiscalYear() })
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([])
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
 
@@ -124,6 +125,12 @@ export default function AuditCenterPage() {
   // Primary Audit Data Fetcher
   const loadAuditData = useCallback(async () => {
     if (!activeBusiness?.$id) return
+
+    // Skip fetch if date range is invalid
+    if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
@@ -291,7 +298,7 @@ export default function AuditCenterPage() {
       <AuditFilterBar
         filters={filters}
         onFilterChange={(f) => setFilters(f)}
-        onReset={() => setFilters({})}
+        onReset={() => setFilters({ fiscalYear: getCurrentFiscalYear() })}
         customers={customers}
         suppliers={suppliers}
       />
