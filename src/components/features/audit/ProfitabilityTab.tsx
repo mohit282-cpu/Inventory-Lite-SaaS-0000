@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { ProfitabilityAuditSummary } from '@/services/audit-center.service'
 import { formatCurrency } from '@/lib/utils'
 import { TrendingUp, AlertTriangle } from 'lucide-react'
