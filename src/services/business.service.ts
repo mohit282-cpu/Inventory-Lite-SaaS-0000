@@ -37,6 +37,12 @@ export class BusinessService extends BaseService {
       throw new Error('Business name is required')
     }
 
+    // One-store-per-user enforcement: check for existing owned business
+    const existingBusinesses = await this.getMyBusinesses(userId)
+    if (existingBusinesses.length > 0) {
+      throw new Error('You already have a business. Each account is limited to one store.')
+    }
+
     const regType: TaxRegistrationType =
       data.taxRegistrationType || (data.vatNumber?.trim() ? 'VAT' : data.panNumber?.trim() ? 'PAN' : 'NONE')
     const regNum = (data.taxRegistrationNumber || (regType === 'VAT' ? data.vatNumber : regType === 'PAN' ? data.panNumber : '') || '').trim()

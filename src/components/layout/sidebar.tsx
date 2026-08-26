@@ -19,22 +19,11 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  ChevronsUpDown,
   Building,
-  Check,
-  Plus,
   Truck,
   ShoppingBag,
   ShieldCheck,
 } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 
 interface NavGroup {
   label: string
@@ -79,7 +68,7 @@ export { NAVIGATION_GROUPS }
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { activeBusiness, memberships, switchActiveBusiness } = useAuth()
+  const { activeBusiness, memberships } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   const currentRole = memberships.find((m) => m.businessId === activeBusiness?.$id)?.role || 'owner'
@@ -107,57 +96,27 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Business Workspace Selector */}
+      {/* Business Display */}
       <div className="px-3 py-2.5 border-b border-slate-200">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="Switch active business workspace"
-              className={`w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100/80 transition-colors text-left ${
-                isCollapsed ? 'justify-center px-0' : ''
-              }`}
-            >
-              <div className="h-7 w-7 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center shrink-0">
-                <Building className="h-3.5 w-3.5" />
+        <div
+          className={`w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 ${
+            isCollapsed ? 'justify-center px-0' : ''
+          }`}
+        >
+          <div className="h-7 w-7 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center shrink-0">
+            <Building className="h-3.5 w-3.5" />
+          </div>
+          {!isCollapsed && (
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-slate-900 truncate leading-tight">
+                {activeBusiness?.name || 'My Store'}
               </div>
-              {!isCollapsed && (
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-slate-900 truncate leading-tight">
-                    {activeBusiness?.name || 'Hostiva Store'}
-                  </div>
-                  <div className="text-[10px] text-slate-500 capitalize leading-tight">
-                    {currentRole} · {activeBusiness?.currency || 'NPR'}
-                  </div>
-                </div>
-              )}
-              {!isCollapsed && <ChevronsUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56 bg-white border-slate-200 text-slate-800 shadow-md">
-            <DropdownMenuLabel className="text-xs text-slate-500">Switch Workspace</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-slate-200" />
-            {memberships.map((m) => {
-              const isSelected = m.businessId === activeBusiness?.$id
-              return (
-                <DropdownMenuItem
-                  key={m.$id}
-                  onClick={() => switchActiveBusiness(m.businessId)}
-                  className="flex items-center justify-between cursor-pointer text-xs"
-                >
-                  <span className="truncate">{m.businessId}</span>
-                  {isSelected && <Check className="h-4 w-4 text-indigo-600" />}
-                </DropdownMenuItem>
-              )
-            })}
-            <DropdownMenuSeparator className="bg-slate-200" />
-            <DropdownMenuItem asChild>
-              <Link href="/onboarding" className="flex items-center text-indigo-600 font-semibold cursor-pointer text-xs">
-                <Plus className="mr-2 h-4 w-4" /> Add Business
-              </Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <div className="text-[10px] text-slate-500 capitalize leading-tight">
+                {currentRole} · {activeBusiness?.currency || 'NPR'}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Grouped Navigation */}

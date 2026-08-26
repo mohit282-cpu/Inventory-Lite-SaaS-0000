@@ -42,7 +42,6 @@ interface AuthContextType {
     timezone?: string
   }) => Promise<Business>
   completeOnboarding: (businessId?: string) => Promise<void>
-  switchActiveBusiness: (businessId: string) => Promise<void>
   refreshAuth: () => Promise<void>
   retryAuth: () => Promise<void>
   clearError: () => void
@@ -459,31 +458,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const switchActiveBusiness = async (businessId: string) => {
-    if (!user) return
-
-    try {
-      clearError()
-      setIsWorkspaceLoading(true)
-      const business = await businessService.getBusiness(businessId)
-
-      try {
-        await userService.updateUserPreferences(user.$id, {
-          activeBusinessId: businessId,
-        })
-      } catch {
-        // Preference update warning
-      }
-
-      setActiveBusiness(business)
-    } catch (err: any) {
-      const appErr = handleApiError(err)
-      setWorkspaceError(appErr.message)
-    } finally {
-      setIsWorkspaceLoading(false)
-    }
-  }
-
   const isAuthLoading = authStatus === 'INITIALIZING' || authStatus === 'ONLINE_AUTHENTICATING'
 
   return (
@@ -507,7 +481,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         createBusinessOnboarding,
         completeOnboarding,
-        switchActiveBusiness,
         refreshAuth,
         retryAuth,
         clearError,
