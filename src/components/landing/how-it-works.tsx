@@ -53,7 +53,7 @@ export function LandingHowItWorks() {
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.2]">
             {t('howItWorks.headline')}
           </h2>
-          
+
           {/* Visual Flow Indicator */}
           <div className="inline-flex items-center gap-1.5 flex-wrap text-xs sm:text-sm font-bold text-indigo-800 bg-indigo-50 px-3.5 py-1.5 rounded-lg border border-indigo-100">
             <span>उत्पादन</span>

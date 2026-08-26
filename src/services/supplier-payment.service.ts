@@ -83,29 +83,26 @@ export class SupplierPaymentService extends BaseService {
           userId
         )
 
-        // Update Supplier balances
-        // Allocate payment to outstanding purchases for the supplier
-        let remainingPaisa = paymentPaisa
-        const purchases = await purchaseService.listPurchases(businessId, { supplierId: data.supplierId })
-        // Sort purchases by creation date (oldest first) to allocate
-        purchases.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-        for (const purchase of purchases) {
-          if (remainingPaisa <= 0) break
-          const duePaisa = toMinorUnits(purchase.dueAmount || 0)
-          if (duePaisa <= 0) continue
-          const allocatePaisa = Math.min(remainingPaisa, duePaisa)
-          const newPaidPaisa = toMinorUnits(purchase.paidAmount || 0) + allocatePaisa
-          const newDuePaisa = duePaisa - allocatePaisa
-          const newStatus = newDuePaisa === 0 ? 'completed' : 'pending'
-          await purchaseService.update<Purchase>(purchase.$id, {
-            paidAmount: fromMinorUnits(newPaidPaisa),
-            dueAmount: fromMinorUnits(newDuePaisa),
-            status: newStatus as any,
-          }, businessId)
-          remainingPaisa -= allocatePaisa
-        }
-        // Update supplier balances: totalPaid increased, totalPurchases unchanged
-        await supplierService.updateBalances(data.supplierId, 0, fromMinorUnits(paymentPaisa), businessId)
+// Update Supplier balances
+// Allocate payment to outstanding purchases for the supplier
+let remainingPaisa = paymentPaisa;
+let purchases: any[] = [];
+if (data.purchaseId) {
+  const single = await purchaseService.getPurchase(data.purchaseId, businessId);
+  if (single) purchases = [single];
+} else {
+  purchases = await purchaseService.listOutstandingPurchases(businessId, data.supplierId);
+}
+for (const purchase of purchases) {
+  if (remainingPaisa <= 0) break;
+  const duePaisa = toMinorUnits(purchase.dueAmount || 0);
+  if (duePaisa <= 0) continue;
+  const allocatePaisa = Math.min(remainingPaisa, duePaisa);
+  await purchaseService.applySupplierPayment(purchase.$id, allocatePaisa, businessId, userId);
+  remainingPaisa -= allocatePaisa;
+}
+// Update supplier balances: totalPaid increased, totalPurchases unchanged
+await supplierService.updateBalances(data.supplierId, 0, fromMinorUnits(paymentPaisa), businessId)
 
         try {
           await auditLogService.logEvent(businessId, userId, 'supplier_payment_created', paymentDoc.$id, {

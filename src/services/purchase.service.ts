@@ -363,6 +363,63 @@ export class PurchaseService extends BaseService {
     } catch { }
 
     return true
+  /**
+   * Apply a supplier payment amount to a purchase.
+   * Adjust `paidAmount`, `dueAmount` and `status`.
+   */
+  async applySupplierPayment(
+    purchaseId: string,
+    amountPaisa: number, // amount in minor units
+    businessId: string,
+    userId: string
+  ): Promise<void> {
+    // Fetch the purchase
+    const purchase = await this.getPurchase(purchaseId, businessId);
+    if (!purchase) {
+      throw new Error('Purchase record not found');
+    }
+
+    const currentPaidPaisa = toMinorUnits(purchase.paidAmount ?? 0);
+    const duePaisa = toMinorUnits(purchase.dueAmount ?? 0);
+    if (duePaisa <= 0) {
+      // Nothing to allocate
+      return;
+    }
+    const allocatePaisa = Math.min(amountPaisa, duePaisa);
+    const newPaidPaisa = currentPaidPaisa + allocatePaisa;
+    const newDuePaisa = duePaisa - allocatePaisa;
+    const newStatus = newDuePaisa === 0 ? 'completed' : 'pending';
+
+    await this.update<Purchase>(purchaseId, {
+      paidAmount: fromMinorUnits(newPaidPaisa),
+      dueAmount: fromMinorUnits(newDuePaisa),
+      status: newStatus as any,
+    }, businessId);
+
+    // Emit audit log for this allocation
+    try {
+      await auditLogService.logEvent(businessId, userId, 'supplier_payment_applied_to_purchase', purchaseId, {
+        allocatedAmount: fromMinorUnits(allocatePaisa),
+        newPaidAmount: fromMinorUnits(newPaidPaisa),
+        newDueAmount: fromMinorUnits(newDuePaisa),
+        status: newStatus,
+      });
+    } catch { }
+  }
+
+  /**
+   * List outstanding purchases (dueAmount > 0) for a supplier, ordered by oldest first.
+   */
+  async listOutstandingPurchases(businessId: string, supplierId: string): Promise<Purchase[]> {
+    // Retrieve all purchases for the supplier
+    const allPurchases = await this.listPurchases(businessId, { supplierId });
+    // Filter those with dueAmount > 0
+    const outstanding = allPurchases.filter(p => (p.dueAmount ?? 0) > 0);
+    // Sort by creation date (oldest first)
+    outstanding.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return outstanding;
+  }
+
   }
 }
 
