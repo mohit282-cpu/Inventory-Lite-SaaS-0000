@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { IrdReadinessStatus } from '@/types'
 import { ShieldCheck, Building2, FileCheck2, Info } from 'lucide-react'
 

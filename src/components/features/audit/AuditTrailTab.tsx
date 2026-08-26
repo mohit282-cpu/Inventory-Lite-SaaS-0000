@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { AuditLogEntry } from '@/services/audit-log.service'
 import { ShieldCheck, ExternalLink } from 'lucide-react'
 

@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import Link from 'next/link'
 import { CheckCircle2, ShieldCheck, ArrowLeft } from 'lucide-react'
 import { AppLogo } from '@/components/ui/app-logo'

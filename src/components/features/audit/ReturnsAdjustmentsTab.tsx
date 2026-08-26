@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { ReturnsAdjustmentsRecord } from '@/services/audit-center.service'
 import { formatCurrency } from '@/lib/utils'
 import { RotateCcw, ExternalLink } from 'lucide-react'

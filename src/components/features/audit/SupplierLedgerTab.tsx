@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { SupplierLedgerEntry } from '@/services/audit-center.service'
 import { formatCurrency } from '@/lib/utils'
 import { CreditCard, ExternalLink } from 'lucide-react'

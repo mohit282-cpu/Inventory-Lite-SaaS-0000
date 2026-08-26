@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { PaymentAuditRecord } from '@/services/audit-center.service'
 import { formatCurrency } from '@/lib/utils'
 import { Wallet, ExternalLink, CheckCircle2, XCircle } from 'lucide-react'

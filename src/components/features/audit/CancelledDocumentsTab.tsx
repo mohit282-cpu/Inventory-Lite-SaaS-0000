@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { CancelledDocumentRecord } from '@/services/audit-center.service'
 import { formatCurrency } from '@/lib/utils'
 import { XCircle, ExternalLink, ShieldAlert } from 'lucide-react'

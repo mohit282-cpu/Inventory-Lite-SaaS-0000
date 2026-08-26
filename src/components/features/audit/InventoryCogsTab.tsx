@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { ProductValuationEntry, InventoryCogsAuditSummary } from '@/services/audit-center.service'
 import { formatCurrency } from '@/lib/utils'
 import { Boxes, ExternalLink, AlertTriangle } from 'lucide-react'

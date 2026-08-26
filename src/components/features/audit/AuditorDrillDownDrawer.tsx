@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { X, FileText, CheckCircle, UserCheck } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 

@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { InvoiceSequenceAudit } from '@/types'
 import { CheckCircle2, AlertTriangle } from 'lucide-react'
 

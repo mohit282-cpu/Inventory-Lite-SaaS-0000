@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+
 import { formatCurrency } from '@/lib/utils'
 import { FileText, ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
 
