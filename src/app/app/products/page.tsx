@@ -54,7 +54,7 @@ export default function ProductsPage() {
     try {
       setIsLoading(true)
       const [prods, cats] = await Promise.all([
-        productService.listProducts(activeBusiness.$id),
+        productService.listProducts(activeBusiness.$id, { isActive: true }),
         categoryService.listCategories(activeBusiness.$id),
       ])
       setProducts(prods)

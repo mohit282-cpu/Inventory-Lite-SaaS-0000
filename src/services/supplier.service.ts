@@ -195,7 +195,7 @@ export class SupplierService extends BaseService {
 
     const supplier = await this.getSupplier(supplierId, businessId)
     if (supplier.totalPurchases > 0 || supplier.totalPaid > 0 || supplier.outstandingPayable > 0) {
-      throw new Error('Forbidden: Suppliers with historical financial transactions cannot be deleted. Use Archive instead.')
+      throw new Error('Suppliers with historical financial transactions cannot be deleted.')
     }
 
     return await this.delete(supplierId, businessId)

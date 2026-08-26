@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { supplierService } from '@/services/supplier.service'
-import { Supplier, SupplierStatus } from '@/types'
+import { Supplier } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SupplierDialog } from '@/components/features/suppliers/supplier-dialog'
@@ -16,12 +16,13 @@ import {
   DollarSign,
   FileSpreadsheet,
   Edit2,
-  Archive,
+  Trash2,
   Loader2,
   Phone,
   MapPin,
 } from 'lucide-react'
 import { formatMoney } from '@/lib/money'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SupplierInput, SupplierPaymentInput } from '@/lib/validations'
 import { supplierPaymentService } from '@/services/supplier-payment.service'
 
@@ -33,7 +34,6 @@ export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<SupplierStatus | 'all'>('active')
 
   // Modal states
   const [isAddEditOpen, setIsAddEditOpen] = useState(false)
@@ -45,6 +45,10 @@ export default function SuppliersPage() {
   const [isLedgerOpen, setIsLedgerOpen] = useState(false)
   const [ledgerSupplier, setLedgerSupplier] = useState<Supplier | null>(null)
 
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [deleteSupplier, setDeleteSupplier] = useState<Supplier | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const [actionLoading, setActionLoading] = useState(false)
 
   const loadSuppliers = useCallback(async () => {
@@ -53,7 +57,6 @@ export default function SuppliersPage() {
       setLoading(true)
       const list = await supplierService.listSuppliers(businessId, {
         searchTerm: searchQuery,
-        status: statusFilter,
       })
       setSuppliers(list)
     } catch (err) {
@@ -61,7 +64,7 @@ export default function SuppliersPage() {
     } finally {
       setLoading(false)
     }
-  }, [businessId, searchQuery, statusFilter])
+  }, [businessId, searchQuery])
 
   useEffect(() => {
     loadSuppliers()
@@ -93,15 +96,16 @@ export default function SuppliersPage() {
     }
   }
 
-  const handleArchiveSupplier = async (supplier: Supplier) => {
-    if (!businessId || !userId) return
-    if (!confirm(`Are you sure you want to archive supplier "${supplier.name}"?`)) return
-
+  const handleDeleteSupplier = async () => {
+    if (!businessId || !userId || !deleteSupplier) return
+    setDeleteLoading(true)
     try {
-      await supplierService.archiveSupplier(supplier.$id, businessId, userId)
+      await supplierService.deleteSupplier(deleteSupplier.$id, businessId, userId)
       await loadSuppliers()
     } catch (err: any) {
-      alert(err?.message || 'Failed to archive supplier')
+      alert(err?.message || 'Failed to delete supplier')
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -165,36 +169,6 @@ export default function SuppliersPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 text-xs bg-slate-50 border-slate-200"
           />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => setStatusFilter('active')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              statusFilter === 'active' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            Active Suppliers
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('archived')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              statusFilter === 'archived' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            Archived
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              statusFilter === 'all' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            All
-          </button>
         </div>
       </div>
 
@@ -297,17 +271,19 @@ export default function SuppliersPage() {
                         >
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
-                        {s.status === 'active' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleArchiveSupplier(s)}
-                            className="h-7 w-7 p-0 text-slate-400 hover:text-red-600"
-                            title="Archive supplier"
-                          >
-                            <Archive className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setDeleteSupplier(s)
+                            setIsDeleteOpen(true)
+                          }}
+                          disabled={(s.totalPurchases || 0) > 0 || (s.totalPaid || 0) > 0 || (s.outstandingPayable || 0) > 0}
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Delete supplier"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -339,6 +315,20 @@ export default function SuppliersPage() {
         isOpen={isLedgerOpen}
         onClose={() => setIsLedgerOpen(false)}
         supplier={ledgerSupplier}
+      />
+
+      <ConfirmDialog
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false)
+          setDeleteSupplier(null)
+        }}
+        onConfirm={handleDeleteSupplier}
+        title="Delete Supplier"
+        description={`Are you sure you want to permanently delete "${deleteSupplier?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        isLoading={deleteLoading}
       />
     </div>
   )
