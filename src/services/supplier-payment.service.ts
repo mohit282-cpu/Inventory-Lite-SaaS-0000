@@ -1,6 +1,6 @@
 import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
-import { SupplierPayment, PaymentMethod, Purchase } from '@/types'
+import { SupplierPayment, PaymentMethod } from '@/types'
 import { Query } from 'appwrite'
 import { supplierService } from './supplier.service'
 import { purchaseService } from './purchase.service'
