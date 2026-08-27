@@ -64,7 +64,7 @@ export function AuditHealth({ sales, invoices }: AuditHealthProps) {
   // 3. Sales Reconciliation
   const mathMismatches = sales.filter((s) => {
     if (s.status === 'cancelled') return false
-    const expected = (s.subtotal || 0) - (s.discount || 0) + (s.tax || 0)
+      const expected = (s.subtotal || 0) - (s.discount || 0) + (s.vatAmount || 0)
     return Math.abs(expected - (s.total || 0)) > 0.05
   })
   checks.push({

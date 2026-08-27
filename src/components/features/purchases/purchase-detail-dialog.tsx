@@ -151,10 +151,10 @@ export function PurchaseDetailDialog({ isOpen, onClose, purchase }: PurchaseDeta
                 </div>
               )}
 
-              {purchase.tax > 0 && (
+              {purchase.vatAmount > 0 && (
                 <div className="flex justify-between text-slate-600">
                   <span>Tax / VAT:</span>
-                  <span className="font-mono">+ Rs. {formatMoney(purchase.tax)}</span>
+                  <span className="font-mono">+ Rs. {formatMoney(purchase.vatAmount)}</span>
                 </div>
               )}
 

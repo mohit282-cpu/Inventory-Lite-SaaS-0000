@@ -322,7 +322,25 @@ export class PaymentService extends BaseService {
       throw new Error('Payment record has already been reversed or voided')
     }
 
-    const amountPaisa = toMinorUnits(existingPayment.amount)
+    const rawAmount = existingPayment.amount ?? 0
+    if (typeof rawAmount !== 'number' || isNaN(rawAmount) || !isFinite(rawAmount) || rawAmount < 0) {
+      throw new Error(`Invalid payment amount for reversal: ${existingPayment.amount}`)
+    }
+
+    const amountPaisa = toMinorUnits(rawAmount)
+
+    // If payment amount is zero (e.g. Full Udhaar record with no cash movement), just void the record
+    if (amountPaisa === 0) {
+      await this.update<Payment>(
+        paymentId,
+        {
+          status: 'VOIDED',
+          notes: `${existingPayment.notes || ''} [VOIDED by ${reversingUserId}: ${reason}]`.trim(),
+        },
+        businessId
+      )
+      return { ...existingPayment, status: 'VOIDED' } as Payment
+    }
 
     // 1. Revert sale paid amount and update status
     if (existingPayment.saleId) {
@@ -365,7 +383,7 @@ export class PaymentService extends BaseService {
         saleId: existingPayment.saleId,
         customerId: existingPayment.customerId || '',
         invoiceId: existingPayment.invoiceId || '',
-        amount: -existingPayment.amount,
+        amount: -rawAmount,
         paymentMethod: existingPayment.paymentMethod,
         paymentDate: new Date().toISOString(),
         referenceNumber: `REV_${existingPayment.$id}`,

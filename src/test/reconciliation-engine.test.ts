@@ -196,4 +196,25 @@ describe('Deterministic Financial Reconciliation Engine Tests', () => {
     expect(salesCheck?.status).toBe('BALANCED')
     expect(vatCheck?.status).toBe('BALANCED')
   })
+
+  it('7. Sales Returns reads totalRefund field correctly (regression)', async () => {
+    vi.mocked(saleService.listAllSales).mockResolvedValue([
+      { $id: 's1', total: 5000, discountAmount: 0, vatAmount: 0, taxableAmount: 5000, status: 'completed', createdAt: '2026-08-20T10:00:00Z' } as any,
+    ])
+    vi.mocked(salesReturnService.listAllSalesReturns).mockResolvedValue([
+      { $id: 'r1', totalRefund: 2500, createdAt: '2026-08-21T10:00:00Z' } as any,
+      { $id: 'r2', totalRefund: 500, createdAt: '2026-08-22T10:00:00Z' } as any,
+    ])
+    vi.mocked(purchaseService.listAllPurchases).mockResolvedValue([])
+    vi.mocked(customerService.listAllCustomers).mockResolvedValue([])
+    vi.mocked(supplierService.listAllSuppliers).mockResolvedValue([])
+    vi.mocked(productService.listAllProducts).mockResolvedValue([])
+    vi.mocked(expenseService.listAllExpenses).mockResolvedValue([])
+
+    const kpis = await auditCenterService.getAuditOverviewKPIs(mockBusinessId)
+
+    expect(kpis.totalSales).toBe(5000)
+    expect(kpis.salesReturns).toBe(3000)
+    expect(kpis.totalSales - kpis.salesReturns).toBe(2000)
+  })
 })

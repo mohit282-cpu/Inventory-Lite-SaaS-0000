@@ -168,7 +168,7 @@ describe('Feature 3 — Sales Return Workflow Tests', () => {
     )
 
     expect(returnResult.salesReturn.returnNumber).toContain('SR-')
-    expect(returnResult.salesReturn.totalAmount).toBe(1000)
+    expect(returnResult.salesReturn.totalRefund).toBe(1000)
 
     // 3. Verify stock restored from 10 to 12
     product = await productService.getProduct(prodId, businessId)

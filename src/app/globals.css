@@ -76,6 +76,8 @@
     -moz-osx-font-smoothing: grayscale;
     /* Account for sticky WhatsApp bar on mobile */
     scroll-padding-top: 4rem;
+    /* Prevent horizontal overflow on mobile */
+    overflow-x: hidden;
   }
 
   body {

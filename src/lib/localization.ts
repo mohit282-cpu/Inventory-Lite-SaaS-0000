@@ -316,6 +316,7 @@ export function getBillSummaryDetails(sale: {
   discountValue?: number
   taxableAmount?: number
   tax?: number
+  vatAmount?: number
   vatEnabled?: boolean
   vatRate?: number
   taxRate?: number
@@ -360,7 +361,7 @@ export function getBillSummaryDetails(sale: {
   const discountFormatted = `- Rs. ${formatNPR(discountAmount, false)}`
 
   // Determine VAT status
-  const vatAmount = sale.tax || 0
+  const vatAmount = sale.vatAmount ?? sale.tax ?? 0
 
   let showVat = false
   if (sale.vatEnabled !== undefined) {

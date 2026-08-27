@@ -25,7 +25,7 @@ export function ReconciliationReport({
 }: ReconciliationReportProps) {
   const grossTotal = sales.reduce((sum, s) => sum + (s.subtotal || 0), 0)
   const discountTotal = sales.reduce((sum, s) => sum + (s.discount || 0), 0)
-  const vatTotal = sales.reduce((sum, s) => sum + (s.tax || 0), 0)
+    const vatTotal = sales.reduce((sum, s) => sum + (s.vatAmount || 0), 0)
 
   return (
     <Card className="col-span-1 md:col-span-2 border border-slate-200 shadow-xs rounded-xl">

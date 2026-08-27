@@ -2,21 +2,54 @@
 
 import { useLanguage } from '@/context/language-context'
 import { Button } from '@/components/ui/button'
-import { Check, Crown, Zap } from 'lucide-react'
+import { Check, Crown } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/ui/whatsapp-icon'
 
-function getWhatsAppUrl(planLabel: string): string {
-  const msg = `Hello, I am interested in Inventory Lite. I would like to subscribe to the ${planLabel} plan. Please provide me with the account setup and payment details.`
+function getWhatsAppUrl(planLabel: string, price: string): string {
+  const msg = `Hello, I want Inventory Lite \u2013 ${planLabel} Plan (NPR ${price}). Please provide me with the account setup and payment details.`
   return `https://wa.me/9779805330808?text=${encodeURIComponent(msg)}`
 }
 
 const PLANS = [
-  { key: 'monthly' as const, price: '699', priceSuffix: 'NPR', period: 'perMonth' as const, billNote: 'billedMonthly' as const, badge: null },
-  { key: 'sixMonth' as const, price: '4,194', priceSuffix: 'NPR', period: 'perSixMonth' as const, billNote: 'billedSixMonth' as const, badge: 'bestValue' as const },
-  { key: 'yearly' as const, price: '7,689', priceSuffix: 'NPR', period: 'perYear' as const, billNote: 'billedYearly' as const, badge: 'mostSavings' as const },
+  {
+    key: 'monthly' as const,
+    price: '699',
+    effectiveMonthly: null as string | null,
+    regularPrice: null as string | null,
+    savings: null as string | null,
+    badge: null as string | null,
+  },
+  {
+    key: 'sixMonth' as const,
+    price: '3,999',
+    effectiveMonthly: '666.50',
+    regularPrice: '4,194',
+    savings: '195',
+    badge: null as string | null,
+  },
+  {
+    key: 'yearly' as const,
+    price: '7,599',
+    effectiveMonthly: '633.25',
+    regularPrice: '8,388',
+    savings: '789',
+    badge: 'bestValue' as const,
+  },
 ] as const
 
 const FEATURES = ['allFeaturesIncluded', 'oneStore', 'regularUpdates', 'prioritySupport'] as const
+
+const CTA_KEYS = {
+  monthly: 'pricing.getMonthlyPlan',
+  sixMonth: 'pricing.getSixMonthPlan',
+  yearly: 'pricing.getYearlyPlan',
+} as const
+
+const PERIOD_KEYS = {
+  monthly: 'pricing.periodMonthly',
+  sixMonth: 'pricing.periodSixMonth',
+  yearly: 'pricing.periodYearly',
+} as const
 
 export function LandingPricing() {
   const { t } = useLanguage()
@@ -37,6 +70,8 @@ export function LandingPricing() {
           {PLANS.map((plan) => {
             const isHighlighted = plan.badge !== null
             const isAnnual = plan.key === 'yearly'
+            const periodKey = PERIOD_KEYS[plan.key]
+            const ctaKey = CTA_KEYS[plan.key]
             return (
               <div
                 key={plan.key}
@@ -50,18 +85,8 @@ export function LandingPricing() {
               >
                 {plan.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-white shadow-sm ${
-                        plan.badge === 'bestValue'
-                          ? 'bg-indigo-600'
-                          : 'bg-emerald-600'
-                      }`}
-                    >
-                      {plan.badge === 'bestValue' ? (
-                        <Crown className="h-3 w-3" />
-                      ) : (
-                        <Zap className="h-3 w-3" />
-                      )}
+                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
+                      <Crown className="h-3 w-3" />
                       {t(`pricing.${plan.badge}`)}
                     </span>
                   </div>
@@ -74,23 +99,38 @@ export function LandingPricing() {
                 </div>
 
                 <div className="mb-4 sm:mb-6">
+                  {plan.regularPrice && (
+                    <p className="text-[11px] sm:text-xs text-slate-400">
+                      <span className="line-through">NPR {plan.regularPrice}</span>
+                    </p>
+                  )}
+
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-[11px] sm:text-xs font-bold text-slate-500">{plan.priceSuffix}</span>
+                    <span className="text-[11px] sm:text-xs font-bold text-slate-500">NPR</span>
                     <span className="text-[2rem] sm:text-4xl lg:text-5xl font-extrabold font-mono text-slate-900 leading-none">
                       {plan.price}
                     </span>
                   </div>
+
                   <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-1.5">
-                    {t(`pricing.${plan.period}`)}
+                    {t(periodKey)}
                   </p>
-                  <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
-                    {t(`pricing.${plan.billNote}`)}
-                  </p>
-                  {isAnnual && (
+
+                  {plan.savings && (
                     <span className="inline-block mt-2 text-[11px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 sm:px-2.5 py-0.5 rounded-full">
-                      {t('pricing.yearlySavings')}
+                      {t('pricing.saveNpr')} NPR {plan.savings}
                     </span>
                   )}
+
+                  {plan.effectiveMonthly && (
+                    <p className="text-xs sm:text-sm font-bold text-indigo-700 mt-2">
+                      {t('pricing.only')} NPR {plan.effectiveMonthly}{t('pricing.perMonth')}
+                    </p>
+                  )}
+
+                  <p className="text-[11px] sm:text-xs text-slate-400 mt-2">
+                    {t(`pricing.${plan.key === 'monthly' ? 'billedMonthly' : plan.key === 'sixMonth' ? 'billedSixMonth' : 'billedYearly'}`)}
+                  </p>
                 </div>
 
                 <ul className="space-y-2.5 mb-5 sm:mb-6 flex-1">
@@ -120,12 +160,12 @@ export function LandingPricing() {
                   }`}
                 >
                   <a
-                    href={getWhatsAppUrl(t(`pricing.${plan.key}`))}
+                    href={getWhatsAppUrl(t(`pricing.${plan.key}`), plan.price)}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     <WhatsAppIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 shrink-0" />
-                    {t('pricing.startFree')}
+                    {t(ctaKey)}
                   </a>
                 </Button>
               </div>

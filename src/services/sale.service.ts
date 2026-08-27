@@ -194,7 +194,7 @@ export class SaleService extends BaseService {
             discountType: data.discountType || (data.discountValue ? 'percentage' : 'fixed'),
             discountValue: data.discountValue ?? totals.overallDiscount,
             taxableAmount: totals.taxableAmount,
-            tax: totals.taxAmount,
+            vatAmount: totals.taxAmount,
             vatEnabled: isVatOn,
             vatRate: isVatOn ? (data.taxRate ?? 13) : 0,
             taxRate: isVatOn ? (data.taxRate ?? 13) : 0,

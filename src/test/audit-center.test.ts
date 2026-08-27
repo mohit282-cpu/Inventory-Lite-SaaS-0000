@@ -154,4 +154,20 @@ describe('Audit & Compliance Center Tests', () => {
     expect(checkRolePermission('auditor', 'products:manage')).toBe(false)
     expect(checkRolePermission('auditor', 'settings:manage')).toBe(false)
   })
+
+  it('7. VAT output/input reads from vatAmount field on Sale and Purchase (regression)', async () => {
+    vi.mocked(saleService.listAllSales).mockResolvedValueOnce([
+      { $id: 'sale_vat_reg', total: 1130, vatAmount: 130, paidAmount: 1130, status: 'completed', createdAt: '2026-08-20T10:00:00Z' } as any,
+    ])
+    vi.mocked(purchaseService.listAllPurchases).mockResolvedValueOnce([
+      { $id: 'purch_vat_reg', total: 565, vatAmount: 65, paidAmount: 565, createdAt: '2026-08-15T10:00:00Z' } as any,
+    ])
+    vi.mocked(salesReturnService.listAllSalesReturns).mockResolvedValueOnce([])
+
+    const kpis = await auditCenterService.getAuditOverviewKPIs(mockBusinessId)
+
+    expect(kpis.outputVat).toBe(130)
+    expect(kpis.inputVat).toBe(65)
+    expect(kpis.netVatPosition).toBe(65)
+  })
 })

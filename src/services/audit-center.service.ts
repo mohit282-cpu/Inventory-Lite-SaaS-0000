@@ -368,8 +368,8 @@ export class AuditCenterService {
       totalSalesCount += 1
       totalSales += sale.total || 0
 
-      // Output VAT: use stored tax field on sale record (computed at sale creation)
-      outputVat += sale.tax || 0
+      // Output VAT: use stored vatAmount field on sale record (computed at sale creation)
+      outputVat += sale.vatAmount || 0
 
       // WAC COGS computation from sale items
       const items = saleItemsBySale.get(sale.$id) || []
@@ -390,12 +390,12 @@ export class AuditCenterService {
       if ((purch as any).status === 'cancelled') continue
       totalPurchaseCount += 1
       totalPurchases += purch.total || 0
-      inputVat += purch.tax || 0
+      inputVat += purch.vatAmount || 0
     }
 
     let salesReturnsAmount = 0
     for (const ret of filteredReturns) {
-      salesReturnsAmount += ret.totalAmount || 0
+      salesReturnsAmount += ret.totalRefund || 0
     }
 
     const purchaseReturns = 0
@@ -496,7 +496,7 @@ export class AuditCenterService {
 
       const discount = s.discount || 0
       const taxableAmount = s.taxableAmount || Math.max(0, (s.subtotal || 0) - discount)
-      const vat = s.tax || 0
+      const vat = s.vatAmount || 0
 
       let paymentStatus = 'UNPAID'
       if (s.status === 'cancelled') {
@@ -582,7 +582,7 @@ export class AuditCenterService {
 
       const discount = p.discount || 0
       const taxableAmount = p.subtotal ? Math.max(0, p.subtotal - discount) : 0
-      const vat = p.tax || 0
+      const vat = p.vatAmount || 0
 
       let paymentStatus = 'UNPAID'
       if (p.status === 'cancelled') {
@@ -671,7 +671,7 @@ export class AuditCenterService {
 
       const invoicesTotal = custSales.reduce((sum, s) => sum + (s.total || 0), 0)
       const paymentsTotal = custSales.reduce((sum, s) => sum + (s.paidAmount || 0), 0)
-      const returnsTotal = custReturns.reduce((sum, r) => sum + (r.totalAmount || 0), 0)
+      const returnsTotal = custReturns.reduce((sum, r) => sum + (r.totalRefund || 0), 0)
 
       const netReceivableP = toMinorUnits(invoicesTotal) - toMinorUnits(paymentsTotal) - toMinorUnits(returnsTotal)
       let closingBalance = 0
@@ -1049,7 +1049,7 @@ export class AuditCenterService {
       originalDocumentNumber: r.returnNumber || formatHumanInvoiceNumber(r.saleId || r.$id),
       date: r.createdAt ? r.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
       type: 'SALES_RETURN' as const,
-      amount: r.totalAmount || 0,
+      amount: r.totalRefund || 0,
       reason: r.reason || 'Customer Return',
       user: r.createdBy || 'System',
       timestamp: r.createdAt || new Date().toISOString(),

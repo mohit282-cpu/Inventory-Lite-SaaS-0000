@@ -241,4 +241,39 @@ describe('Feature 4 — Bill Cancellation / Void Tests', () => {
       saleService.cancelSale(saleResult.sale.$id, businessId, userOwner, 'Second cancellation')
     ).rejects.toThrow(/already been cancelled/)
   })
+
+  it('5. Should handle cancellation of zero-paid (Udhaar) sale without crashing on payment reversal', async () => {
+    const saleResult = await saleService.createSale(
+      {
+        customerId,
+        items: [{ productId: prodId, quantity: 2, unitPrice: 300 }],
+        paidAmount: 0,
+        paymentMethod: 'full_udhaar',
+        vatEnabled: false,
+      },
+      businessId,
+      userOwner
+    )
+
+    const sale = saleResult.sale
+    expect(sale.paidAmount).toBe(0)
+    expect(sale.dueAmount).toBe(600)
+
+    let customer = await customerService.getCustomer(customerId, businessId)
+    expect(customer.totalDue).toBe(600)
+
+    const success = await saleService.cancelSale(
+      sale.$id,
+      businessId,
+      userOwner,
+      'Udhaar order cancelled by customer'
+    )
+    expect(success).toBe(true)
+
+    const cancelledSale = await saleService.getSale(sale.$id, businessId)
+    expect(cancelledSale.status).toBe('cancelled')
+
+    customer = await customerService.getCustomer(customerId, businessId)
+    expect(customer.totalDue).toBe(0)
+  })
 })

@@ -65,7 +65,7 @@ export function SimpleReportView({
   const customersWithDues = customers.filter((c) => (c.totalDue || 0) > 0)
 
   const discountTotal = sales.reduce((sum, s) => sum + (s.discount || 0), 0)
-  const vatTotal = sales.reduce((sum, s) => sum + (s.tax || 0), 0)
+    const vatTotal = sales.reduce((sum, s) => sum + (s.vatAmount || 0), 0)
   const collectedTotal = sales.reduce((sum, s) => sum + (s.paidAmount || 0), 0)
   const outstandingTotal = sales.reduce((sum, s) => sum + (s.dueAmount || 0), 0)
   const grossSales = sales.reduce((sum, s) => sum + (s.subtotal || 0), 0)

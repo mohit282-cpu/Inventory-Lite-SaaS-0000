@@ -181,7 +181,7 @@ export class SalesReturnService extends BaseService {
           subtotal: fromMinorUnits(totalReturnAmountP),
           discount: 0,
           tax: 0,
-          totalAmount: fromMinorUnits(totalReturnAmountP),
+          totalRefund: fromMinorUnits(totalReturnAmountP),
           reason: data.reason.trim(),
           refundMethod: data.refundMethod || 'cash',
           createdBy: userId,
@@ -232,7 +232,7 @@ export class SalesReturnService extends BaseService {
           await auditLogService.logEvent(businessId, userId, 'sales_return_created', salesReturn.$id, {
             returnNumber: salesReturn.returnNumber,
             saleId: data.saleId,
-            totalAmount: salesReturn.totalAmount,
+            totalRefund: salesReturn.totalRefund,
             reason: salesReturn.reason,
           })
         } catch {}

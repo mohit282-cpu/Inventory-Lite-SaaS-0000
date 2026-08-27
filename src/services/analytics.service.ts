@@ -356,7 +356,7 @@ export class AnalyticsService {
     let returnedCogs = 0
 
     for (const ret of returns) {
-      totalSalesReturns += ret.totalAmount || 0
+      totalSalesReturns += ret.totalRefund || 0
 
       try {
         const { salesReturnItemService } = await import('./sales-return.service')

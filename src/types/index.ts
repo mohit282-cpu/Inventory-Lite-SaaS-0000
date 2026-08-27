@@ -186,7 +186,7 @@ export interface Sale extends Models.Document {
   discountType?: 'percentage' | 'fixed' | 'amount'
   discountValue?: number
   taxableAmount?: number
-  tax: number
+  vatAmount: number
   vatEnabled?: boolean
   vatRate?: number
   taxRate?: number
@@ -359,7 +359,7 @@ export interface Purchase extends Models.Document {
   purchaseDate: string
   subtotal: number
   discount: number
-  tax: number
+  vatAmount: number
   total: number
   paidAmount: number
   dueAmount: number
@@ -414,7 +414,7 @@ export interface SalesReturn extends Models.Document {
   subtotal: number
   discount: number
   tax: number
-  totalAmount: number
+  totalRefund: number
   reason: string
   refundMethod: 'cash' | 'credit_adjustment' | 'bank_transfer' | 'digital_wallet' | 'other'
   createdBy: string
