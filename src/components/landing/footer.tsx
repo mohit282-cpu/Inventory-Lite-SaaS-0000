@@ -5,10 +5,18 @@ import { useLanguage } from '@/context/language-context'
 import { AppLogo } from '@/components/ui/app-logo'
 import { WhatsAppIcon } from '@/components/ui/whatsapp-icon'
 
-const WHATSAPP_URL = "https://wa.me/9779805330808?text=Hello%2C%20I%27m%20interested%20in%20Inventory%20Lite%20for%20my%20business.%20I%20would%20like%20to%20know%20more%20about%20the%20software%20and%20how%20I%20can%20get%20an%20account."
+const WHATSAPP_NUMBER = "9779805330808"
+const WHATSAPP_MSG_EN = "Hello, I want to know more about Inventory Lite and get an account for my business."
+const WHATSAPP_MSG_NE = "नमस्कार, मलाई Inventory Lite बारे जानकारी चाहिएको छ र मेरो व्यवसायका लागि account बनाउन चाहन्छु।"
+
+function getWhatsAppUrl(lang: string) {
+  const msg = lang === 'ne' ? WHATSAPP_MSG_NE : WHATSAPP_MSG_EN
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
 
 export function LandingFooter() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const whatsappUrl = getWhatsAppUrl(language)
 
   return (
     <footer className="bg-slate-950 border-t border-slate-800 text-slate-400 text-sm py-10 sm:py-14" role="contentinfo">
@@ -26,7 +34,7 @@ export function LandingFooter() {
             {/* Desktop WhatsApp CTA */}
             <div className="hidden md:block">
               <a
-                href={WHATSAPP_URL}
+                href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-lg shadow-md transition-colors text-sm min-h-[44px]"
@@ -57,7 +65,7 @@ export function LandingFooter() {
               </h4>
               <ul className="space-y-2.5">
                 <li>
-                  <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="text-xs sm:text-sm text-slate-400 hover:text-white transition-colors inline-flex items-center gap-1.5">
+                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="text-xs sm:text-sm text-slate-400 hover:text-white transition-colors inline-flex items-center gap-1.5">
                     <WhatsAppIcon className="h-3.5 w-3.5 shrink-0" />
                     {t('footer.whatsapp')}
                   </a>

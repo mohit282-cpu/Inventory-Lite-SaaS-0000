@@ -5,9 +5,16 @@ import { Button } from '@/components/ui/button'
 import { Check, Crown } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/ui/whatsapp-icon'
 
-function getWhatsAppUrl(planLabel: string): string {
-  const msg = `Hello, I want the Inventory Lite ${planLabel} Plan.`
-  return `https://wa.me/9779805330808?text=${encodeURIComponent(msg)}`
+const WHATSAPP_NUMBER = "9779805330808"
+
+function getWhatsAppUrl(planLabel: string, lang: string): string {
+  let msg: string
+  if (lang === 'ne') {
+    msg = `नमस्कार, मलाई Inventory Lite को ${planLabel} योजनामा रुचि छ। कृपया थप जानकारी दिनुहोस्।`
+  } else {
+    msg = `Hello, I am interested in the Inventory Lite ${planLabel} plan. Please provide more information.`
+  }
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
 }
 
 const PLANS = [
@@ -55,7 +62,7 @@ const PERIOD_KEYS = {
 } as const
 
 export function LandingPricing() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
 
   return (
     <section id="pricing" className="py-10 sm:py-16 lg:py-20 bg-slate-50 text-slate-900 border-b border-slate-200">
@@ -171,7 +178,7 @@ export function LandingPricing() {
                   }`}
                 >
                   <a
-                    href={getWhatsAppUrl(t(`pricing.${plan.key}`))}
+                    href={getWhatsAppUrl(t(`pricing.${plan.key}`), language)}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

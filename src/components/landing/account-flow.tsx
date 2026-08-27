@@ -10,10 +10,18 @@ import {
 } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/ui/whatsapp-icon'
 
-const WHATSAPP_URL = "https://wa.me/9779805330808?text=Hello%2C%20I%27m%20interested%20in%20Inventory%20Lite%20for%20my%20business.%20I%20would%20like%20to%20know%20more%20about%20the%20software%20and%20how%20I%20can%20get%20an%20account."
+const WHATSAPP_NUMBER = "9779805330808"
+const WHATSAPP_MSG_EN = "Hello, I want to know more about Inventory Lite and get an account for my business."
+const WHATSAPP_MSG_NE = "नमस्कार, मलाई Inventory Lite बारे जानकारी चाहिएको छ र मेरो व्यवसायका लागि account बनाउन चाहन्छु।"
+
+function getWhatsAppUrl(lang: string) {
+  const msg = lang === 'ne' ? WHATSAPP_MSG_NE : WHATSAPP_MSG_EN
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
 
 export function LandingAccountFlow() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const whatsappUrl = getWhatsAppUrl(language)
 
   const steps = [
     { icon: MessageSquare, title: t('accountFlow.step1Title'), desc: t('accountFlow.step1Desc') },
@@ -67,7 +75,7 @@ export function LandingAccountFlow() {
 
         <div className="flex justify-center pt-1 sm:pt-2">
           <a
-            href={WHATSAPP_URL}
+            href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 sm:px-6 py-3 rounded-lg shadow-md transition-colors text-sm sm:text-base min-h-[48px]"

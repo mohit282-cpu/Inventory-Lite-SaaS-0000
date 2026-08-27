@@ -17,11 +17,19 @@ import {
 } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/ui/whatsapp-icon'
 
-const WHATSAPP_URL = "https://wa.me/9779805330808?text=Hello%2C%20I%27m%20interested%20in%20Inventory%20Lite%20for%20my%20business.%20I%20would%20like%20to%20know%20more%20about%20the%20software%20and%20how%20I%20can%20get%20an%20account."
+const WHATSAPP_NUMBER = "9779805330808"
+const WHATSAPP_MSG_EN = "Hello, I want to know more about Inventory Lite and get an account for my business."
+const WHATSAPP_MSG_NE = "नमस्कार, मलाई Inventory Lite बारे जानकारी चाहिएको छ र मेरो व्यवसायका लागि account बनाउन चाहन्छु।"
+
+function getWhatsAppUrl(lang: string) {
+  const msg = lang === 'ne' ? WHATSAPP_MSG_NE : WHATSAPP_MSG_EN
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
 
 export function LandingHero() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [imgError, setImgError] = useState(false)
+  const whatsappUrl = getWhatsAppUrl(language)
 
   return (
     <section className="relative py-8 sm:py-14 lg:py-20 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b border-slate-200 overflow-hidden">
@@ -49,7 +57,7 @@ export function LandingHero() {
                 size="lg"
                 className="h-12 sm:h-13 px-6 sm:px-7 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-sm sm:text-base lg:text-lg"
               >
-                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                   <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0" />
                   {t('hero.startFree')}
                 </a>

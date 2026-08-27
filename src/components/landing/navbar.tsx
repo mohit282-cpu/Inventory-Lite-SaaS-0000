@@ -10,12 +10,20 @@ import { AppLogo } from '@/components/ui/app-logo'
 import { LanguageSwitcher } from '@/components/ui/language-switcher'
 import { WhatsAppIcon } from '@/components/ui/whatsapp-icon'
 
-const WHATSAPP_URL = "https://wa.me/9779805330808?text=Hello%2C%20I%27m%20interested%20in%20Inventory%20Lite%20for%20my%20business.%20I%20would%20like%20to%20know%20more%20about%20the%20software%20and%20how%20I%20can%20get%20an%20account."
+const WHATSAPP_NUMBER = "9779805330808"
+const WHATSAPP_MSG_EN = "Hello, I want to know more about Inventory Lite and get an account for my business."
+const WHATSAPP_MSG_NE = "नमस्कार, मलाई Inventory Lite बारे जानकारी चाहिएको छ र मेरो व्यवसायका लागि account बनाउन चाहन्छु।"
+
+function getWhatsAppUrl(lang: string) {
+  const msg = lang === 'ne' ? WHATSAPP_MSG_NE : WHATSAPP_MSG_EN
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
 
 export function LandingNavbar() {
   const { user, activeBusiness, memberships } = useAuth()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const whatsappUrl = getWhatsAppUrl(language)
 
   const hasPortalAccess = !!user
 
@@ -79,7 +87,7 @@ export function LandingNavbar() {
                 asChild
                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm text-xs sm:text-sm"
               >
-                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                   <WhatsAppIcon className="h-4 w-4 mr-1.5 shrink-0" />
                   {t('nav.startFree')}
                 </a>
@@ -92,7 +100,7 @@ export function LandingNavbar() {
         <div className="flex md:hidden items-center gap-1.5">
           {!hasPortalAccess && (
             <a
-              href={WHATSAPP_URL}
+              href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center h-10 w-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
@@ -179,7 +187,7 @@ export function LandingNavbar() {
                   asChild
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold min-h-[44px]"
                 >
-                  <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                     <WhatsAppIcon className="h-4 w-4 mr-1.5 shrink-0" />
                     {t('nav.startFree')}
                   </a>
