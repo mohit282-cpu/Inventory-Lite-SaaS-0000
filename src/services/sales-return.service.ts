@@ -237,6 +237,26 @@ export class SalesReturnService extends BaseService {
           })
         } catch {}
 
+        // Create accounting journal entry (non-blocking hook)
+        try {
+          const { hookSalesReturnJournalEntry } = await import('@/lib/accounting-hooks')
+          await hookSalesReturnJournalEntry({
+            businessId,
+            userId,
+            returnId: salesReturn.$id,
+            returnNumber: salesReturn.returnNumber,
+            saleId: data.saleId,
+            saleNumber: sale.saleNumber || sale.$id,
+            date: new Date().toISOString().split('T')[0],
+            refundMethod: data.refundMethod || 'cash',
+            subtotal: salesReturn.subtotal,
+            taxAmount: salesReturn.tax,
+            totalRefund: salesReturn.totalRefund,
+          })
+        } catch {
+          // Non-critical — accounting hook failure should not break sales return
+        }
+
         return { salesReturn, items: createdReturnItems }
       }
     )

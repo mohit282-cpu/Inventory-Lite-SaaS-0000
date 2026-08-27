@@ -53,6 +53,16 @@ export abstract class BaseService {
       'credit_notes',
       'debit_notes',
       'store_assets',
+      'accounts',
+      'journal_entries',
+      'journal_lines',
+      'fiscal_years',
+      'accounting_periods',
+      'tax_rates',
+      'tax_categories',
+      'tax_transactions',
+      'cbms_submissions',
+      'audit_logs',
     ])
 
     const collectionsWithCreatedAt = new Set<string>([
@@ -76,6 +86,16 @@ export abstract class BaseService {
       'credit_notes',
       'debit_notes',
       'store_assets',
+      'accounts',
+      'journal_entries',
+      'journal_lines',
+      'fiscal_years',
+      'accounting_periods',
+      'tax_rates',
+      'tax_categories',
+      'tax_transactions',
+      'cbms_submissions',
+      'audit_logs',
     ])
 
     const documentData: any = {

@@ -299,6 +299,27 @@ export class SaleService extends BaseService {
           } catch {}
         }
 
+        // 9. Create accounting journal entry (non-blocking hook)
+        try {
+          const { hookSaleJournalEntry } = await import('@/lib/accounting-hooks')
+          await hookSaleJournalEntry({
+            businessId,
+            userId,
+            saleId: sale.$id,
+            saleNumber: sale.saleNumber || sale.$id,
+            date: new Date().toISOString().split('T')[0],
+            paymentMethod: data.paymentMethod,
+            subtotal: totals.subtotal,
+            taxAmount: totals.taxAmount,
+            total: totals.total,
+            paidAmount: totals.paidAmount,
+            dueAmount: totals.dueAmount,
+            vatEnabled: data.vatEnabled ?? true,
+          })
+        } catch {
+          // Non-critical — accounting hook failure should not break sale
+        }
+
         return {
           sale: { ...sale, changeAmount: totals.changeAmount },
           items: createdItems,

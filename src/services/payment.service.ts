@@ -161,6 +161,23 @@ export class PaymentService extends BaseService {
           await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
         }
 
+        // Create accounting journal entry (non-blocking hook)
+        try {
+          const { hookPaymentReceivedJournalEntry } = await import('@/lib/accounting-hooks')
+          await hookPaymentReceivedJournalEntry({
+            businessId,
+            userId,
+            paymentId: paymentDoc.$id,
+            saleId: data.saleId,
+            saleNumber: sale.saleNumber || sale.$id,
+            date: pDate.split('T')[0],
+            paymentMethod: data.paymentMethod,
+            amount: fromMinorUnits(paymentPaisa),
+          })
+        } catch {
+          // Non-critical — accounting hook failure should not break payment
+        }
+
         return paymentDoc
       }
     )

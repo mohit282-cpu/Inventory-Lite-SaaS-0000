@@ -1,6 +1,6 @@
 import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
-import { Invoice, Sale, SaleItem, Customer, Business } from '@/types'
+import { Invoice, InvoiceStatus, Sale, SaleItem, Customer, Business } from '@/types'
 import { Query } from 'appwrite'
 import { saleService } from './sale.service'
 import { saleItemService } from './sale-item.service'
@@ -211,6 +211,166 @@ export class InvoiceService extends BaseService {
    */
   async updatePdfUrl(invoiceId: string, pdfUrl: string, businessId: string): Promise<Invoice> {
     return await this.update<Invoice>(invoiceId, { pdfUrl }, businessId)
+  }
+
+  // ==================== Invoice Lifecycle ====================
+
+  /**
+   * Transition: DRAFT → VALIDATED
+   * Validates that the invoice has all required fields and the linked sale is complete.
+   */
+  async validateInvoice(invoiceId: string, businessId: string, _userId: string): Promise<Invoice> {
+    const invoice = await this.getById<Invoice>(invoiceId, businessId)
+
+    if (invoice.status !== 'DRAFT') {
+      throw new Error(`Cannot validate invoice in '${invoice.status}' status. Only DRAFT invoices can be validated.`)
+    }
+
+    // Verify linked sale exists and is completed
+    const sale = await saleService.getSale(invoice.saleId, businessId)
+    if (!sale) {
+      throw new Error('Linked sale not found for invoice validation')
+    }
+    if (sale.status === 'cancelled') {
+      throw new Error('Cannot validate invoice for a cancelled sale')
+    }
+
+    // Verify invoice number exists
+    if (!invoice.invoiceNumber) {
+      throw new Error('Invoice must have a valid invoice number')
+    }
+
+    return await this.update<Invoice>(
+      invoiceId,
+      {
+        status: 'VALIDATED' as InvoiceStatus,
+        validatedAt: new Date().toISOString(),
+      },
+      businessId
+    )
+  }
+
+  /**
+   * Transition: VALIDATED → ISSUED
+   * Marks the invoice as officially issued and ready for CBMS submission.
+   */
+  async issueInvoice(invoiceId: string, businessId: string, _userId: string): Promise<Invoice> {
+    const invoice = await this.getById<Invoice>(invoiceId, businessId)
+
+    if (invoice.status !== 'VALIDATED') {
+      throw new Error(`Cannot issue invoice in '${invoice.status}' status. Only VALIDATED invoices can be issued.`)
+    }
+
+    return await this.update<Invoice>(
+      invoiceId,
+      {
+        status: 'ISSUED' as InvoiceStatus,
+        issuedAt: new Date().toISOString(),
+      },
+      businessId
+    )
+  }
+
+  /**
+   * Transition: ISSUED → LOCKED
+   * Locks the invoice permanently for fiscal compliance. Locked invoices cannot be modified.
+   */
+  async lockInvoice(invoiceId: string, businessId: string, _userId: string): Promise<Invoice> {
+    const invoice = await this.getById<Invoice>(invoiceId, businessId)
+
+    if (invoice.status !== 'ISSUED') {
+      throw new Error(`Cannot lock invoice in '${invoice.status}' status. Only ISSUED invoices can be locked.`)
+    }
+
+    return await this.update<Invoice>(
+      invoiceId,
+      {
+        status: 'LOCKED' as InvoiceStatus,
+        lockedAt: new Date().toISOString(),
+      },
+      businessId
+    )
+  }
+
+  /**
+   * Transition: any active status → VOIDED
+   * Voids an invoice. Cannot void locked invoices.
+   */
+  async voidInvoice(
+    invoiceId: string,
+    businessId: string,
+    userId: string,
+    reason: string
+  ): Promise<Invoice> {
+    const invoice = await this.getById<Invoice>(invoiceId, businessId)
+
+    if (invoice.status === 'VOIDED') {
+      throw new Error('Invoice is already voided')
+    }
+    if (invoice.status === 'LOCKED') {
+      throw new Error('Cannot void a locked invoice. Locked invoices are permanent for fiscal compliance.')
+    }
+    if (!reason || reason.trim().length === 0) {
+      throw new Error('Void reason is required')
+    }
+
+    return await this.update<Invoice>(
+      invoiceId,
+      {
+        status: 'VOIDED' as InvoiceStatus,
+        voidedAt: new Date().toISOString(),
+        voidedBy: userId,
+        voidReason: reason.trim(),
+      },
+      businessId
+    )
+  }
+
+  /**
+   * Bulk validate and issue invoices (e.g., for batch CBMS submission).
+   */
+  async bulkValidateAndIssue(
+    invoiceIds: string[],
+    businessId: string,
+    userId: string
+  ): Promise<{ succeeded: string[]; failed: Array<{ id: string; error: string }> }> {
+    const succeeded: string[] = []
+    const failed: Array<{ id: string; error: string }> = []
+
+    for (const id of invoiceIds) {
+      try {
+        let invoice = await this.getById<Invoice>(id, businessId)
+        if (invoice.status === 'DRAFT') {
+          invoice = await this.validateInvoice(id, businessId, userId)
+        }
+        if (invoice.status === 'VALIDATED') {
+          await this.issueInvoice(id, businessId, userId)
+        }
+        succeeded.push(id)
+      } catch (err: any) {
+        failed.push({ id, error: err?.message || 'Unknown error' })
+      }
+    }
+
+    return { succeeded, failed }
+  }
+
+  /**
+   * List invoices by status.
+   */
+  async listInvoicesByStatus(businessId: string, status: InvoiceStatus): Promise<Invoice[]> {
+    return await this.list<Invoice>(businessId, [
+      Query.equal('status', status),
+      Query.orderDesc('createdAt'),
+    ])
+  }
+
+  /**
+   * Check if invoice is in a locked state (immutable).
+   */
+  async isInvoiceLocked(invoiceId: string, businessId: string): Promise<boolean> {
+    const invoice = await this.getById<Invoice>(invoiceId, businessId)
+    return invoice.status === 'LOCKED'
   }
 }
 

@@ -43,6 +43,20 @@ export const COLLECTIONS = {
   CREDIT_NOTES: 'credit_notes',
   DEBIT_NOTES: 'debit_notes',
   STORE_ASSETS: 'store_assets',
+  ACCOUNTS: 'accounts',
+  JOURNAL_ENTRIES: 'journal_entries',
+  JOURNAL_LINES: 'journal_lines',
+  FISCAL_YEARS: 'fiscal_years',
+  ACCOUNTING_PERIODS: 'accounting_periods',
+  TAX_RATES: 'tax_rates',
+  TAX_CATEGORIES: 'tax_categories',
+  TAX_TRANSACTIONS: 'tax_transactions',
+  CBMS_SUBMISSIONS: 'cbms_submissions',
+  AUDIT_LOGS: 'audit_logs',
+  RATE_LIMITS: 'rate_limits',
+  USER_PREFERENCES: 'user_preferences',
+  BUSINESS_ASSETS: 'business_assets',
+  BUSINESS_ONBOARDING: 'business_onboarding',
 } as const
 
 // Storage Bucket IDs

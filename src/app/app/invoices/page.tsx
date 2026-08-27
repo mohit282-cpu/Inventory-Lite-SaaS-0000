@@ -24,7 +24,7 @@ interface EnrichedInvoice extends Invoice {
   totalAmount: number
   paidAmount: number
   dueAmount: number
-  status: string
+  saleStatus?: string
 }
 
 export default function InvoicesPage() {
@@ -60,7 +60,7 @@ export default function InvoicesPage() {
           totalAmount: linkedSale?.total || 0,
           paidAmount: linkedSale?.paidAmount || 0,
           dueAmount: linkedSale?.dueAmount || 0,
-          status: linkedSale?.status || 'completed',
+          saleStatus: linkedSale?.status || 'completed',
         }
       })
 
@@ -142,7 +142,7 @@ export default function InvoicesPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (item) => <StatusBadge status={item.status} />,
+      render: (item) => <StatusBadge status={item.saleStatus || item.status} />,
     },
     {
       key: 'issueDate',

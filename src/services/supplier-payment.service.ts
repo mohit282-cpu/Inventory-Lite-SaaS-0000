@@ -112,6 +112,22 @@ await supplierService.updateBalances(data.supplierId, 0, fromMinorUnits(paymentP
           })
         } catch { }
 
+        // Create accounting journal entry (non-blocking hook)
+        try {
+          const { hookSupplierPaymentJournalEntry } = await import('@/lib/accounting-hooks')
+          await hookSupplierPaymentJournalEntry({
+            businessId,
+            userId,
+            paymentId: paymentDoc.$id,
+            supplierId: data.supplierId,
+            date: data.paymentDate || new Date().toISOString().split('T')[0],
+            paymentMethod: data.paymentMethod,
+            amount: fromMinorUnits(paymentPaisa),
+          })
+        } catch {
+          // Non-critical — accounting hook failure should not break supplier payment
+        }
+
         return paymentDoc
       }
     )

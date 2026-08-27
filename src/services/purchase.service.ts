@@ -229,6 +229,26 @@ export class PurchaseService extends BaseService {
           })
         } catch { }
 
+        // Create accounting journal entry (non-blocking hook)
+        try {
+          const { hookPurchaseJournalEntry } = await import('@/lib/accounting-hooks')
+          await hookPurchaseJournalEntry({
+            businessId,
+            userId,
+            purchaseId: purchase.$id,
+            purchaseNumber: purchase.purchaseNumber,
+            date: purchase.purchaseDate,
+            paymentMethod: data.paymentMethod,
+            subtotal: purchase.subtotal,
+            taxAmount: purchase.vatAmount,
+            total: purchase.total,
+            paidAmount: purchase.paidAmount,
+            dueAmount: purchase.dueAmount,
+          })
+        } catch {
+          // Non-critical — accounting hook failure should not break purchase
+        }
+
         return { purchase, items: createdItems }
       }
     )

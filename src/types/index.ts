@@ -217,14 +217,24 @@ export interface SaleItem extends Models.Document {
 
 // ==================== 10. Invoice Entity ====================
 
+export type InvoiceStatus = 'DRAFT' | 'VALIDATED' | 'ISSUED' | 'LOCKED' | 'VOIDED'
+
 export interface Invoice extends Models.Document {
   $id: string
   businessId: string
   saleId: string
   invoiceNumber: string
+  status: InvoiceStatus
   issueDate: string
   dueDate?: string
   pdfUrl?: string
+  validatedAt?: string
+  issuedAt?: string
+  lockedAt?: string
+  voidedAt?: string
+  voidedBy?: string
+  voidReason?: string
+  cbmsSubmissionId?: string
   createdAt: string
 }
 
@@ -568,6 +578,250 @@ export interface InvoiceSequenceAudit {
   gapsDetected: string[]
   duplicatesDetected: string[]
   isSequenceIntact: boolean
+}
+
+// ==================== Accounting Engine Entities ====================
+
+export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense'
+export type AccountSubType =
+  | 'current_asset' | 'fixed_asset' | 'non_current_asset'
+  | 'current_liability' | 'non_current_liability'
+  | 'equity'
+  | 'revenue' | 'other_income'
+  | 'cost_of_goods_sold' | 'operating_expense' | 'non_operating_expense' | 'tax_expense'
+
+export interface Account extends Models.Document {
+  $id: string
+  businessId: string
+  code: string
+  name: string
+  type: AccountType
+  subType: AccountSubType
+  description?: string
+  parentId?: string
+  isActive: boolean
+  isSystem: boolean
+  openingBalance: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AccountInput {
+  code: string
+  name: string
+  type: AccountType
+  subType: AccountSubType
+  description?: string
+  parentId?: string
+  isActive?: boolean
+  isSystem?: boolean
+  openingBalance?: number
+}
+
+export type JournalEntryStatus = 'DRAFT' | 'POSTED' | 'VOIDED' | 'REVERSED'
+export type JournalEntryType = 'standard' | 'auto' | 'adjusting' | 'closing' | 'reversing'
+
+export interface JournalEntry extends Models.Document {
+  $id: string
+  businessId: string
+  entryNumber: string
+  date: string
+  type: JournalEntryType
+  status: JournalEntryStatus
+  description: string
+  referenceType?: string
+  referenceId?: string
+  fiscalYear: string
+  totalDebit: number
+  totalCredit: number
+  isBalanced: boolean
+  postedAt?: string
+  voidedAt?: string
+  voidedBy?: string
+  voidReason?: string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface JournalEntryLine extends Models.Document {
+  $id: string
+  businessId: string
+  journalEntryId: string
+  accountId: string
+  accountCode: string
+  accountName: string
+  debit: number
+  credit: number
+  description?: string
+  createdAt: string
+}
+
+export interface JournalEntryLineInput {
+  accountId: string
+  accountCode: string
+  accountName: string
+  debit: number
+  credit: number
+  description?: string
+}
+
+export interface JournalEntryInput {
+  date: string
+  type?: JournalEntryType
+  description: string
+  referenceType?: string
+  referenceId?: string
+  lines: JournalEntryLineInput[]
+}
+
+// ==================== Fiscal Year & Accounting Period Entities ====================
+
+export type FiscalYearStatus = 'OPEN' | 'CLOSED' | 'LOCKED'
+export type AccountingPeriodStatus = 'OPEN' | 'CLOSED' | 'LOCKED'
+
+export interface FiscalYear extends Models.Document {
+  $id: string
+  businessId: string
+  name: string
+  bsStartYear: number
+  bsEndYear: number
+  isoStartDate: string
+  isoEndDate: string
+  status: FiscalYearStatus
+  closedAt?: string
+  closedBy?: string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AccountingPeriod extends Models.Document {
+  $id: string
+  businessId: string
+  fiscalYearId: string
+  name: string
+  monthNumber: number
+  isoStartDate: string
+  isoEndDate: string
+  status: AccountingPeriodStatus
+  closedAt?: string
+  closedBy?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ==================== Tax Engine Entities ====================
+
+export type TaxCategoryType = 'output_vat' | 'input_vat' | 'withholding_tax' | 'excise' | 'other'
+export type TaxRateStatus = 'ACTIVE' | 'INACTIVE'
+
+export interface TaxCategory extends Models.Document {
+  $id: string
+  businessId: string
+  name: string
+  type: TaxCategoryType
+  description?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TaxRate extends Models.Document {
+  $id: string
+  businessId: string
+  taxCategoryId?: string
+  name: string
+  rate: number
+  type: TaxCategoryType
+  effectiveFrom: string
+  effectiveTo?: string
+  status: TaxRateStatus
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TaxTransaction extends Models.Document {
+  $id: string
+  businessId: string
+  taxRateId: string
+  taxRateName: string
+  taxRateValue: number
+  taxType: TaxCategoryType
+  referenceType: string
+  referenceId: string
+  taxableAmount: number
+  taxAmount: number
+  createdAt: string
+}
+
+// ==================== CBMS / IRD Integration Entities ====================
+
+export type CbmsSubmissionStatus = 'DRAFT' | 'QUEUED' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'FAILED' | 'RETRYING'
+
+export interface CbmsSubmission extends Models.Document {
+  $id: string
+  businessId: string
+  invoiceId: string
+  invoiceNumber: string
+  invoiceDate: string
+  totalAmount: number
+  taxAmount: number
+  customerPan?: string
+  status: CbmsSubmissionStatus
+  externalReference?: string
+  responseCode?: string
+  responseMessage?: string
+  submittedAt?: string
+  acceptedAt?: string
+  rejectedAt?: string
+  retryCount: number
+  lastRetryAt?: string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ==================== Audit Trail Entities ====================
+
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'VOID' | 'REVERSE' | 'APPROVE' | 'REJECT' | 'EXPORT'
+
+export interface AuditLog extends Models.Document {
+  $id: string
+  businessId: string
+  entityType: string
+  entityId: string
+  entityNumber?: string
+  action: AuditAction
+  changes?: string
+  performedBy: string
+  performedByName?: string
+  ipAddress?: string
+  createdAt: string
+}
+
+// ==================== Enhanced Financial Reports ====================
+
+export interface TrialBalanceRow {
+  accountCode: string
+  accountName: string
+  accountType: AccountType
+  debit: number
+  credit: number
+}
+
+export interface ProfitLossRow {
+  accountCode: string
+  accountName: string
+  amount: number
+  category: 'revenue' | 'expense' | 'cogs' | 'gross_profit' | 'net_profit'
+}
+
+export interface BalanceSheetRow {
+  accountCode: string
+  accountName: string
+  amount: number
+  category: 'current_asset' | 'fixed_asset' | 'current_liability' | 'non_current_liability' | 'equity'
 }
 
 

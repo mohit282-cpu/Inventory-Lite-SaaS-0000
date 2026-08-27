@@ -57,6 +57,24 @@ export class ExpenseService extends BaseService {
     }
 
     const doc = await this.create<Expense>(expenseData, businessId, userId)
+
+    // Create accounting journal entry (non-blocking hook)
+    try {
+      const { hookExpenseJournalEntry } = await import('@/lib/accounting-hooks')
+      await hookExpenseJournalEntry({
+        businessId,
+        userId,
+        expenseId: doc.$id,
+        date: expenseData.date,
+        category: data.category,
+        amount: data.amount,
+        paymentMethod: 'cash',
+        description: descStr,
+      })
+    } catch {
+      // Non-critical — accounting hook failure should not break expense
+    }
+
     return this.mapExpense(doc)
   }
 
