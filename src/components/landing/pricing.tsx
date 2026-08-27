@@ -13,27 +13,30 @@ function getWhatsAppUrl(planLabel: string): string {
 const PLANS = [
   {
     key: 'monthly' as const,
-    price: '699',
+    price: '499',
     effectiveMonthly: null as string | null,
     regularPrice: null as string | null,
     savings: null as string | null,
     badge: null as string | null,
+    billingNote: 'pricing.billedMonthly',
   },
   {
     key: 'sixMonth' as const,
-    price: '3,999',
-    effectiveMonthly: '666.50',
-    regularPrice: '4,194',
-    savings: '195',
-    badge: null as string | null,
+    price: '399',
+    effectiveMonthly: null as string | null,
+    regularPrice: '2,994',
+    savings: '600',
+    badge: 'bestValue' as const,
+    billingNote: 'pricing.billedSixMonth',
   },
   {
     key: 'yearly' as const,
-    price: '7,599',
-    effectiveMonthly: '633.25',
-    regularPrice: '8,388',
-    savings: '789',
-    badge: 'bestValue' as const,
+    price: '299',
+    effectiveMonthly: null as string | null,
+    regularPrice: '5,988',
+    savings: '2,400',
+    badge: 'bestSaving' as const,
+    billingNote: 'pricing.billedYearly',
   },
 ] as const
 
@@ -68,25 +71,32 @@ export function LandingPricing() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
           {PLANS.map((plan) => {
-            const isAnnual = plan.key === 'yearly'
             const periodKey = PERIOD_KEYS[plan.key]
             const ctaKey = CTA_KEYS[plan.key]
             return (
               <div
                 key={plan.key}
                 className={`relative flex flex-col rounded-2xl border bg-white p-5 sm:p-7 lg:p-8 transition-shadow ${
-                  isAnnual
-                    ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200 md:scale-[1.03]'
-                    : plan.badge
-                    ? 'border-indigo-300 shadow-lg ring-1 ring-indigo-100'
+                  plan.badge === 'bestSaving'
+                    ? 'border-emerald-400 shadow-xl ring-2 ring-emerald-200 md:scale-[1.03]'
+                    : plan.badge === 'bestValue'
+                    ? 'border-indigo-400 shadow-lg ring-1 ring-indigo-100'
                     : 'border-slate-200 shadow-sm'
                 }`}
               >
-                {/* BEST VALUE Badge */}
+                {/* Badge */}
                 {plan.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
-                      <Crown className="h-3 w-3" />
+                    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-white shadow-sm ${
+                      plan.badge === 'bestSaving'
+                        ? 'bg-emerald-600'
+                        : 'bg-indigo-600'
+                    }`}>
+                      {plan.badge === 'bestSaving' ? (
+                        <Crown className="h-3 w-3" />
+                      ) : (
+                        <Crown className="h-3 w-3" />
+                      )}
                       {t(`pricing.${plan.badge}`)}
                     </span>
                   </div>
@@ -125,14 +135,12 @@ export function LandingPricing() {
                     </div>
                   )}
 
-                  {plan.effectiveMonthly && (
-                    <p className="text-xs sm:text-sm font-bold text-indigo-700 mt-2">
-                      {t('pricing.only')} NPR {plan.effectiveMonthly}{t('pricing.perMonth')}
-                    </p>
-                  )}
-
                   <p className="text-[11px] sm:text-xs text-slate-400 mt-2">
-                    {t(`pricing.${plan.key === 'monthly' ? 'billedMonthly' : plan.key === 'sixMonth' ? 'billedSixMonth' : 'billedYearly'}`)}
+                    {plan.key === 'sixMonth'
+                      ? t('pricing.billedSixMonthTotal')
+                      : plan.key === 'yearly'
+                      ? t('pricing.billedYearlyTotal')
+                      : t(plan.billingNote)}
                   </p>
                 </div>
 
@@ -155,9 +163,9 @@ export function LandingPricing() {
                   asChild
                   size="lg"
                   className={`w-full h-11 sm:h-12 px-5 sm:px-6 font-bold text-xs sm:text-sm shadow-sm ${
-                    isAnnual
-                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md'
-                      : plan.badge
+                    plan.badge === 'bestSaving'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md'
+                      : plan.badge === 'bestValue'
                       ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
                       : 'bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200'
                   }`}
