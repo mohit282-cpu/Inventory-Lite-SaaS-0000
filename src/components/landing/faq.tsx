@@ -27,7 +27,7 @@ export function LandingFAQ() {
 
   return (
     <section id="faq" className="py-10 sm:py-16 lg:py-20 bg-white border-b border-slate-200 text-slate-900">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7 sm:space-y-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         <div className="text-left space-y-2">
           <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-indigo-100">
             {t('faq.badge')}
@@ -49,9 +49,9 @@ export function LandingFAQ() {
                   onClick={() => toggle(idx)}
                   aria-expanded={isOpen}
                   aria-controls={`faq-answer-${idx}`}
-                  className="w-full flex items-center justify-between text-left min-h-[48px] py-3 sm:py-4 text-base sm:text-lg lg:text-xl font-bold text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded-lg gap-3 sm:gap-4"
+                  className="w-full flex items-center justify-between text-left min-h-[52px] py-3.5 sm:py-4 text-[0.9375rem] sm:text-lg lg:text-xl font-bold text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded-lg gap-3 sm:gap-4"
                 >
-                  <span className="leading-snug">{item.q}</span>
+                  <span className="leading-snug pr-2">{item.q}</span>
                   <ChevronDown
                     className={`h-5 w-5 text-slate-500 transition-transform duration-200 shrink-0 ${
                       isOpen ? 'rotate-180 text-indigo-600' : ''
@@ -64,7 +64,7 @@ export function LandingFAQ() {
                     id={`faq-answer-${idx}`}
                     role="region"
                     aria-labelledby={`faq-trigger-${idx}`}
-                    className="pb-3 sm:pb-4 text-sm sm:text-base text-slate-700 leading-[1.7] pr-4 sm:pr-8"
+                    className="pb-4 sm:pb-5 text-sm sm:text-base text-slate-700 leading-[1.7] pr-4 sm:pr-8"
                   >
                     <p>{item.a}</p>
                   </div>

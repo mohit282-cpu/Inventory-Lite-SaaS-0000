@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Check, Crown } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/ui/whatsapp-icon'
 
-function getWhatsAppUrl(planLabel: string, price: string): string {
-  const msg = `Hello, I want Inventory Lite \u2013 ${planLabel} Plan (NPR ${price}). Please provide me with the account setup and payment details.`
+function getWhatsAppUrl(planLabel: string): string {
+  const msg = `Hello, I want the Inventory Lite ${planLabel} Plan.`
   return `https://wa.me/9779805330808?text=${encodeURIComponent(msg)}`
 }
 
@@ -68,7 +68,6 @@ export function LandingPricing() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
           {PLANS.map((plan) => {
-            const isHighlighted = plan.badge !== null
             const isAnnual = plan.key === 'yearly'
             const periodKey = PERIOD_KEYS[plan.key]
             const ctaKey = CTA_KEYS[plan.key]
@@ -78,11 +77,12 @@ export function LandingPricing() {
                 className={`relative flex flex-col rounded-2xl border bg-white p-5 sm:p-7 lg:p-8 transition-shadow ${
                   isAnnual
                     ? 'border-indigo-400 shadow-xl ring-2 ring-indigo-200 md:scale-[1.03]'
-                    : isHighlighted
+                    : plan.badge
                     ? 'border-indigo-300 shadow-lg ring-1 ring-indigo-100'
                     : 'border-slate-200 shadow-sm'
                 }`}
               >
+                {/* BEST VALUE Badge */}
                 {plan.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <span className="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
@@ -100,13 +100,13 @@ export function LandingPricing() {
 
                 <div className="mb-4 sm:mb-6">
                   {plan.regularPrice && (
-                    <p className="text-[11px] sm:text-xs text-slate-400">
+                    <p className="text-xs sm:text-sm text-slate-400">
                       <span className="line-through">NPR {plan.regularPrice}</span>
                     </p>
                   )}
 
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-[11px] sm:text-xs font-bold text-slate-500">NPR</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-500">NPR</span>
                     <span className="text-[2rem] sm:text-4xl lg:text-5xl font-extrabold font-mono text-slate-900 leading-none">
                       {plan.price}
                     </span>
@@ -116,10 +116,13 @@ export function LandingPricing() {
                     {t(periodKey)}
                   </p>
 
+                  {/* Savings Badge - More prominent */}
                   {plan.savings && (
-                    <span className="inline-block mt-2 text-[11px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 sm:px-2.5 py-0.5 rounded-full">
-                      {t('pricing.saveNpr')} NPR {plan.savings}
-                    </span>
+                    <div className="mt-2.5">
+                      <span className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                        {t('pricing.saveNpr')} NPR {plan.savings}
+                      </span>
+                    </div>
                   )}
 
                   {plan.effectiveMonthly && (
@@ -154,13 +157,13 @@ export function LandingPricing() {
                   className={`w-full h-11 sm:h-12 px-5 sm:px-6 font-bold text-xs sm:text-sm shadow-sm ${
                     isAnnual
                       ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md'
-                      : isHighlighted
+                      : plan.badge
                       ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
                       : 'bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200'
                   }`}
                 >
                   <a
-                    href={getWhatsAppUrl(t(`pricing.${plan.key}`), plan.price)}
+                    href={getWhatsAppUrl(t(`pricing.${plan.key}`))}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

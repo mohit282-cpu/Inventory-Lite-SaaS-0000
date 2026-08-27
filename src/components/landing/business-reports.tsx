@@ -28,7 +28,7 @@ export function LandingBusinessReports() {
 
   return (
     <section className="py-10 sm:py-16 lg:py-20 bg-white border-b border-slate-200 text-slate-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7 sm:space-y-10">
         
         {/* Section Header */}
         <div className="max-w-3xl text-left space-y-2 sm:space-y-3">
@@ -47,7 +47,7 @@ export function LandingBusinessReports() {
           
           {/* Left Side: Large Real Application Screenshot */}
           <div className="lg:col-span-7">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-2.5 sm:p-5 shadow-2xl overflow-hidden ring-1 ring-slate-800/80">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-2 sm:p-4 lg:p-5 shadow-2xl overflow-hidden ring-1 ring-slate-800/80">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3 px-1">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-red-500/80" />
@@ -67,7 +67,7 @@ export function LandingBusinessReports() {
                     width={1280}
                     height={800}
                     unoptimized
-                    className="w-full h-auto object-cover object-top max-h-[300px] sm:max-h-[480px] lg:max-h-[540px]"
+                    className="w-full h-auto object-cover object-top max-h-[250px] sm:max-h-[420px] lg:max-h-[540px]"
                     onError={() => setImgError(true)}
                   />
                 </div>
@@ -82,8 +82,8 @@ export function LandingBusinessReports() {
           </div>
 
           {/* Right Side: Key Metrics Breakdown */}
-          <div className="lg:col-span-5 space-y-3 sm:space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3.5">
+          <div className="lg:col-span-5 space-y-2.5 sm:space-y-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-3">
               {reportItems.map((item, idx) => {
                 const Icon = item.icon
                 return (
@@ -96,7 +96,7 @@ export function LandingBusinessReports() {
                     }`}
                   >
                     <div
-                      className={`h-9 w-9 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center shrink-0 border ${
+                      className={`h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center shrink-0 border ${
                         item.highlight
                           ? 'bg-indigo-600 text-white border-indigo-700'
                           : 'bg-white text-indigo-700 border-slate-200'
@@ -108,7 +108,7 @@ export function LandingBusinessReports() {
                       <h4 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 leading-snug">
                         {item.title}
                       </h4>
-                      <p className="text-[11px] sm:text-xs sm:text-sm text-slate-600 leading-[1.6] mt-0.5">
+                      <p className="text-xs sm:text-sm text-slate-600 leading-[1.6] mt-0.5">
                         {item.desc}
                       </p>
                     </div>
@@ -119,7 +119,7 @@ export function LandingBusinessReports() {
 
             {/* Accountant Note & Disclaimer */}
             <div className="pt-1 sm:pt-2 space-y-2">
-              <p className="text-[11px] sm:text-xs sm:text-sm font-bold text-indigo-900 bg-indigo-50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg border border-indigo-100">
+              <p className="text-xs sm:text-sm font-bold text-indigo-900 bg-indigo-50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg border border-indigo-100">
                 {t('reports.accountantNote')}
               </p>
               

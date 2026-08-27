@@ -24,22 +24,22 @@ export function LandingHero() {
   const [imgError, setImgError] = useState(false)
 
   return (
-    <section className="relative py-10 sm:py-16 lg:py-20 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b border-slate-200 overflow-hidden">
+    <section className="relative py-8 sm:py-14 lg:py-20 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b border-slate-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center">
           
           {/* Left Column: Headline, Copy & Primary Actions */}
-          <div className="lg:col-span-5 text-left space-y-5">
-            <div className="inline-block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-indigo-100">
+          <div className="lg:col-span-5 text-left space-y-4 sm:space-y-5">
+            <div className="inline-block text-xs sm:text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-indigo-100">
               {t('hero.badge')}
             </div>
 
-            <h1 className="text-[1.75rem] sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
+            <h1 className="text-[1.625rem] sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
               <span className="block">{t('hero.titleLine1')}</span>
               <span className="block text-indigo-600 mt-1 sm:mt-2">{t('hero.titleLine2')}</span>
             </h1>
 
-            <p className="text-[0.9375rem] sm:text-lg text-slate-600 leading-[1.65]">
+            <p className="text-sm sm:text-lg text-slate-600 leading-[1.65] max-w-lg">
               {t('hero.description')}
             </p>
 
@@ -47,7 +47,7 @@ export function LandingHero() {
               <Button
                 asChild
                 size="lg"
-                className="h-12 sm:h-13 px-7 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-sm sm:text-base lg:text-lg"
+                className="h-12 sm:h-13 px-6 sm:px-7 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-sm sm:text-base lg:text-lg"
               >
                 <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
                   <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0" />
@@ -59,7 +59,7 @@ export function LandingHero() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="h-12 sm:h-13 px-6 border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold text-sm sm:text-base"
+                className="h-12 sm:h-13 px-5 sm:px-6 border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold text-sm sm:text-base"
               >
                 <Link href="/demo">
                   {t('hero.seeProduct')} <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
@@ -95,7 +95,7 @@ export function LandingHero() {
 
           {/* Right Column: LARGE, READABLE Product UI Showcase */}
           <div className="lg:col-span-7">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl p-2.5 sm:p-5 text-left overflow-hidden ring-1 ring-slate-800/80">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl p-2 sm:p-4 lg:p-5 text-left overflow-hidden ring-1 ring-slate-800/80">
               
               {/* Window Header */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3 px-1">
@@ -109,7 +109,7 @@ export function LandingHero() {
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-slate-200 font-semibold bg-slate-950 px-2 sm:px-3 py-1 rounded-md border border-slate-800">
                   <Building className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
-                  <span className="truncate max-w-[140px] sm:max-w-none text-[11px] sm:text-xs">{t('hero.storeName')}</span>
+                  <span className="truncate max-w-[120px] sm:max-w-none text-[11px] sm:text-xs">{t('hero.storeName')}</span>
                 </div>
               </div>
 
@@ -123,7 +123,7 @@ export function LandingHero() {
                     height={800}
                     priority
                     unoptimized
-                    className="w-full h-auto object-cover object-top max-h-[300px] sm:max-h-[500px] lg:max-h-[580px]"
+                    className="w-full h-auto object-cover object-top max-h-[250px] sm:max-h-[420px] lg:max-h-[580px]"
                     onError={() => setImgError(true)}
                   />
                   {/* Callout badges overlaid on screenshot */}

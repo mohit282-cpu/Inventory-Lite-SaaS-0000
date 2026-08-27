@@ -30,17 +30,17 @@ export function LandingProblemSolution() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 items-stretch">
           {problems.map((item, idx) => {
             const Icon = item.icon
             return (
               <div
                 key={idx}
-                className="p-4 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:border-indigo-300 transition-colors"
+                className="p-4 sm:p-5 lg:p-6 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-sm flex flex-col justify-between hover:border-indigo-300 transition-colors"
               >
-                <div className="space-y-2.5 sm:space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
                       <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
                     <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-600 bg-slate-200/80 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md">
@@ -48,7 +48,7 @@ export function LandingProblemSolution() {
                     </span>
                   </div>
 
-                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 leading-snug">
+                  <h3 className="text-sm sm:text-base lg:text-xl font-bold text-slate-900 leading-snug">
                     {item.title}
                   </h3>
 

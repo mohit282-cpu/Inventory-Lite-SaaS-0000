@@ -23,12 +23,12 @@ export function LandingNavbar() {
     <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/90 backdrop-blur-md transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href="/" className="flex items-center gap-2.5 group" aria-label="Inventory Lite Home">
           <AppLogo size={36} />
         </Link>
 
         {/* Desktop Links */}
-        <nav className="hidden md:flex items-center gap-5 lg:gap-8 text-sm font-medium text-slate-600">
+        <nav className="hidden md:flex items-center gap-5 lg:gap-8 text-sm font-medium text-slate-600" aria-label="Main navigation">
           <a href="#product" className="hover:text-slate-900 transition-colors">
             {t('nav.product')}
           </a>
@@ -46,7 +46,7 @@ export function LandingNavbar() {
           </a>
         </nav>
 
-        {/* Desktop Controls (Language Selector + Auth CTAs) */}
+        {/* Desktop Controls */}
         <div className="hidden md:flex items-center gap-3">
           <LanguageSwitcher />
 
@@ -88,8 +88,19 @@ export function LandingNavbar() {
           )}
         </div>
 
-        {/* Mobile Controls & Trigger */}
-        <div className="flex md:hidden items-center gap-2">
+        {/* Mobile Controls: WhatsApp Icon + Language + Hamburger */}
+        <div className="flex md:hidden items-center gap-1.5">
+          {!hasPortalAccess && (
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center h-10 w-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
+              aria-label="Contact on WhatsApp"
+            >
+              <WhatsAppIcon className="h-5 w-5" />
+            </a>
+          )}
           <LanguageSwitcher align="right" />
           <button
             type="button"
@@ -107,7 +118,7 @@ export function LandingNavbar() {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div id="mobile-menu" className="md:hidden border-b border-slate-200 bg-white px-4 pt-3 pb-6 space-y-4 animate-fade-in shadow-lg">
-          <nav className="flex flex-col space-y-3 text-sm font-medium text-slate-700">
+          <nav className="flex flex-col space-y-3 text-sm font-medium text-slate-700" aria-label="Mobile navigation">
             <a
               href="#product"
               onClick={() => setMobileMenuOpen(false)}

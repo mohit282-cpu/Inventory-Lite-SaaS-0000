@@ -61,7 +61,7 @@ export function LandingProductPreview() {
           </h2>
         </div>
 
-        {/* Tab Buttons across Top */}
+        {/* Tab Buttons - horizontal scroll on mobile */}
         <div
           role="tablist"
           aria-label="Product feature preview tabs"
@@ -95,7 +95,7 @@ export function LandingProductPreview() {
         <div
           id={`tab-panel-${currentTab.id}`}
           role="tabpanel"
-          className="rounded-2xl border border-slate-800 bg-slate-950 p-3 sm:p-6 lg:p-8 shadow-2xl space-y-6 sm:space-y-8"
+          className="rounded-2xl border border-slate-800 bg-slate-950 p-3 sm:p-6 lg:p-8 shadow-2xl space-y-5 sm:space-y-8"
         >
           {/* Main Screenshot Container */}
           <div className="rounded-xl overflow-hidden border border-slate-800 bg-slate-900 ring-1 ring-slate-800/80">
@@ -122,7 +122,7 @@ export function LandingProductPreview() {
                 width={1280}
                 height={800}
                 unoptimized
-                className="w-full h-auto object-cover object-top max-h-[220px] sm:max-h-[420px] lg:max-h-[520px]"
+                className="w-full h-auto object-cover object-top max-h-[200px] sm:max-h-[400px] lg:max-h-[520px]"
                 onError={() => handleImageError(currentTab.id)}
               />
             ) : (
