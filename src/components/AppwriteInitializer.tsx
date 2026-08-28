@@ -13,5 +13,6 @@ export function AppwriteInitializer() {
         console.error("Appwrite ping failed:", error)
       })
   }, [])
+
   return null
 }
