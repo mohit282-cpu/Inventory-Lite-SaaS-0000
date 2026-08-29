@@ -113,7 +113,11 @@ export class PaymentService extends BaseService {
         const custId = data.customerId || sale.customerId || ''
 
         if (custId && custId.trim() !== '') {
-          await customerService.getCustomer(custId, businessId)
+          try {
+            await customerService.getCustomer(custId, businessId)
+          } catch {
+            // Customer profile document may be missing/removed; permit sale payment recording
+          }
         }
 
         // Persist Payment document
@@ -158,7 +162,11 @@ export class PaymentService extends BaseService {
 
         // Update Customer total due balance
         if (custId && custId.trim() !== '') {
-          await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
+          try {
+            await customerService.updateDueAmount(custId, -fromMinorUnits(paymentPaisa), businessId)
+          } catch (err: any) {
+            console.warn(`Customer record '${custId}' due update skipped:`, err?.message)
+          }
         }
 
         // Create accounting journal entry (non-blocking hook)
@@ -301,11 +309,15 @@ export class PaymentService extends BaseService {
 
       // 3. Adjust Customer total due balance
       if (existingPayment.customerId) {
-        await customerService.updateDueAmount(
-          existingPayment.customerId,
-          -fromMinorUnits(amountDiffPaisa),
-          businessId
-        )
+        try {
+          await customerService.updateDueAmount(
+            existingPayment.customerId,
+            -fromMinorUnits(amountDiffPaisa),
+            businessId
+          )
+        } catch {
+          // Ignore if customer profile document is missing
+        }
       }
     }
 
@@ -376,11 +388,15 @@ export class PaymentService extends BaseService {
 
       // 2. Revert customer due balance
       if (existingPayment.customerId) {
-        await customerService.updateDueAmount(
-          existingPayment.customerId,
-          fromMinorUnits(amountPaisa),
-          businessId
-        )
+        try {
+          await customerService.updateDueAmount(
+            existingPayment.customerId,
+            fromMinorUnits(amountPaisa),
+            businessId
+          )
+        } catch {
+          // Ignore if customer profile document is missing
+        }
       }
     }
 

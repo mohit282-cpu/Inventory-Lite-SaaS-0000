@@ -242,7 +242,14 @@ export default function SalesPage() {
     if (!activeBusiness?.$id || !user?.$id) return
     setActionLoading(true)
     try {
-      await salesReturnService.createSalesReturn(data, activeBusiness.$id, user.$id)
+      await salesReturnService.createSalesReturn(
+        {
+          ...data,
+          returnDate: new Date().toISOString(),
+        },
+        activeBusiness.$id,
+        user.$id
+      )
       toast({
         title: 'Sales Return Processed',
         description: 'Returned items restored to inventory and financial balance adjusted.',

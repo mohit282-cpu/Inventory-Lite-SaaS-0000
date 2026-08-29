@@ -223,14 +223,28 @@ export class AuditLogService extends BaseService {
       limit: 200,
     })
 
-    return logs.map(log => ({
-      id: log.$id,
-      timestamp: log.createdAt,
-      action: log.action,
-      target: log.entityType,
-      userId: log.performedBy,
-      metadata: log.changes ? JSON.parse(log.changes) : {},
-    }))
+    return logs.map(log => {
+      let meta: Record<string, any> = {}
+      if (log.changes) {
+        if (typeof log.changes === 'object') {
+          meta = log.changes
+        } else if (typeof log.changes === 'string') {
+          try {
+            meta = JSON.parse(log.changes)
+          } catch {
+            meta = { raw: log.changes }
+          }
+        }
+      }
+      return {
+        id: log.$id,
+        timestamp: log.createdAt || (log as any).$createdAt || new Date().toISOString(),
+        action: log.action,
+        target: log.entityType || 'SYSTEM',
+        userId: log.performedBy || 'System',
+        metadata: meta,
+      }
+    })
   }
 }
 

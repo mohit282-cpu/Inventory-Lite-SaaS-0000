@@ -202,7 +202,7 @@ export class FinancialReportsService extends BaseService {
       })
     }
 
-    rows.sort((a, b) => a.accountCode.localeCompare(b.accountCode))
+    rows.sort((a, b) => (a.accountCode || '').localeCompare(b.accountCode || ''))
 
     const difference = fromMinorUnits(Math.abs(totalDebitPaisa - totalCreditPaisa))
 

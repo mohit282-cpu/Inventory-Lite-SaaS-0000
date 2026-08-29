@@ -13,6 +13,8 @@ import { auditLogService } from './audit-log.service'
 import { idempotencyManager, computePayloadHash } from '@/lib/idempotency'
 
 import { numberingService } from './numbering.service'
+import { businessService } from './business.service'
+import { getDefaultVatState } from '@/lib/localization'
 
 export class SaleService extends BaseService {
   constructor() {
@@ -145,11 +147,26 @@ export class SaleService extends BaseService {
 
         // 3. Server-Side Totals Recalculation
         const effectivePaidAmount = isFullUdhaar ? 0 : (data.paidAmount || 0)
+
+        // Determine default VAT state from business tax registration type
+        let business
+        let defaultVatState
+        try {
+          business = await businessService.getBusiness(businessId)
+          defaultVatState = getDefaultVatState(business)
+        } catch {
+          defaultVatState = { vatEnabled: true, vatRate: 13 }
+        }
+
+        // If user explicitly passes vatEnabled, respect that; otherwise use business default
+        const userVatEnabled = data.vatEnabled !== undefined ? data.vatEnabled : defaultVatState.vatEnabled
+        const userTaxRate = data.taxRate !== undefined ? data.taxRate : defaultVatState.vatRate
+
         const totals = calculateSaleTotals({
           items: validatedItems,
           discount: data.discount || 0,
-          vatEnabled: data.vatEnabled ?? true,
-          taxRate: data.taxRate ?? 13,
+          vatEnabled: userVatEnabled,
+          taxRate: userTaxRate,
           paidAmount: effectivePaidAmount,
         })
 
@@ -178,7 +195,6 @@ export class SaleService extends BaseService {
             (data as any).saleNumber ||
             (await this.generateNextSaleNumber(businessId, (data as any).createdAt))
 
-          const isVatOn = data.vatEnabled ?? (data.taxRate !== undefined ? data.taxRate > 0 : totals.taxAmount > 0)
           const saleData = {
             saleNumber,
             customerId: data.customerId || '',
@@ -196,9 +212,9 @@ export class SaleService extends BaseService {
             taxableAmount: totals.taxableAmount,
             tax: totals.taxAmount,
             vatAmount: totals.taxAmount,
-            vatEnabled: isVatOn,
-            vatRate: isVatOn ? (data.taxRate ?? 13) : 0,
-            taxRate: isVatOn ? (data.taxRate ?? 13) : 0,
+            vatEnabled: userVatEnabled,
+            vatRate: userVatEnabled ? userTaxRate : 0,
+            taxRate: userVatEnabled ? userTaxRate : 0,
             total: totals.total,
             paidAmount: totals.paidAmount,
             dueAmount: totals.dueAmount,

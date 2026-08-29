@@ -228,11 +228,14 @@ export function getDefaultVatState(business?: {
   vatNumber?: string
   panNumber?: string
 } | null): { vatEnabled: boolean; vatRate: number } {
-  const { type } = getEffectiveTaxRegistration(business)
-  if (type === 'VAT') {
+  if (!business) {
     return { vatEnabled: true, vatRate: DEFAULT_VAT_RATE }
   }
-  return { vatEnabled: false, vatRate: DEFAULT_VAT_RATE }
+  const { type } = getEffectiveTaxRegistration(business)
+  if (type === 'PAN' || type === 'NONE') {
+    return { vatEnabled: false, vatRate: DEFAULT_VAT_RATE }
+  }
+  return { vatEnabled: true, vatRate: DEFAULT_VAT_RATE }
 }
 
 /**

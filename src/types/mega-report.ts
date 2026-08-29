@@ -259,3 +259,152 @@ export interface MegaReportData {
     reconciliationCount: number
   }
 }
+
+export interface AnalyticsKpiCard {
+  label: string
+  value: number
+  formattedValue: string
+  caption?: string
+  subtext?: string
+}
+
+export interface AnalyticsTrendPoint {
+  label: string
+  sales: number
+  purchases: number
+  profit?: number
+}
+
+export interface AnalyticsCustomerRanking {
+  name: string
+  invoiceCount: number
+  revenue: number
+  paid: number
+  outstanding: number
+  contribution: number
+}
+
+export interface AnalyticsSupplierRanking {
+  name: string
+  purchaseCount: number
+  totalPurchases: number
+  paid: number
+  outstanding: number
+}
+
+export interface AnalyticsProductRanking {
+  name: string
+  sku: string
+  categoryName: string
+  stockQuantity: number
+  unitCost: number
+  sellingPrice: number
+  closingValue: number
+  retailValue: number
+  potentialMargin: number
+}
+
+export interface AnalyticsCategoryStock {
+  name: string
+  productCount: number
+  totalQuantity: number
+  totalCostValue: number
+  totalRetailValue: number
+}
+
+export interface AnalyticsPaymentMetrics {
+  totalCollected: number
+  totalPaidToSuppliers: number
+  customerReceivables: number
+  supplierPayables: number
+  collectionRate: number
+  paymentRate: number
+}
+
+export interface AnalyticsVatMetrics {
+  taxableSales: number
+  outputVat: number
+  taxablePurchases: number
+  inputVat: number
+  netVatPosition: number
+  vatRate: number
+  status: string
+  isPayable: boolean
+}
+
+export interface AnalyticsProfitability {
+  grossSales: number
+  discounts: number
+  salesReturns: number
+  netSales: number
+  cogs: number
+  grossProfit: number
+  grossMarginPercent: number
+  expenses: number
+  netProfit: number
+  netMarginPercent: number
+  cogsPercent: number
+  expenseRatio: number
+}
+
+export interface AnalyticsBusinessHealth {
+  profitability: 'Strong' | 'Normal' | 'Attention'
+  profitabilityDetail: string
+  liquidity: 'Strong' | 'Normal' | 'Attention'
+  liquidityDetail: string
+  inventory: 'Strong' | 'Normal' | 'Attention'
+  inventoryDetail: string
+  receivables: 'Strong' | 'Normal' | 'Attention'
+  receivablesDetail: string
+  payables: 'Strong' | 'Normal' | 'Attention'
+  payablesDetail: string
+  dataIntegrity: 'Healthy' | 'Warning' | 'Critical'
+  dataIntegrityDetail: string
+}
+
+export interface AnalyticsReconciliationHealth {
+  totalChecks: number
+  passed: number
+  warnings: number
+  mismatches: number
+  warningDetails: string[]
+}
+
+export interface AnalyticsInsights {
+  performanceOverview: string[]
+  salesInsights: string[]
+  profitabilityInsights: string[]
+  inventoryInsights: string[]
+  customerInsights: string[]
+  supplierInsights: string[]
+  financialHealth: string[]
+  dataQuality: string[]
+  highlights?: string[]
+  warnings?: string[]
+}
+
+export interface AnalyticsInventoryHealth {
+  fastMoving: Array<{ name: string; sku: string; quantity: number; movements: number }>
+  slowMoving: Array<{ name: string; sku: string; quantity: number; movements: number }>
+  noMovement: Array<{ name: string; sku: string; quantity: number }>
+  lowStock: Array<{ name: string; sku: string; quantity: number; threshold: number }>
+  outOfStock: Array<{ name: string; sku: string }>
+}
+
+export interface MegaAnalyticsData {
+  kpiCards: AnalyticsKpiCard[]
+  salesTrend: AnalyticsTrendPoint[]
+  dailySales: Array<{ label: string; value: number }>
+  customerRanking: AnalyticsCustomerRanking[]
+  supplierRanking: AnalyticsSupplierRanking[]
+  productRanking: AnalyticsProductRanking[]
+  categoryStock: AnalyticsCategoryStock[]
+  purchaseBySupplier: Array<{ label: string; value: number }>
+  paymentMetrics: AnalyticsPaymentMetrics
+  vatMetrics: AnalyticsVatMetrics
+  profitability: AnalyticsProfitability
+  businessHealth: AnalyticsBusinessHealth
+  reconciliationHealth: AnalyticsReconciliationHealth
+  inventoryHealth: AnalyticsInventoryHealth
+  insights: AnalyticsInsights
+}

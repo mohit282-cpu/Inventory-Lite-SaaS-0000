@@ -148,10 +148,14 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
     ...filters,
   }
 
-  const [business, kpis] = await Promise.all([
-    businessService.getBusiness(businessId, userId),
-    auditCenterService.getAuditOverviewKPIs(businessId, resolvedFilters),
-  ])
+  let business: any = {}
+  try {
+    business = await businessService.getBusiness(businessId, userId)
+  } catch {
+    business = { $id: businessId, name: 'Inventory Lite Store' }
+  }
+
+  const kpis = await auditCenterService.getAuditOverviewKPIs(businessId, resolvedFilters)
 
   const [
     salesRegister,
@@ -234,7 +238,7 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
   return {
     meta: {
       business: {
-        id: business.$id,
+        id: business?.$id || businessId,
         name: safeStr(business.name, 'Inventory Lite Store'),
         panNumber: business.panNumber,
         vatNumber: business.vatNumber,

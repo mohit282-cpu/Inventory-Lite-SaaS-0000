@@ -58,6 +58,7 @@ export class SalesReturnService extends BaseService {
       }>
       reason: string
       refundMethod?: 'cash' | 'credit_adjustment' | 'bank_transfer' | 'digital_wallet' | 'other'
+      returnDate?: string
       idempotencyKey?: string
     },
     businessId: string,
@@ -182,8 +183,10 @@ export class SalesReturnService extends BaseService {
           discount: 0,
           tax: 0,
           totalRefund: fromMinorUnits(totalReturnAmountP),
+          totalAmount: fromMinorUnits(totalReturnAmountP),
           reason: data.reason.trim(),
           refundMethod: data.refundMethod || 'cash',
+          returnDate: data.returnDate || new Date().toISOString(),
           createdBy: userId,
         }
 
@@ -226,6 +229,23 @@ export class SalesReturnService extends BaseService {
           } catch (custErr) {
             console.error('Failed to adjust customer due balance on sales return:', custErr)
           }
+        }
+
+        // Update original sale status to 'returned' or 'partial_return'
+        const totalOriginalQty = originalSaleItems.reduce((sum, i) => sum + i.quantity, 0)
+        let totalReturnedQty = 0
+        for (const [, qty] of previouslyReturnedQtyMap.entries()) {
+          totalReturnedQty += qty
+        }
+        for (const vi of validatedReturnItems) {
+          totalReturnedQty += vi.quantity
+        }
+        const updatedSaleStatus = totalReturnedQty >= totalOriginalQty ? 'returned' : 'partial_return'
+
+        try {
+          await saleService.update(sale.$id, { status: updatedSaleStatus }, businessId)
+        } catch (saleErr) {
+          console.error('Failed to update sale status on return:', saleErr)
         }
 
         try {

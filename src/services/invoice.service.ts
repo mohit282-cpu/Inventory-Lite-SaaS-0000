@@ -155,7 +155,12 @@ export class InvoiceService extends BaseService {
       }
     }
 
-    const business = await businessService.getBusiness(businessId)
+    let business: any = null
+    try {
+      business = await businessService.getBusiness(businessId)
+    } catch {
+      business = { $id: businessId, name: 'Business' }
+    }
 
     return {
       invoice,

@@ -14,7 +14,7 @@ export type Currency = 'NPR' | 'USD' | 'EUR' | 'INR'
 
 export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'digital_wallet' | 'credit' | 'full_udhaar' | 'eSewa' | 'Khalti' | 'other'
 
-export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'refunded'
+export type SaleStatus = 'pending' | 'completed' | 'cancelled' | 'refunded' | 'returned' | 'partial_return'
 
 export type CreditStatus = 'UNPAID' | 'PARTIAL' | 'PAID' | 'OVERDUE'
 
@@ -427,8 +427,10 @@ export interface SalesReturn extends Models.Document {
   discount: number
   tax: number
   totalRefund: number
+  totalAmount?: number
   reason: string
   refundMethod: 'cash' | 'credit_adjustment' | 'bank_transfer' | 'digital_wallet' | 'other'
+  returnDate?: string
   createdBy: string
   createdAt: string
 }

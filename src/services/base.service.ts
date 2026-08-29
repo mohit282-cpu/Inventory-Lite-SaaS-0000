@@ -119,6 +119,15 @@ export abstract class BaseService {
       delete documentData.changeAmount
     }
 
+    if (this.collectionId === 'sales_returns') {
+      if (!documentData.returnDate) {
+        documentData.returnDate = new Date().toISOString()
+      }
+      if (documentData.totalAmount === undefined) {
+        documentData.totalAmount = documentData.totalRefund ?? documentData.subtotal ?? 0
+      }
+    }
+
     if (collectionsWithCreatedAt.has(this.collectionId) || cleanData.createdAt !== undefined) {
       documentData.createdAt = cleanData.createdAt || new Date().toISOString()
     }

@@ -124,12 +124,12 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
       .filter((s) => s.status !== 'cancelled')
       .forEach((s) => {
         s3.addRow({
-          date: s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '',
+          date: s.createdAt ? s.createdAt.slice(0, 10) : '',
           saleNumber: s.saleNumber || '-',
           invoiceNumber: invoices.find((i) => i.$id === s.invoiceId)?.invoiceNumber || '-',
           method: s.paymentMethod,
           status: s.status,
-          total: s.total,
+          total: Number(s.total) || 0,
         })
       })
   }
@@ -145,7 +145,7 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
     ]
     invoices.forEach((i) => {
       s4.addRow({
-        date: i.createdAt ? new Date(i.createdAt).toLocaleDateString() : '',
+        date: i.createdAt ? i.createdAt.slice(0, 10) : '',
         invoiceNumber: i.invoiceNumber,
         saleNumber: sales.find((s) => s.$id === i.saleId)?.saleNumber || '-',
         status: i.status,
@@ -176,7 +176,7 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
     s6.columns = [
       { header: 'Name', key: 'name', width: 25 },
       { header: 'Phone', key: 'phone', width: 20 },
-      { header: 'Total Due', key: 'totalDue', width: 15 },
+      { header: 'Total Due', key: 'totalDue', width: 15, numFmt: 'Rs. #,##0.00' },
     ]
     customers
       .filter((c) => (c.totalDue || 0) > 0)
@@ -196,9 +196,9 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
       { header: 'Name', key: 'name', width: 25 },
       { header: 'SKU', key: 'sku', width: 15 },
       { header: 'Stock Qty', key: 'stockQuantity', width: 15 },
-      { header: 'Cost Price', key: 'purchasePrice', width: 15 },
-      { header: 'Selling Price', key: 'sellingPrice', width: 15 },
-      { header: 'Total Value (Cost)', key: 'totalValue', width: 20 },
+      { header: 'Cost Price', key: 'purchasePrice', width: 15, numFmt: 'Rs. #,##0.00' },
+      { header: 'Selling Price', key: 'sellingPrice', width: 15, numFmt: 'Rs. #,##0.00' },
+      { header: 'Total Value (Cost)', key: 'totalValue', width: 20, numFmt: 'Rs. #,##0.00' },
     ]
     products.forEach((p) => {
       s7.addRow({
@@ -219,7 +219,7 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
       { header: 'Date', key: 'date', width: 15 },
       { header: 'Category', key: 'category', width: 20 },
       { header: 'Title', key: 'title', width: 30 },
-      { header: 'Amount', key: 'amount', width: 15 },
+      { header: 'Amount', key: 'amount', width: 15, numFmt: 'Rs. #,##0.00' },
     ]
     expenses.forEach((e) => {
       s8.addRow({

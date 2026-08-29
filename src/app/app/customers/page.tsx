@@ -112,6 +112,19 @@ export default function CustomersPage() {
 
   const handleDelete = async () => {
     if (!customerToDelete || !activeBusiness?.$id) return
+
+    const due = Math.max(customerToDelete.totalDue || 0, customerToDelete.dueAmount || 0)
+    if (due > 0) {
+      toast({
+        title: 'Cannot Delete Customer',
+        description: `Customer "${customerToDelete.name}" has an outstanding balance due of Rs. ${due.toFixed(2)}. Please settle all pending dues before deleting.`,
+        variant: 'destructive',
+      })
+      setIsDeleteOpen(false)
+      setCustomerToDelete(null)
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -129,6 +142,7 @@ export default function CustomersPage() {
       })
     } finally {
       setIsSubmitting(false)
+      setIsDeleteOpen(false)
       setCustomerToDelete(null)
     }
   }
@@ -319,7 +333,11 @@ export default function CustomersPage() {
         }}
         onConfirm={handleDelete}
         title="Delete Customer"
-        description={`Are you sure you want to remove "${customerToDelete?.name}" from your customer directory?`}
+        description={
+          (customerToDelete?.totalDue || customerToDelete?.dueAmount || 0) > 0
+            ? `Cannot delete "${customerToDelete?.name}" because they have an outstanding balance due of Rs. ${(customerToDelete?.totalDue || customerToDelete?.dueAmount || 0).toFixed(2)}. Please settle all pending dues first.`
+            : `Are you sure you want to remove "${customerToDelete?.name}" from your customer directory?`
+        }
         confirmText="Delete Customer"
         isLoading={isSubmitting}
       />

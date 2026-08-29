@@ -169,7 +169,7 @@ export class AccountingService extends BaseService {
    */
   async listAccounts(businessId: string): Promise<Account[]> {
     const accounts = await this.list<Account>(businessId)
-    return accounts.sort((a, b) => a.code.localeCompare(b.code))
+    return accounts.sort((a, b) => (a?.code || '').localeCompare(b?.code || ''))
   }
 
   /**
@@ -559,7 +559,7 @@ export class AccountingService extends BaseService {
     }
 
     // Sort by account code
-    rows.sort((a, b) => a.accountCode.localeCompare(b.accountCode))
+    rows.sort((a, b) => (a.accountCode || '').localeCompare(b.accountCode || ''))
 
     return rows
   }
@@ -603,6 +603,26 @@ export class AccountingService extends BaseService {
    *   CR Sales Revenue (4000) — taxable amount
    *   CR Sales Returns (4200) — if applicable (negative revenue)
    */
+  private async ensureAccounts(businessId: string, userId: string): Promise<Account[]> {
+    let accounts = await this.listAccounts(businessId)
+    if (accounts.length === 0) {
+      try {
+        accounts = await this.provisionDefaultChartOfAccounts(businessId, userId || 'system')
+      } catch {
+        accounts = await this.listAccounts(businessId)
+      }
+    }
+    return accounts
+  }
+
+  /**
+   * Create a balanced journal entry from a sale transaction.
+   * Accounts affected:
+   *   DR Cash/Bank (1000-1030) or Accounts Receivable (1100) — amount received or due
+   *   DR Output VAT (2100) — if VAT enabled
+   *   CR Sales Revenue (4000) — taxable amount
+   *   CR Sales Returns (4200) — if applicable (negative revenue)
+   */
   async createSaleJournalEntry(
     businessId: string,
     userId: string,
@@ -619,10 +639,10 @@ export class AccountingService extends BaseService {
       vatEnabled: boolean
     }
   ): Promise<JournalEntry> {
-    const accounts = await this.listAccounts(businessId)
+    const accounts = await this.ensureAccounts(businessId, userId)
     const getAccount = (code: string) => {
       const acc = accounts.find(a => a.code === code && a.isActive)
-      if (!acc) throw new Error(`Default account '${code}' not found. Run provisionDefaultChartOfAccounts first.`)
+      if (!acc) throw new Error(`Default account '${code}' not found.`)
       return acc
     }
 
@@ -725,7 +745,7 @@ export class AccountingService extends BaseService {
       dueAmount: number
     }
   ): Promise<JournalEntry> {
-    const accounts = await this.listAccounts(businessId)
+    const accounts = await this.ensureAccounts(businessId, userId)
     const getAccount = (code: string) => {
       const acc = accounts.find(a => a.code === code && a.isActive)
       if (!acc) throw new Error(`Default account '${code}' not found. Run provisionDefaultChartOfAccounts first.`)
@@ -817,7 +837,7 @@ export class AccountingService extends BaseService {
       amount: number
     }
   ): Promise<JournalEntry> {
-    const accounts = await this.listAccounts(businessId)
+    const accounts = await this.ensureAccounts(businessId, userId)
     const getAccount = (code: string) => {
       const acc = accounts.find(a => a.code === code && a.isActive)
       if (!acc) throw new Error(`Default account '${code}' not found.`)
@@ -875,7 +895,7 @@ export class AccountingService extends BaseService {
       amount: number
     }
   ): Promise<JournalEntry> {
-    const accounts = await this.listAccounts(businessId)
+    const accounts = await this.ensureAccounts(businessId, userId)
     const getAccount = (code: string) => {
       const acc = accounts.find(a => a.code === code && a.isActive)
       if (!acc) throw new Error(`Default account '${code}' not found.`)
@@ -934,7 +954,7 @@ export class AccountingService extends BaseService {
       description: string
     }
   ): Promise<JournalEntry> {
-    const accounts = await this.listAccounts(businessId)
+    const accounts = await this.ensureAccounts(businessId, userId)
     const getAccount = (code: string) => {
       const acc = accounts.find(a => a.code === code && a.isActive)
       if (!acc) throw new Error(`Default account '${code}' not found.`)
@@ -999,7 +1019,7 @@ export class AccountingService extends BaseService {
       totalRefund: number
     }
   ): Promise<JournalEntry> {
-    const accounts = await this.listAccounts(businessId)
+    const accounts = await this.ensureAccounts(businessId, userId)
     const getAccount = (code: string) => {
       const acc = accounts.find(a => a.code === code && a.isActive)
       if (!acc) throw new Error(`Default account '${code}' not found.`)

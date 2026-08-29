@@ -95,8 +95,14 @@ function applyDataStyle(sheet: ExcelJS.Worksheet, spec: SheetSpec): void {
     addRow.eachCell((cell, colIdx) => {
       const specCol = spec.columns[colIdx - 1]
       if (!specCol) return
-      if (specCol.numFmt) cell.numFmt = specCol.numFmt
-      if (specCol.date) cell.numFmt = DATE_FMT
+      if (specCol.numFmt) {
+        cell.numFmt = specCol.numFmt
+        if (typeof cell.value === 'string' && cell.value.trim() !== '' && !isNaN(Number(cell.value))) {
+          cell.value = Number(cell.value)
+        }
+      } else if (specCol.date) {
+        cell.numFmt = DATE_FMT
+      }
       const h = specCol.align === 'right' ? 'right' : specCol.align === 'center' ? 'center' : 'left'
       cell.alignment = {
         vertical: 'middle',
@@ -721,10 +727,10 @@ export function buildMegaReportWorkbook(opts: MegaReportExcelOptions): ExcelJS.W
       { item: 'NET SALES', amount: data.profitability.netSales },
       { item: 'Cost of Goods Sold', amount: data.kpis.cogs },
       { item: 'GROSS PROFIT', amount: data.kpis.grossProfit },
-      { item: 'Gross Margin %', amount: data.profitability.grossMarginPercent },
+      { item: 'Gross Margin %', amount: `${data.profitability.grossMarginPercent.toFixed(1)}%` as any },
       { item: 'Operating Expenses', amount: data.profitability.expenses },
       { item: 'NET PROFIT', amount: data.profitability.netProfit },
-      { item: 'Net Margin %', amount: data.profitability.netMarginPercent },
+      { item: 'Net Margin %', amount: `${data.profitability.netMarginPercent.toFixed(1)}%` as any },
     ],
   })
 

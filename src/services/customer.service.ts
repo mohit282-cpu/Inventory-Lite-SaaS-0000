@@ -126,8 +126,19 @@ export class CustomerService extends BaseService {
 
   /**
    * Delete customer record
+   * Blocks deletion if the customer has an outstanding balance due.
    */
   async deleteCustomer(customerId: string, businessId: string): Promise<void> {
+    const customer = await this.getCustomer(customerId, businessId)
+    const summary = await this.getCustomerSummary(customerId, businessId)
+    const dueAmount = Math.max(customer.totalDue || 0, customer.dueAmount || 0, summary.totalDue || 0)
+
+    if (dueAmount > 0) {
+      throw new Error(
+        `Cannot delete customer "${customer.name}" with an outstanding balance due of Rs. ${dueAmount.toFixed(2)}. Please settle all pending dues before deleting.`
+      )
+    }
+
     await this.delete(customerId, businessId)
   }
 

@@ -34,6 +34,13 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     case 'admin':
       return <Badge variant="warning" className={className}>{status}</Badge>
 
+    case 'returned':
+    case 'return':
+      return <Badge variant="warning" className={className}>Returned</Badge>
+
+    case 'partial_return':
+      return <Badge variant="warning" className={className}>Partial Return</Badge>
+
     case 'inactive':
     case 'cancelled':
     case 'refunded':
