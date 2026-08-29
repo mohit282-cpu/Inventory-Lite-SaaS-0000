@@ -49,6 +49,7 @@ describe('Reports Business Intelligence & Audit Center Engine', () => {
         businessId: 'biz1',
         subtotal: 2000,
         discount: 0,
+        tax: 0,
         vatAmount: 0,
         total: 2000,
         paidAmount: 2000,
@@ -105,6 +106,7 @@ describe('Reports Business Intelligence & Audit Center Engine', () => {
         businessId: 'biz1',
         subtotal: 2068,
         discount: 0,
+        tax: 0,
         vatAmount: 0,
         total: 2068,
         paidAmount: 2070, // Rs. 2 difference, no changeAmount field specified
@@ -146,6 +148,7 @@ describe('Reports Business Intelligence & Audit Center Engine', () => {
         businessId: 'biz1',
         subtotal: 2068,
         discount: 0,
+        tax: 0,
         vatAmount: 0,
         total: 2068,
         paidAmount: 2070,

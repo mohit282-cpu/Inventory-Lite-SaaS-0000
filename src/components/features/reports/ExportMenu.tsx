@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Download, Printer, FileText, Table, FileSpreadsheet, PackageOpen, Loader2 } from 'lucide-react'
 import type { ExportDataPayload } from '@/lib/export/excel-export'
+import { buildAuditPackPdf } from '@/lib/export/audit-pack-pdf'
 import { useToast } from '@/components/ui/use-toast'
 
 export interface ExportMenuProps {
@@ -82,14 +83,12 @@ export function ExportMenu({ data }: ExportMenuProps) {
     setExportStatus('Generating Audit Pack...')
     try {
       await new Promise(r => setTimeout(r, 100))
-      const [JSZipModule, ExcelJSModule, jsPDFModule] = await Promise.all([
+      const [JSZipModule, ExcelJSModule] = await Promise.all([
         import('jszip'),
         import('exceljs'),
-        import('jspdf'),
       ])
       const JSZip = JSZipModule.default || JSZipModule
       const ExcelJS = ExcelJSModule.default || ExcelJSModule
-      const jsPDF = jsPDFModule.default || jsPDFModule
 
       const zip = new JSZip()
       const fileNameBase = `${data.businessName}_AuditPack_${data.yearLabel.replace('/', '_')}`
@@ -114,13 +113,8 @@ export function ExportMenu({ data }: ExportMenuProps) {
       const excelBuffer = await wb.xlsx.writeBuffer()
       zip.file(`${fileNameBase}.xlsx`, excelBuffer)
 
-      // We will generate the PDF in memory
-      const doc = new jsPDF()
-      doc.text('Audit Pack Summary', 14, 15)
-      doc.text(`Business: ${data.businessName}`, 14, 25)
-      doc.text(`Financial Year: ${data.yearLabel}`, 14, 35)
-      
-      const pdfBlob = doc.output('blob')
+      // Sales Register summary PDF (shared design system)
+      const pdfBlob = buildAuditPackPdf(data)
       zip.file(`${fileNameBase}.pdf`, pdfBlob)
 
       const zipContent = await zip.generateAsync({ type: 'blob' })

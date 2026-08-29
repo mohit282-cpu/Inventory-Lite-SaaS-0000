@@ -22,6 +22,7 @@ import { InvoiceSequenceTab } from '@/components/features/audit/InvoiceSequenceT
 import { IrdReadinessTab } from '@/components/features/audit/IrdReadinessTab'
 import { ReconciliationTab } from '@/components/features/audit/ReconciliationTab'
 import { ExportCenterTab } from '@/components/features/audit/ExportCenterTab'
+import { MegaReportExport } from '@/components/features/audit/MegaReportExport'
 
 import {
   auditCenterService,
@@ -389,16 +390,19 @@ export default function AuditCenterPage() {
         )}
 
         {activeTab === 'export' && (
-          <ExportCenterTab
-            businessName={activeBusiness?.name || 'My Business'}
-            panNumber={activeBusiness?.panNumber || activeBusiness?.vatNumber || 'N/A'}
-            fiscalYear={filters.fiscalYear || '2081/82'}
-            salesData={salesData}
-            purchaseData={purchaseData}
-            vatData={vatData}
-            customerData={customerLedgers}
-            supplierData={supplierLedgers}
-          />
+          <>
+            <MegaReportExport defaultFiscalYear={filters.fiscalYear || undefined} />
+            <ExportCenterTab
+              businessName={activeBusiness?.name || 'My Business'}
+              panNumber={activeBusiness?.panNumber || activeBusiness?.vatNumber || 'N/A'}
+              fiscalYear={filters.fiscalYear || '2081/82'}
+              salesData={salesData}
+              purchaseData={purchaseData}
+              vatData={vatData}
+              customerData={customerLedgers}
+              supplierData={supplierLedgers}
+            />
+          </>
         )}
       </div>
 

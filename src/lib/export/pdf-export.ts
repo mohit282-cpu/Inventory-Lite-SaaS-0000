@@ -1,160 +1,206 @@
+/**
+ * Generic Business Intelligence & Audit report / Export-Center PDF.
+ *
+ * Rewritten on the shared PDF design system so every caller (ExportMenu,
+ * ExportAuditPack, ExportCenterTab) gets consistent production styling, proper
+ * word wrapping (fixing the vertical one-character-per-line bug), page numbers
+ * and repeated headers — without duplicating jsPDF styling anywhere.
+ *
+ * Cross-references the report generators in src/lib/pdf/reports for the typed
+ * report types. This module handles the generic/combined payloads.
+ */
+
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import { safeText } from '@/lib/pdf/fonts'
+import { formatNpr, formatBsDateTime, sanitizeFilename } from '@/lib/pdf/formatters'
+import { createPdf, buildPageFooterHook, finalizePdf } from '@/lib/pdf/components/page'
+import { drawReportHeader } from '@/lib/pdf/components/header'
+import { drawSummaryCard } from '@/lib/pdf/components/summary'
+import { drawTable } from '@/lib/pdf/components/table'
 
-export function exportToPDF(data: any) {
-  const doc = new jsPDF()
-  const businessName = data.businessName || 'My Business'
-  const yearLabel = data.yearLabel || data.fiscalYear || '2081/82'
-  const dateFrom = data.dateFrom ? new Date(data.dateFrom).toLocaleDateString() : 'All Time'
-  const dateTo = data.dateTo ? new Date(data.dateTo).toLocaleDateString() : 'Present'
+interface ExportPayload {
+  title?: string
+  businessName?: string
+  panNumber?: string
+  fiscalYear?: string
+  yearLabel?: string
+  dateFrom?: string
+  dateTo?: string
+  items?: any[]
+  sales?: any[]
+  profitReport?: any
+  paymentMethods?: any[]
+  customers?: any[]
+  products?: any[]
+  [key: string]: any
+}
 
-  let currentY = 15
-
-  // Header
-  doc.setFontSize(16)
-  doc.text(data.title || 'BUSINESS INTELLIGENCE & AUDIT REPORT', 14, currentY)
-  currentY += 8
-
-  doc.setFontSize(10)
-  doc.text(`Business: ${businessName}`, 14, currentY)
-  currentY += 5
-  if (data.panNumber) {
-    doc.text(`PAN/VAT: ${data.panNumber}`, 14, currentY)
-    currentY += 5
+/** Build the shared header meta for a generic report. */
+function genericMeta(data: ExportPayload, title: string) {
+  return {
+    businessName: data.businessName || 'My Business',
+    reportTitle: data.title || title,
+    contactLine: [
+      data.panNumber ? `PAN/VAT: ${data.panNumber}` : undefined,
+      data.fiscalYear ? `Fiscal Year: ${data.fiscalYear}` : data.yearLabel ? `Fiscal Year: ${data.yearLabel}` : undefined,
+      data.dateFrom ? `Period: ${data.dateFrom} → ${data.dateTo || 'Present'}` : undefined,
+    ]
+      .filter((v): v is string => Boolean(v))
+      .join('  |  '),
   }
-  doc.text(`Financial Year: ${yearLabel}`, 14, currentY)
-  currentY += 5
-  doc.text(`Report Period: ${dateFrom} to ${dateTo}`, 14, currentY)
-  currentY += 5
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, currentY)
-  currentY += 12
+}
 
-  // Handle Tabular Item Array (Generic Audit Report Export)
+/**
+ * Export a report payload to PDF.
+ * - Spreads Object keys (non-Appwrite) as a generic table when `items` is given
+ *   (Export Center flow).
+ * - Renders a Business Intelligence & Audit report when full BI payload is given.
+ */
+export function exportToPDF(data: ExportPayload): void {
+  const meta = genericMeta(data, 'BUSINESS INTELLIGENCE & AUDIT REPORT')
+  const pageHookFooter = `${meta.businessName}  |  ${meta.reportTitle}`
+
+  // --- Item-array flow (Export Center) ---
   if (data.items && Array.isArray(data.items) && data.items.length > 0) {
-    const firstItem = data.items[0]
-    if (typeof firstItem === 'object' && firstItem !== null) {
-      const keys = Object.keys(firstItem).filter((k) => !k.startsWith('$'))
-      const head = [keys.map((k) => k.replace(/([A-Z])/g, ' $1').toUpperCase())]
-      const body = data.items.slice(0, 500).map((item: any) =>
+    const first = data.items[0]
+    if (typeof first === 'object' && first !== null) {
+      const keys = Object.keys(first).filter((k) => !k.startsWith('$'))
+      const head = keys.map((k) => k.replace(/([A-Z])/g, ' $1').toUpperCase())
+      const limited = data.items.slice(0, 3000)
+      const body = limited.map((item) =>
         keys.map((k) => {
           const val = item[k]
-          if (typeof val === 'number') return val.toLocaleString()
+          if (typeof val === 'number') return Number.isFinite(val) ? val.toLocaleString() : '-'
           return val !== undefined && val !== null ? String(val) : '-'
-        })
+        }),
       )
 
-      autoTable(doc, {
-        startY: currentY,
-        head,
-        body,
-        theme: 'striped',
-        headStyles: { fillColor: [30, 41, 59] },
-        styles: { fontSize: 8 },
+      const doc = createPdf({ orientation: 'landscape' }) as jsPDF
+      const hook = buildPageFooterHook(doc, { footerText: pageHookFooter })
+      let y = drawReportHeader(doc, { ...meta, contactLine: meta.contactLine })
+      y = drawSummaryCard(doc, {
+        startY: y,
+        columns: [
+          { label: 'Records', value: String(limited.length) },
+          { label: 'Generated', value: formatBsDateTime(new Date().toISOString()) },
+        ],
       })
-    } else {
-      const body = data.items.map((item: any) => [String(item)])
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Details']],
+      drawTable(doc, {
+        startY: y,
+        columns: head.map((h) => ({ head: h })),
         body,
-        theme: 'striped',
-        headStyles: { fillColor: [30, 41, 59] },
+        pageHook: hook,
+        fontScale: 'dense',
       })
+      finalizePdf(doc).save(`${sanitizeFilename(meta.businessName)}_${sanitizeFilename(meta.reportTitle)}.pdf`)
+      return
     }
 
-    const filename = `${businessName}_${(data.title || 'Report').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`
-    doc.save(filename)
+    // Flat value list
+    const doc = createPdf() as jsPDF
+    const hook = buildPageFooterHook(doc, { footerText: pageHookFooter })
+    let y = drawReportHeader(doc, meta)
+    y = drawSummaryCard(doc, {
+      startY: y,
+      columns: [{ label: 'Records', value: String(data.items.length) }],
+    })
+    drawTable(doc, {
+      startY: y,
+      columns: [{ head: 'Value' }],
+      body: data.items.map((it) => [safeText(it)]),
+      pageHook: hook,
+    })
+    finalizePdf(doc).save(`${sanitizeFilename(meta.businessName)}_${sanitizeFilename(meta.reportTitle)}.pdf`)
     return
   }
 
-  // Handle Full Business Intelligence Payload
-  const profitReport = data.profitReport || {
-    totalRevenue: 0,
-    cogs: 0,
-    grossProfit: 0,
-    totalExpenses: 0,
-    netProfit: 0,
-    netMarginPercent: 0,
-    totalSalesCount: 0,
-  }
+  // --- Full BI payload ---
+  const profit = data.profitReport || {}
   const sales = data.sales || []
-  const products = data.products || []
-  const customers = data.customers || []
   const paymentMethods = data.paymentMethods || []
 
-  // 1. Executive Summary
-  doc.setFontSize(12)
-  doc.text('1. Executive Summary', 14, currentY)
-  currentY += 5
+  const doc = createPdf() as jsPDF
+  const hook = buildPageFooterHook(doc, { footerText: pageHookFooter })
 
-  const execData = [
-    ['Total Revenue', `Rs. ${(profitReport.totalRevenue || 0).toFixed(2)}`],
-    ['Cost of Goods Sold (COGS)', `Rs. ${(profitReport.cogs || 0).toFixed(2)}`],
-    ['Gross Profit', `Rs. ${(profitReport.grossProfit || 0).toFixed(2)}`],
-    ['Total Expenses', `Rs. ${(profitReport.totalExpenses || 0).toFixed(2)}`],
-    ['Net Profit', `Rs. ${(profitReport.netProfit || 0).toFixed(2)}`],
-    ['Net Margin %', `${profitReport.netMarginPercent || 0}%`],
-    ['Total Sales Count', `${profitReport.totalSalesCount || 0}`],
-    ['Total Customers', `${customers.length}`],
-    ['Total Products', `${products.length}`],
-  ]
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Metric', 'Value']],
-    body: execData,
-    theme: 'striped',
-    headStyles: { fillColor: [41, 128, 185] },
+  let y = drawReportHeader(doc, meta)
+  y = drawSummaryCard(doc, {
+    startY: y,
+    columns: [
+      { label: 'Total Revenue', value: formatNpr(profit.totalRevenue) },
+      { label: 'Gross Profit', value: formatNpr(profit.grossProfit) },
+      { label: 'Net Profit', value: formatNpr(profit.netProfit) },
+      { label: 'Margin', value: `${Number.isFinite(profit.netMarginPercent) ? profit.netMarginPercent : 0}%` },
+    ],
   })
-  currentY = (doc as any).lastAutoTable.finalY + 12
 
-  // 2. Sales Register Summary
-  if (sales.length > 0) {
-    doc.setFontSize(12)
-    doc.text('2. Sales Register', 14, currentY)
-    currentY += 5
+  // 1. Executive summary
+  const execRows = [
+    ['Total Revenue', formatNpr(profit.totalRevenue)],
+    ['COGS', formatNpr(profit.cogs)],
+    ['Gross Profit', formatNpr(profit.grossProfit)],
+    ['Total Expenses', formatNpr(profit.totalExpenses)],
+    ['Net Profit', formatNpr(profit.netProfit)],
+    ['Net Margin %', `${Number.isFinite(profit.netMarginPercent) ? profit.netMarginPercent : 0}%`],
+    ['Total Sales Count', String(Number.isFinite(profit.totalSalesCount) ? profit.totalSalesCount : 0)],
+  ]
+  drawTable(doc, {
+    startY: y,
+    columns: [
+      { head: 'Metric' },
+      { head: 'Value', align: 'right' },
+    ],
+    body: execRows,
+    pageHook: hook,
+  })
 
-    const salesData = sales
-      .filter((s: any) => s.status !== 'cancelled')
-      .slice(0, 500)
-      .map((s: any) => [
-        s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '',
-        s.saleNumber || `SALE-${(s.$id || '').substring(0, 6)}`,
-        s.paymentMethod || '-',
-        s.status || 'completed',
-        `Rs. ${(s.total || 0).toFixed(2)}`,
-      ])
-
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Date', 'Sale #', 'Method', 'Status', 'Total']],
-      body: salesData,
-      theme: 'striped',
-      headStyles: { fillColor: [41, 128, 185] },
-    })
-    currentY = (doc as any).lastAutoTable.finalY + 12
-  }
-
-  // 3. Payment Reconciliation
-  if (paymentMethods.length > 0) {
-    doc.setFontSize(12)
-    doc.text('3. Payment Reconciliation', 14, currentY)
-    currentY += 5
-
-    const paymentData = paymentMethods.map((p: any) => [
-      p.name,
-      (p.count || 0).toString(),
-      `Rs. ${(p.total || 0).toFixed(2)}`,
+  // 2. Sales register summary (widely-columned so words wrap naturally)
+  const activeSales = sales.filter((s: any) => s.status !== 'cancelled').slice(0, 3000)
+  if (activeSales.length > 0) {
+    const startY = (doc as any).lastAutoTable?.finalY ?? y
+    const salesBody = activeSales.map((s: any) => [
+      s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-GB') : '',
+      safeText(s.saleNumber || `SALE-${(s.$id || '').substring(0, 6)}`),
+      safeText(s.paymentMethod || '-'),
+      formatNpr(s.total),
+      formatNpr((s.paidAmount ?? 0)),
+      formatNpr((s.dueAmount ?? 0)),
     ])
-
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Method', 'Transactions Count', 'Total Collected']],
-      body: paymentData,
-      theme: 'striped',
-      headStyles: { fillColor: [41, 128, 185] },
+    drawTable(doc, {
+      startY: startY + 8,
+      columns: [
+        { head: 'Date', width: 26 },
+        { head: 'Sale #' },
+        { head: 'Method', width: 30 },
+        { head: 'Total', align: 'right' },
+        { head: 'Paid', align: 'right' },
+        { head: 'Due', align: 'right' },
+      ],
+      body: salesBody,
+      pageHook: hook,
     })
   }
 
-  const filename = `${businessName}_Audit_Report_${yearLabel.replace('/', '_')}.pdf`
-  doc.save(filename)
+  // 3. Payment reconciliation
+  if (paymentMethods.length > 0) {
+    const startY = (doc as any).lastAutoTable?.finalY ?? y
+    const payBody = paymentMethods.map((p: any) => [
+      safeText(p.name),
+      String(Number.isFinite(p.count) ? p.count : 0),
+      formatNpr(p.total),
+    ])
+    drawTable(doc, {
+      startY: startY + 8,
+      columns: [
+        { head: 'Method' },
+        { head: 'Count', align: 'right' },
+        { head: 'Total Collected', align: 'right' },
+      ],
+      body: payBody,
+      pageHook: hook,
+    })
+  }
+
+  finalizePdf(doc).save(
+    `${sanitizeFilename(meta.businessName)}_Audit_Report_${sanitizeFilename((data.yearLabel || data.fiscalYear || 'FY').replace(/[/\\]/g, '_'))}.pdf`,
+  )
 }

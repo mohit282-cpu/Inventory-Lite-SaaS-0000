@@ -160,6 +160,7 @@ export class PurchaseService extends BaseService {
           purchaseDate: pDate,
           subtotal: fromMinorUnits(grossSubtotalP),
           discount: fromMinorUnits(overallDiscountP),
+          tax: fromMinorUnits(overallTaxP),
           vatAmount: fromMinorUnits(overallTaxP),
           total: fromMinorUnits(totalP),
           paidAmount: fromMinorUnits(actualPaidP),

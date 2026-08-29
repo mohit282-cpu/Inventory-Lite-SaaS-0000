@@ -186,6 +186,7 @@ export interface Sale extends Models.Document {
   discountType?: 'percentage' | 'fixed' | 'amount'
   discountValue?: number
   taxableAmount?: number
+  tax: number
   vatAmount: number
   vatEnabled?: boolean
   vatRate?: number
@@ -369,6 +370,7 @@ export interface Purchase extends Models.Document {
   purchaseDate: string
   subtotal: number
   discount: number
+  tax: number
   vatAmount: number
   total: number
   paidAmount: number

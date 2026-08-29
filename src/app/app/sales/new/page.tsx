@@ -381,7 +381,11 @@ export default function CreateSalePage() {
         description: `Sale #${result.sale.saleNumber || result.sale.$id} recorded. Total: Rs. ${result.sale.total.toFixed(2)}`,
       })
 
-      router.push(`/app/sales/${result.sale.$id}`)
+      if (result.invoice?.$id) {
+        router.push(`/app/invoices/${result.invoice.$id}`)
+      } else {
+        router.push(`/app/sales/${result.sale.$id}`)
+      }
     } catch (err: any) {
       toast({
         title: 'Sale Transaction Failed',

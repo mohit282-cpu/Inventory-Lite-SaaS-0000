@@ -7,6 +7,7 @@ import { LanguageProvider } from "@/context/language-context"
 import { RouteGuard } from "@/components/auth/route-guard"
 import { Toaster } from "@/components/ui/toaster"
 import { SWRegister } from "@/components/pwa/sw-register"
+import { ExtensionErrorSuppressor } from "@/components/ui/extension-error-suppressor"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -66,7 +67,49 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ne" className={`${inter.variable} ${devanagari.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var isExt = function(str) {
+                  return typeof str === 'string' && (
+                    str.indexOf('chrome-extension:') !== -1 ||
+                    str.indexOf('moz-extension:') !== -1 ||
+                    str.indexOf('main-world.js') !== -1 ||
+                    str.indexOf('normalizeKey') !== -1 ||
+                    str.indexOf('onShortcutKeyUp') !== -1
+                  );
+                };
+                var origError = console.error;
+                console.error = function() {
+                  var msg = Array.prototype.slice.call(arguments).map(String).join(' ');
+                  if (isExt(msg)) return;
+                  return origError.apply(console, arguments);
+                };
+                window.addEventListener('error', function(e) {
+                  var file = e.filename || '';
+                  var msg = e.message || '';
+                  var stack = (e.error && e.error.stack) || '';
+                  if (isExt(file) || isExt(msg) || isExt(stack)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                  }
+                }, true);
+                window.addEventListener('unhandledrejection', function(e) {
+                  var stack = (e.reason && (e.reason.stack || String(e.reason))) || '';
+                  if (isExt(stack)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                  }
+                }, true);
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="font-sans antialiased bg-background text-foreground">
+        <ExtensionErrorSuppressor />
         <LanguageProvider>
           <AuthProvider>
             <AppwriteInitializer />

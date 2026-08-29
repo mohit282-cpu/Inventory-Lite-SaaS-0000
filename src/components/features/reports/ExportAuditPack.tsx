@@ -7,10 +7,10 @@ import { Printer, FileText, Table, FileSpreadsheet, PackageOpen, Loader2 } from 
 import { ExportDataPayload, exportToExcel } from '@/lib/export/excel-export'
 import { exportToPDF } from '@/lib/export/pdf-export'
 import { exportToCSV } from '@/lib/export/csv-export'
+import { buildAuditPackPdf } from '@/lib/export/audit-pack-pdf'
 import { useToast } from '@/components/ui/use-toast'
 import JSZip from 'jszip'
 import ExcelJS from 'exceljs'
-import jsPDF from 'jspdf'
 
 
 export interface ExportAuditPackProps {
@@ -61,12 +61,7 @@ export function ExportAuditPack({ data }: ExportAuditPackProps) {
         const excelBuffer = await wb.xlsx.writeBuffer()
         zip.file(`${fileNameBase}.xlsx`, excelBuffer)
 
-        const doc = new jsPDF()
-        doc.text('Audit Pack Summary', 14, 15)
-        doc.text(`Business: ${data.businessName}`, 14, 25)
-        doc.text(`Financial Year: ${data.yearLabel}`, 14, 35)
-
-        const pdfBlob = doc.output('blob')
+        const pdfBlob = buildAuditPackPdf(data)
         zip.file(`${fileNameBase}.pdf`, pdfBlob)
   
         const zipContent = await zip.generateAsync({ type: 'blob' })

@@ -38,10 +38,14 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
 
     if (typeof firstItem === 'object' && firstItem !== null) {
       const keys = Object.keys(firstItem).filter((k) => !k.startsWith('$'))
+      // Define number format for known financial columns
+      const financialColumns = new Set(['total', 'amount', 'subtotal', 'discount', 'tax', 'vat', 'paidAmount', 'dueAmount', 'outstanding', 'balance', 'openingBalance', 'closingBalance', 'totalValue', 'lineTotal', 'totalPrice', 'costPrice', 'sellingPrice', 'price'])
       sheet.columns = keys.map((k) => ({
         header: k.replace(/([A-Z])/g, ' $1').toUpperCase(),
         key: k,
         width: 22,
+        // Apply accounting number format to financial columns (case-insensitive)
+        ...(financialColumns.has(k.toLowerCase()) ? { numFmt: 'Rs. #,##0.00' } : {}),
       }))
       data.items.forEach((item: any) => sheet.addRow(item))
     } else {
@@ -82,7 +86,7 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
   const s1 = workbook.addWorksheet('01 Executive Summary')
   s1.columns = [
     { header: 'Metric', key: 'metric', width: 30 },
-    { header: 'Value', key: 'value', width: 20 },
+    { header: 'Value', key: 'value', width: 20, numFmt: 'Rs. #,##0.00' },
   ]
   const execSummary = [
     { metric: 'Total Revenue', value: profitReport.totalRevenue },
@@ -114,7 +118,7 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
       { header: 'Invoice #', key: 'invoiceNumber', width: 20 },
       { header: 'Method', key: 'method', width: 15 },
       { header: 'Status', key: 'status', width: 15 },
-      { header: 'Total', key: 'total', width: 15 },
+      { header: 'Total', key: 'total', width: 15, numFmt: 'Rs. #,##0.00' },
     ]
     sales
       .filter((s) => s.status !== 'cancelled')
@@ -155,7 +159,7 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
     s5.columns = [
       { header: 'Payment Method', key: 'name', width: 25 },
       { header: 'Transactions Count', key: 'count', width: 20 },
-      { header: 'Total Collected', key: 'total', width: 20 },
+      { header: 'Total Collected', key: 'total', width: 20, numFmt: 'Rs. #,##0.00' },
     ]
     paymentMethods.forEach((p) => {
       s5.addRow({

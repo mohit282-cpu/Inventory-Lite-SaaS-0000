@@ -390,7 +390,7 @@ export function getBillSummaryDetails(sale: {
   const changeAmount = sale.changeAmount ?? Math.max(0, paidAmount - grandTotal)
 
   const isVatBusiness = sale.businessTaxType === 'VAT'
-  const invoiceTitleEn = isVatBusiness ? 'TAX INVOICE' : 'SALES INVOICE'
+  const invoiceTitleEn = isVatBusiness ? 'TAX INVOICE' : 'INVOICE'
   const invoiceTitleNe = isVatBusiness ? 'कर बिजक' : 'बिजक'
 
   return {

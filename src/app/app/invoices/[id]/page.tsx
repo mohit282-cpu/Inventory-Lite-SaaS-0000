@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState, useCallback } from 'react'
+import { use, useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/context/auth-context'
 import { invoiceService, InvoiceFullDetails } from '@/services/invoice.service'
 import { LoadingPage } from '@/components/ui/loading'
@@ -15,12 +15,13 @@ import { getSellerTaxLabel, getBillSummaryDetails } from '@/lib/localization'
 import { formatBSDateTime, getBSFinancialYear } from '@/lib/date/bs-date'
 
 interface InvoiceDetailPageProps {
-  params?: { id?: string }
+  params?: Promise<{ id?: string }>
 }
 
-export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
+export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps = {}) {
   const routeParams = useParams()
-  const id = params?.id || (routeParams?.id as string)
+  const resolvedParams = params ? use(params) : null
+  const id = (routeParams?.id || resolvedParams?.id) as string
   const searchParams = useSearchParams()
   const { activeBusiness } = useAuth()
   const router = useRouter()
@@ -83,7 +84,7 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
         </div>
         <h2 className="text-xl font-bold text-slate-900">Invoice Not Found</h2>
         <p className="text-slate-500 max-w-md">{error || 'The requested invoice could not be located.'}</p>
-        <Button onClick={() => router.push('/app/invoices')} className="bg-slate-900 hover:bg-slate-800 text-white font-bold">
+        <Button onClick={() => router.push('/app/sales?tab=invoices')} className="bg-slate-900 hover:bg-slate-800 text-white font-bold">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Invoices
         </Button>
       </div>
@@ -113,7 +114,7 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
       {/* Top Action Bar (100% Hidden during printing) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 shadow-sm rounded-xl p-4 no-print print:hidden">
         <div className="flex items-center gap-3">
-          <Link href="/app/invoices">
+          <Link href="/app/sales?tab=invoices">
             <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-900 hover:bg-slate-100">
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Invoices
             </Button>
