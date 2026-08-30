@@ -1,3 +1,10 @@
-﻿node_modules
+node_modules
 .next
+playwright-report
+test-results
+coverage
+dist
+build
+.vercel
+out
 scripts
