@@ -242,7 +242,9 @@ export abstract class BaseService {
             err.message.includes('Collection with the requested ID') ||
             err.message.includes('collection_not_found')))
       ) {
-        console.warn(`[BaseService] Collection '${this.collectionId}' not found in database '${DATABASE_ID}'. Returning empty array.`)
+        if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+          console.warn(`[BaseService] Collection '${this.collectionId}' not found in database '${DATABASE_ID}'. Returning empty array.`)
+        }
         return []
       }
       throw err

@@ -11,9 +11,9 @@ vi.mock('@/config/appwrite', () => ({
     deleteDocument: vi.fn(),
   },
   DATABASE_ID: 'inventory_lite_db',
-  COLLECTIONS: {
-    EXPENSES: 'expenses',
-  },
+  COLLECTIONS: new Proxy({}, {
+    get: (_, prop) => (typeof prop === 'string' ? prop.toLowerCase() : prop),
+  }),
 }))
 
 describe('Expenses Management Module', () => {
@@ -23,19 +23,34 @@ describe('Expenses Management Module', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(databases.listDocuments).mockImplementation((_db, col) => {
+      if (col === 'journal_lines') {
+        return Promise.resolve({
+          total: 2,
+          documents: [
+            { $id: 'jl_1', debit: 2500, credit: 0, businessId: businessA },
+            { $id: 'jl_2', debit: 0, credit: 2500, businessId: businessA },
+          ],
+        } as any)
+      }
+      return Promise.resolve({ total: 0, documents: [] } as any)
+    })
+    vi.mocked(databases.getDocument).mockImplementation((_db, _col, docId) =>
+      Promise.resolve({ $id: docId, businessId: businessA, status: 'DRAFT', isBalanced: true } as any)
+    )
+    let firstExpense = true
+    vi.mocked(databases.createDocument).mockImplementation((_db, col, docId, data: any) => {
+      let id = docId === 'ID.unique()' ? 'id_' + Math.random().toString(36).substring(2, 7) : docId
+      if (firstExpense && col === 'expenses') {
+        id = 'exp_101'
+        firstExpense = false
+      }
+      return Promise.resolve({ $id: id, ...data } as any)
+    })
   })
 
   describe('Expense Creation & Validation', () => {
     it('should create a valid expense document', async () => {
-      vi.mocked(databases.createDocument).mockResolvedValueOnce({
-        $id: 'exp_101',
-        title: 'Office Electricity Bill',
-        category: 'utilities',
-        amount: 2500,
-        date: '2026-08-19',
-        businessId: businessA,
-        createdBy: userA,
-      } as any)
 
       const exp = await expenseService.createExpense(
         {

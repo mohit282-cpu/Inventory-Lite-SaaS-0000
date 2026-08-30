@@ -18,7 +18,7 @@ interface InvoiceDetailPageProps {
   params?: Promise<{ id?: string }>
 }
 
-export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps = {}) {
+export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
   const routeParams = useParams()
   const resolvedParams = params ? use(params) : null
   const id = (routeParams?.id || resolvedParams?.id) as string
