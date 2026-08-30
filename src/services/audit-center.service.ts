@@ -5,7 +5,7 @@ import { customerService } from './customer.service'
 import { supplierService } from './supplier.service'
 import { productService } from './product.service'
 import { stockMovementService } from './stock-movement.service'
-import { salesReturnService } from './sales-return.service'
+import { salesReturnService, salesReturnItemService } from './sales-return.service'
 import { auditLogService, AuditLogEntry } from './audit-log.service'
 import { expenseService } from './expense.service'
 import { businessService } from './business.service'
@@ -395,9 +395,21 @@ export class AuditCenterService {
     }
 
     let salesReturnsAmount = 0
-    for (const ret of filteredReturns) {
-      salesReturnsAmount += ret.totalRefund || 0
-    }
+    let returnedCogs = 0
+    await Promise.all(
+      filteredReturns.map(async (ret) => {
+        salesReturnsAmount += ret.totalRefund || 0
+        try {
+          const rItems = await salesReturnItemService.listReturnItems(ret.$id, businessId)
+          for (const ri of rItems) {
+            const wac = productCostMap.get(ri.productId) || 0
+            returnedCogs += wac * (ri.quantity || 0)
+          }
+        } catch {}
+      })
+    )
+
+    cogs = Math.max(0, cogs - returnedCogs)
 
     const purchaseReturns = 0
     const netVatCalc = calculateNetVatPosition(outputVat, inputVat)

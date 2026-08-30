@@ -97,7 +97,9 @@ function applyDataStyle(sheet: ExcelJS.Worksheet, spec: SheetSpec): void {
       if (!specCol) return
       if (specCol.numFmt) {
         cell.numFmt = specCol.numFmt
-        if (typeof cell.value === 'string' && cell.value.trim() !== '' && !isNaN(Number(cell.value))) {
+        if (cell.value instanceof Date) {
+          cell.value = 0
+        } else if (typeof cell.value === 'string' && cell.value.trim() !== '' && !isNaN(Number(cell.value))) {
           cell.value = Number(cell.value)
         }
       } else if (specCol.date) {

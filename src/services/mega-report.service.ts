@@ -440,8 +440,8 @@ function buildInvoiceRows(rows: Array<{
   invoiceStatus: string
 }>): MegaInvoiceRow[] {
   return rows.map((r) => ({
-    invoiceNumber: safeStr(r.invoiceNumber),
     date: isoDate(r.date),
+    invoiceNumber: safeStr(r.invoiceNumber),
     customerName: safeStr(r.customerName),
     customerPan: safeStr(r.customerPan, '—'),
     taxableAmount: fin(r.taxableAmount),

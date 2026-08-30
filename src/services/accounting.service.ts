@@ -86,29 +86,36 @@ export class AccountingService extends BaseService {
 
   /**
    * Provision the default Nepal SME chart of accounts for a new business.
-   * Safe to call multiple times — skips if accounts already exist.
+   * Self-healing: safe to call multiple times — provisions any missing default system accounts.
    */
-  async provisionDefaultChartOfAccounts(businessId: string, userId: string): Promise<Account[]> {
+  async provisionDefaultChartOfAccounts(businessId: string, userId?: string): Promise<Account[]> {
+    const validUserId = userId && userId.trim() !== '' ? userId : 'system_admin'
     const existing = await this.listAccounts(businessId)
-    if (existing.length > 0) return existing
+    const existingCodeMap = new Map(existing.map(a => [a.code, a]))
+    const created: Account[] = [...existing]
 
-    const created: Account[] = []
     for (const seed of NEPAL_SME_DEFAULT_ACCOUNTS) {
-      const account = await this.createAccount(
-        {
-          code: seed.code,
-          name: seed.name,
-          type: seed.type,
-          subType: seed.subType,
-          isSystem: seed.isSystem ?? false,
-          description: seed.description,
-          isActive: true,
-          openingBalance: 0,
-        },
-        businessId,
-        userId
-      )
-      created.push(account)
+      if (existingCodeMap.has(seed.code)) continue
+      try {
+        const account = await this.createAccount(
+          {
+            code: seed.code,
+            name: seed.name,
+            type: seed.type,
+            subType: seed.subType,
+            isSystem: seed.isSystem ?? false,
+            description: seed.description,
+            isActive: true,
+            openingBalance: 0,
+          },
+          businessId,
+          validUserId
+        )
+        created.push(account)
+        existingCodeMap.set(seed.code, account)
+      } catch {
+        // Handle concurrent account creation safely
+      }
     }
     return created
   }
@@ -210,7 +217,9 @@ export class AccountingService extends BaseService {
    * Total DEBIT must equal Total CREDIT. Returns the created entry.
    * Status defaults to DRAFT — must explicitly call postJournalEntry to finalize.
    */
-  async createJournalEntry(input: JournalEntryInput, businessId: string, userId: string): Promise<JournalEntry> {
+  async createJournalEntry(input: JournalEntryInput, businessId: string, userId?: string): Promise<JournalEntry> {
+    const validUserId = userId && userId.trim() !== '' ? userId : 'system_admin'
+
     // Validate lines
     if (!input.lines || input.lines.length < 2) {
       throw new Error('Journal entry must have at least 2 lines')
@@ -283,7 +292,7 @@ export class AccountingService extends BaseService {
         isBalanced: totalDebitPaisa === totalCreditPaisa,
       },
       businessId,
-      userId
+      validUserId
     )
 
     // Create journal lines
@@ -300,7 +309,8 @@ export class AccountingService extends BaseService {
           credit: line.credit,
           description: line.description,
         },
-        businessId
+        businessId,
+        validUserId
       )
       lines.push(journalLine)
     }
@@ -603,16 +613,13 @@ export class AccountingService extends BaseService {
    *   CR Sales Revenue (4000) — taxable amount
    *   CR Sales Returns (4200) — if applicable (negative revenue)
    */
-  private async ensureAccounts(businessId: string, userId: string): Promise<Account[]> {
-    let accounts = await this.listAccounts(businessId)
-    if (accounts.length === 0) {
-      try {
-        accounts = await this.provisionDefaultChartOfAccounts(businessId, userId || 'system')
-      } catch {
-        accounts = await this.listAccounts(businessId)
-      }
+  async ensureAccounts(businessId: string, userId?: string): Promise<Account[]> {
+    const validUserId = userId && userId.trim() !== '' ? userId : 'system_admin'
+    try {
+      return await this.provisionDefaultChartOfAccounts(businessId, validUserId)
+    } catch {
+      return await this.listAccounts(businessId)
     }
-    return accounts
   }
 
   /**
@@ -1140,14 +1147,17 @@ class JournalLineService extends BaseService {
 
   async createJournalLine(
     data: Omit<JournalEntryLine, '$id' | '$createdAt' | '$updatedAt' | '$collectionId' | '$databaseId' | '$permissions' | 'createdAt'>,
-    businessId: string
+    businessId: string,
+    userId?: string
   ): Promise<JournalEntryLine> {
+    const validUserId = userId && userId.trim() !== '' ? userId : 'system_admin'
     return await this.create<JournalEntryLine>(
       {
         ...data,
         createdAt: new Date().toISOString(),
       },
-      businessId
+      businessId,
+      validUserId
     )
   }
 

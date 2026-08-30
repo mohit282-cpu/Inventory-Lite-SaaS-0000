@@ -132,8 +132,8 @@ export interface MegaPaymentRow {
 
 /** Invoices register row (from sales). */
 export interface MegaInvoiceRow {
-  invoiceNumber: string
   date: string
+  invoiceNumber: string
   customerName: string
   customerPan: string
   taxableAmount: number
