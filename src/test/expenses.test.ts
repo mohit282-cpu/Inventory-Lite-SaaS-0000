@@ -85,14 +85,18 @@ describe('Expenses Management Module', () => {
 
   describe('Expense Summary Aggregation', () => {
     it('should calculate today, monthly, and total expenses correctly', async () => {
-      const todayISO = new Date().toISOString().slice(0, 10)
-      const monthISO = new Date().toISOString().slice(0, 7)
+      const now = new Date()
+      const todayISO = now.toISOString().slice(0, 10)
+      const monthISO = now.toISOString().slice(0, 7)
+      const dayNum = now.getDate()
+      const otherDay = dayNum === 1 ? '02' : '01'
+      const e2Date = `${monthISO}-${otherDay}`
 
       vi.mocked(databases.listDocuments).mockResolvedValueOnce({
         total: 3,
         documents: [
           { $id: 'e1', amount: 1500, date: todayISO, createdAt: todayISO },
-          { $id: 'e2', amount: 3500, date: `${monthISO}-01`, createdAt: `${monthISO}-01` },
+          { $id: 'e2', amount: 3500, date: e2Date, createdAt: e2Date },
           { $id: 'e3', amount: 5000, date: '2025-01-01', createdAt: '2025-01-01' },
         ],
       } as any)
