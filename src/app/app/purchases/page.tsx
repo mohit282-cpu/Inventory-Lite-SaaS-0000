@@ -46,14 +46,18 @@ export default function PurchasesPage() {
     if (!businessId) return
     try {
       setLoading(true)
-      const [fetchedPurchases, fetchedSuppliers, fetchedProducts] = await Promise.all([
+      const results = await Promise.allSettled([
         purchaseService.listPurchases(businessId),
         supplierService.listAllSuppliers(businessId),
         productService.listAllProducts(businessId),
       ])
-      setPurchases(fetchedPurchases)
-      setSuppliers(fetchedSuppliers)
-      setProducts(fetchedProducts)
+      const fetchedPurchases = results[0].status === 'fulfilled' ? results[0].value : []
+      const fetchedSuppliers = results[1].status === 'fulfilled' ? results[1].value : []
+      const fetchedProducts = results[2].status === 'fulfilled' ? results[2].value : []
+
+      setPurchases(Array.isArray(fetchedPurchases) ? fetchedPurchases : [])
+      setSuppliers(Array.isArray(fetchedSuppliers) ? fetchedSuppliers : [])
+      setProducts(Array.isArray(fetchedProducts) ? fetchedProducts : [])
     } catch (err) {
       console.error('Failed to load purchases:', err)
     } finally {

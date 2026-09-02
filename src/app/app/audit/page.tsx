@@ -137,24 +137,7 @@ export default function AuditCenterPage() {
       setError(null)
       const bId = activeBusiness.$id
 
-      const [
-        kpiRes,
-        sRes,
-        pRes,
-        vRes,
-        cLres,
-        sLres,
-        payRes,
-        invRes,
-        profRes,
-        retRes,
-        canRes,
-        logRes,
-        seqRes,
-        irdRes,
-        recRes,
-        checksRes,
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         auditCenterService.getAuditOverviewKPIs(bId, filters),
         auditCenterService.getSalesRegister(bId, filters),
         auditCenterService.getPurchaseRegister(bId, filters),
@@ -173,22 +156,25 @@ export default function AuditCenterPage() {
         auditCenterService.runFullSystemReconciliation(bId, filters),
       ])
 
-      setKpis(kpiRes)
-      setSalesData(sRes)
-      setPurchaseData(pRes)
-      setVatData(vRes)
-      setCustomerLedgers(cLres)
-      setSupplierLedgers(sLres)
-      setPayments(payRes)
-      setInventoryAudit(invRes)
-      setProfitability(profRes)
-      setReturns(retRes)
-      setCancelledDocs(canRes)
-      setAuditLogs(logRes)
-      setSequenceAudit(seqRes)
-      setIrdStatus(irdRes)
-      setReconciliation(recRes)
-      setReconciliationChecks(checksRes)
+      const getVal = <T,>(index: number, fallback: T): T =>
+        results[index].status === 'fulfilled' ? (results[index] as PromiseFulfilledResult<T>).value : fallback
+
+      setKpis(getVal(0, null))
+      setSalesData(getVal(1, null))
+      setPurchaseData(getVal(2, null))
+      setVatData(getVal(3, null))
+      setCustomerLedgers(getVal(4, []))
+      setSupplierLedgers(getVal(5, []))
+      setPayments(getVal(6, []))
+      setInventoryAudit(getVal(7, null))
+      setProfitability(getVal(8, null))
+      setReturns(getVal(9, []))
+      setCancelledDocs(getVal(10, []))
+      setAuditLogs(getVal(11, []))
+      setSequenceAudit(getVal(12, null))
+      setIrdStatus(getVal(13, null))
+      setReconciliation(getVal(14, []))
+      setReconciliationChecks(getVal(15, []))
     } catch (err: any) {
       console.error('Audit Center Data Load Error:', err)
       setError(err.message || 'Failed to load audit records.')

@@ -1341,7 +1341,7 @@ export class AuditCenterService {
       this.getSupplierLedgers(businessId, f),
       this.getInventoryCogsAudit(businessId, f),
       this.getProfitabilityAudit(businessId, f),
-      this.getInvoiceSequenceAudit(businessId),
+      this.getInvoiceSequenceAudit(businessId, f.fiscalYear),
     ])
 
     // Rule 1: Sales Register = Financial Sales
