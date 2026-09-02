@@ -18,7 +18,7 @@ import autoTable from 'jspdf-autotable'
 import type jsPDF from 'jspdf'
 import { PDF_COLORS, PDF_FONT, PDF_SPACING } from '@/lib/pdf/theme'
 import type { AutoTablePageHook } from './page'
-import { buildPageFooterHook } from './page'
+import { buildPageFooterHook, syncPageSize } from './page'
 
 type CellAlign = 'left' | 'center' | 'right'
 
@@ -84,40 +84,60 @@ export function drawTable(doc: jsPDF, opts: PdfTableOptions): number {
     opts.pageHook ??
     (opts.footerText ? buildPageFooterHook(doc, { footerText: opts.footerText }) : undefined)
 
-  autoTable(doc, {
-    startY: opts.startY,
-    margin: { left: margin, right: margin, bottom: PDF_SPACING.footerHeight },
-    head,
-    body: bodyRows,
-    foot: footRows,
-    theme: striped ? 'striped' : 'grid',
-    styles: {
-      fontSize: opts.fontScale === 'dense' ? 7.5 : 8,
-      cellPadding: opts.fontScale === 'dense' ? PDF_SPACING.denseCellPadding : PDF_SPACING.tableCellPadding,
-      overflow: 'linebreak',
-      minCellHeight: opts.fontScale === 'dense' ? 6 : 7,
-      textColor: [PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2]],
-      valign: 'middle',
-    },
-    headStyles: {
-      fillColor: [PDF_COLORS.ink800[0], PDF_COLORS.ink800[1], PDF_COLORS.ink800[2]],
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      halign: 'left',
-      minCellHeight: 8,
-    },
-    footStyles: {
-      fillColor: [PDF_COLORS.canvas100[0], PDF_COLORS.canvas100[1], PDF_COLORS.canvas100[2]],
-      textColor: [PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2]],
-      fontStyle: 'bold',
-      minCellHeight: 8,
-    },
-    alternateRowStyles: {
-      fillColor: [PDF_COLORS.zebra[0], PDF_COLORS.zebra[1], PDF_COLORS.zebra[2]],
-    },
-    columnStyles,
-    didDrawPage: pageHook,
-  })
+  syncPageSize(doc)
+  const d = doc as any
+  const pageWidth = typeof d.getPageWidth === 'function' ? d.getPageWidth() : d.internal.pageSize.getWidth()
+  const tableWidth = pageWidth - margin * 2
+
+  /* eslint-disable no-console */
+  const origLog = console.log
+  console.log = (...args: any[]) => {
+    if (typeof args[0] === 'string' && args[0].startsWith('Of the table content,')) {
+      return
+    }
+    origLog.apply(console, args)
+  }
+
+  try {
+    autoTable(doc, {
+      startY: opts.startY,
+      tableWidth,
+      margin: { left: margin, right: margin, bottom: PDF_SPACING.footerHeight },
+      head,
+      body: bodyRows,
+      foot: footRows,
+      theme: striped ? 'striped' : 'grid',
+      styles: {
+        fontSize: opts.fontScale === 'dense' ? 7.5 : 8,
+        cellPadding: opts.fontScale === 'dense' ? PDF_SPACING.denseCellPadding : PDF_SPACING.tableCellPadding,
+        overflow: 'linebreak',
+        minCellHeight: opts.fontScale === 'dense' ? 6 : 7,
+        textColor: [PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2]],
+        valign: 'middle',
+      },
+      headStyles: {
+        fillColor: [PDF_COLORS.ink800[0], PDF_COLORS.ink800[1], PDF_COLORS.ink800[2]],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'left',
+        minCellHeight: 8,
+      },
+      footStyles: {
+        fillColor: [PDF_COLORS.canvas100[0], PDF_COLORS.canvas100[1], PDF_COLORS.canvas100[2]],
+        textColor: [PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2]],
+        fontStyle: 'bold',
+        minCellHeight: 8,
+      },
+      alternateRowStyles: {
+        fillColor: [PDF_COLORS.zebra[0], PDF_COLORS.zebra[1], PDF_COLORS.zebra[2]],
+      },
+      columnStyles,
+      didDrawPage: pageHook,
+    })
+  } finally {
+    console.log = origLog
+  }
+  /* eslint-enable no-console */
 
   const finalY = (doc as any).lastAutoTable?.finalY ?? opts.startY
   return finalY + 6

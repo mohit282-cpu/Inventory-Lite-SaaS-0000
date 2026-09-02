@@ -10,6 +10,7 @@ import { expenseService } from '@/services/expense.service'
 import { salesReturnService } from '@/services/sales-return.service'
 import { stockMovementService } from '@/services/stock-movement.service'
 import { businessService } from '@/services/business.service'
+import { saleItemService } from '@/services/sale-item.service'
 
 vi.mock('@/services/sale.service')
 vi.mock('@/services/purchase.service')
@@ -20,12 +21,15 @@ vi.mock('@/services/expense.service')
 vi.mock('@/services/sales-return.service')
 vi.mock('@/services/stock-movement.service')
 vi.mock('@/services/business.service')
+vi.mock('@/services/sale-item.service')
 
 describe('Audit & Compliance Center Tests', () => {
   const mockBusinessId = 'biz_test_audit_123'
 
   beforeEach(() => {
     vi.clearAllMocks()
+
+    vi.mocked(saleItemService.listSaleItems).mockResolvedValue([])
 
     vi.mocked(saleService.listAllSales).mockResolvedValue([
       {

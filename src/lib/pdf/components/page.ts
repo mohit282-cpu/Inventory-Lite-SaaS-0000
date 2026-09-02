@@ -14,15 +14,28 @@ export interface PdfPageOptions {
   orientation?: PdfOrientation
 }
 
-/** Create an A4 jsPDF document. */
+export function syncPageSize(doc: jsPDF): void {
+  const d = doc as any
+  const width = typeof d.getPageWidth === 'function' ? d.getPageWidth() : d.internal.pageSize.getWidth()
+  const height = typeof d.getPageHeight === 'function' ? d.getPageHeight() : d.internal.pageSize.getHeight()
+  doc.internal.pageSize = {
+    width,
+    height,
+    getWidth: () => width,
+    getHeight: () => height,
+  } as any
+}
+
 export function createPdf(options: PdfPageOptions = {}): jsPDF {
   const { orientation = 'portrait' } = options
-  return new jsPDF({
+  const doc = new jsPDF({
     orientation,
     unit: 'mm',
     format: 'a4',
     compress: true,
   })
+  syncPageSize(doc)
+  return doc
 }
 
 export type AutoTablePageHook = (payload: { pageNumber: number }) => void

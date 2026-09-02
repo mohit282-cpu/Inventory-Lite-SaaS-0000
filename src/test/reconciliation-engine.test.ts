@@ -9,6 +9,7 @@ import { supplierService } from '@/services/supplier.service'
 import { salesReturnService } from '@/services/sales-return.service'
 import { expenseService } from '@/services/expense.service'
 import { businessService } from '@/services/business.service'
+import { saleItemService } from '@/services/sale-item.service'
 import { toMinorUnits, fromMinorUnits } from '@/lib/money'
 
 vi.mock('@/services/sale.service')
@@ -20,12 +21,15 @@ vi.mock('@/services/expense.service')
 vi.mock('@/services/sales-return.service')
 vi.mock('@/services/stock-movement.service')
 vi.mock('@/services/business.service')
+vi.mock('@/services/sale-item.service')
 
 describe('Deterministic Financial Reconciliation Engine Tests', () => {
   const mockBusinessId = 'biz_rec_test_999'
 
   beforeEach(() => {
     vi.clearAllMocks()
+
+    vi.mocked(saleItemService.listSaleItems).mockResolvedValue([])
 
     vi.mocked(businessService.getBusiness).mockResolvedValue({
       $id: mockBusinessId,

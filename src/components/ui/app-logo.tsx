@@ -20,13 +20,13 @@ export function AppLogo({
 
   return (
     <div className={`inline-flex items-center gap-2.5 ${className}`}>
-      <div className="relative shrink-0 flex items-center justify-center overflow-hidden rounded-lg shadow-sm border border-indigo-200/50 bg-indigo-600">
+      <div className="relative shrink-0 flex items-center justify-center overflow-hidden rounded-lg shadow-sm border border-slate-200/80 bg-white">
         <Image
-          src="/icons/icon.svg"
+          src="/logo.png"
           alt="Inventory Lite Logo"
           width={size}
           height={size}
-          className="object-cover transition-transform hover:scale-105"
+          className="object-contain transition-transform hover:scale-105"
           priority
         />
       </div>

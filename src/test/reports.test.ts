@@ -38,6 +38,21 @@ vi.mock('@/services/expense.service', () => ({
   },
 }))
 
+vi.mock('@/services/sales-return.service', () => ({
+  salesReturnService: {
+    listAllSalesReturns: vi.fn().mockResolvedValue([]),
+  },
+  salesReturnItemService: {
+    listReturnItems: vi.fn().mockResolvedValue([]),
+  },
+}))
+
+vi.mock('@/services/category.service', () => ({
+  categoryService: {
+    listCategories: vi.fn().mockResolvedValue([]),
+  },
+}))
+
 describe('Analytics & Reports System', () => {
   const businessId = 'bus_report_test_001'
 
