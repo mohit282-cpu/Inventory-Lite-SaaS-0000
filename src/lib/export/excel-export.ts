@@ -47,7 +47,21 @@ export async function exportToExcel(data: ExportDataPayload | any): Promise<void
         // Apply accounting number format to financial columns (case-insensitive)
         ...(financialColumns.has(k.toLowerCase()) ? { numFmt: 'Rs. #,##0.00' } : {}),
       }))
-      data.items.forEach((item: any) => sheet.addRow(item))
+      data.items.forEach((item: any) => {
+        const row = sheet.addRow(item)
+        row.eachCell((cell, colIdx) => {
+          const colKey = keys[colIdx - 1]
+          if (colKey && financialColumns.has(colKey.toLowerCase())) {
+            cell.numFmt = 'Rs. #,##0.00'
+            if (cell.value instanceof Date) {
+              cell.value = 0
+            } else if (typeof cell.value === 'string') {
+              const parsed = parseFloat(cell.value)
+              cell.value = isNaN(parsed) ? 0 : parsed
+            }
+          }
+        })
+      })
     } else {
       sheet.columns = [{ header: 'Value', key: 'value', width: 40 }]
       data.items.forEach((item: any) => sheet.addRow({ value: String(item) }))

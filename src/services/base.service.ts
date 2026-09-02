@@ -2,6 +2,37 @@ import { databases, DATABASE_ID } from '@/config/appwrite'
 import { ID, Query, Models, Permission, Role } from 'appwrite'
 import { sanitizeAppwriteDocId } from '@/lib/utils'
 
+const CRITICAL_FINANCIAL_COLLECTIONS = new Set<string>([
+  'sales',
+  'sale_items',
+  'purchases',
+  'purchase_items',
+  'payments',
+  'supplier_payments',
+  'invoices',
+  'credit_notes',
+  'debit_notes',
+  'journal_entries',
+  'journal_lines',
+  'tax_transactions',
+  'stock_movements',
+])
+
+const CRITICAL_FINANCIAL_FIELDS = new Set<string>([
+  'amount',
+  'total',
+  'paidamount',
+  'dueamount',
+  'vat',
+  'vatamount',
+  'taxableamount',
+  'cogs',
+  'quantity',
+  'accountid',
+  'invoicenumber',
+  'businessid',
+])
+
 /**
  * Base Service Class
  * 
@@ -173,8 +204,12 @@ export abstract class BaseService {
         if (err?.message && err.message.includes('Unknown attribute')) {
           const match = err.message.match(/Unknown attribute:\s*"([^"]+)"/i)
           if (match && match[1] && documentData[match[1]] !== undefined) {
-            console.warn(`[BaseService] Stripping unknown attribute "${match[1]}" from ${this.collectionId} create payload...`)
-            delete documentData[match[1]]
+            const fieldName = match[1]
+            if (CRITICAL_FINANCIAL_COLLECTIONS.has(this.collectionId) || CRITICAL_FINANCIAL_FIELDS.has(fieldName.toLowerCase())) {
+              throw new Error(`Schema Error: Cannot silently strip critical financial attribute "${fieldName}" from collection "${this.collectionId}". Database schema update required.`)
+            }
+            console.warn(`[BaseService] Stripping unknown attribute "${fieldName}" from ${this.collectionId} create payload...`)
+            delete documentData[fieldName]
             attempts++
             continue
           }
@@ -242,6 +277,9 @@ export abstract class BaseService {
             err.message.includes('Collection with the requested ID') ||
             err.message.includes('collection_not_found')))
       ) {
+        if (CRITICAL_FINANCIAL_COLLECTIONS.has(this.collectionId)) {
+          throw new Error(`Financial data service unavailable: Collection '${this.collectionId}' is missing or uninitialized.`)
+        }
         if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
           console.warn(`[BaseService] Collection '${this.collectionId}' not found in database '${DATABASE_ID}'. Returning empty array.`)
         }
@@ -330,8 +368,12 @@ export abstract class BaseService {
         if (err?.message && err.message.includes('Unknown attribute')) {
           const match = err.message.match(/Unknown attribute:\s*"([^"]+)"/i)
           if (match && match[1] && updatePayload[match[1]] !== undefined) {
-            console.warn(`[BaseService] Stripping unknown attribute "${match[1]}" from ${this.collectionId} update payload...`)
-            delete updatePayload[match[1]]
+            const fieldName = match[1]
+            if (CRITICAL_FINANCIAL_COLLECTIONS.has(this.collectionId) || CRITICAL_FINANCIAL_FIELDS.has(fieldName.toLowerCase())) {
+              throw new Error(`Schema Error: Cannot silently strip critical financial attribute "${fieldName}" from collection "${this.collectionId}". Database schema update required.`)
+            }
+            console.warn(`[BaseService] Stripping unknown attribute "${fieldName}" from ${this.collectionId} update payload...`)
+            delete updatePayload[fieldName]
             attempts++
             continue
           }
