@@ -8,6 +8,7 @@ import { RouteGuard } from "@/components/auth/route-guard"
 import { Toaster } from "@/components/ui/toaster"
 import { SWRegister } from "@/components/pwa/sw-register"
 import { ExtensionErrorSuppressor } from "@/components/ui/extension-error-suppressor"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -120,6 +121,7 @@ export default function RootLayout({
             <Toaster />
           </AuthProvider>
         </LanguageProvider>
+        <SpeedInsights />
       </body>
     </html>
   )
