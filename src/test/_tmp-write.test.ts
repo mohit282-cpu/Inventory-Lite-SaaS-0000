@@ -4,9 +4,9 @@ import path from 'path'
 import os from 'os'
 import { generateMegaExcelBuffer } from '@/lib/export/mega-report-excel'
 import { generateMegaReportPdf } from '@/lib/pdf/mega-report-pdf'
+import { buildFinancialData } from '@/test/fixtures/mega-report.fixture'
 
 it('writes a workbook to disk for validation', async () => {
-  const { buildFinancialData } = await import('@/test/mega-report.test')
   const data = buildFinancialData()
   const buf = await generateMegaExcelBuffer({ data })
   const tmpDir = path.join(os.tmpdir(), 'inventory-lite-tests')
