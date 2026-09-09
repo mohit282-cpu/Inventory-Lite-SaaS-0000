@@ -46,12 +46,21 @@ export function validateAppwriteConfig(): void {
 
 const config = getAppwriteConfig();
 
-// Initialize Appwrite Client safely at module scope without throwing on import
+// Initialize Appwrite Client with project endpoint and project ID
 const client = new Client()
     .setEndpoint(config.endpoint)
-    .setProject(config.projectId || "unconfigured_appwrite_project_id");
+    .setProject(config.projectId || "6a85664100023f1deffb");
 
 const account = new Account(client);
 const databases = new Databases(client);
+
+// Automatically invoke client.ping() to verify Appwrite backend setup
+if (typeof window !== "undefined" && typeof (client as any).ping === "function") {
+  try {
+    (client as any).ping().catch(() => {});
+  } catch {
+    // Non-blocking
+  }
+}
 
 export { client, account, databases };
