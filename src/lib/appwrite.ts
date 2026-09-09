@@ -10,8 +10,8 @@ export interface AppwriteConfigInfo {
  * Helper to check Appwrite configuration status without throwing
  */
 export function getAppwriteConfig(): AppwriteConfigInfo {
-  const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
-  const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || "";
+  const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://fra.cloud.appwrite.io/v1";
+  const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || "6a85664100023f1deffb";
   const isTest = process.env.NODE_ENV === "test" || Boolean(process.env.VITEST);
   const isConfigured = isTest || Boolean(
     projectId &&
