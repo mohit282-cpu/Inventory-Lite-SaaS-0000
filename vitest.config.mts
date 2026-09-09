@@ -7,7 +7,16 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
-    exclude: ['node_modules', 'e2e/**'],
+    include: ['src/test/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/cypress/**',
+      '**/.git/**',
+      '**/.next/**',
+      'e2e/**',
+      'starter-for-nextjs/**',
+    ],
   },
   resolve: {
     alias: {

@@ -9,6 +9,7 @@ export function AppwriteInitializer() {
       (client as any)
         .ping()
         .then(() => {
+          // eslint-disable-next-line no-console
           console.log("[Appwrite Setup] Appwrite backend server ping succeeded.")
         })
         .catch((err: any) => {
