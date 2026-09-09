@@ -20,8 +20,13 @@ interface InvoiceDetailPageProps {
 
 export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
   const routeParams = useParams()
-  const resolvedParams = params ? use(params) : null
-  const id = (routeParams?.id || resolvedParams?.id) as string
+  let resolvedParams: { id?: string } | null = null
+  if (params) {
+    resolvedParams = typeof (params as any).then === 'function'
+      ? use(params as Promise<{ id?: string }>)
+      : (params as { id?: string })
+  }
+  const id = ((routeParams?.id as string) || resolvedParams?.id) || ''
   const searchParams = useSearchParams()
   const { activeBusiness } = useAuth()
   const router = useRouter()

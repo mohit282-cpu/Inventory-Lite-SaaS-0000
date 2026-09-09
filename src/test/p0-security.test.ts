@@ -41,7 +41,18 @@ describe('P0 Security Hardening Regression Tests', () => {
   })
 
   it('[SEC-02] Should initialize Appwrite client without hardcoded fallback credentials', async () => {
-    const { client } = await import('@/lib/appwrite')
+    const { client, getAppwriteConfig, validateAppwriteConfig } = await import('@/lib/appwrite')
     expect(client).toBeDefined()
+    expect(typeof getAppwriteConfig).toBe('function')
+    expect(typeof validateAppwriteConfig).toBe('function')
+  })
+
+  it('[SEC-03] Should validate configuration and throw actionable error when project ID is missing', async () => {
+    const { getAppwriteConfig, validateAppwriteConfig } = await import('@/lib/appwrite')
+    const config = getAppwriteConfig()
+    if (!config.isConfigured) {
+      expect(() => validateAppwriteConfig()).toThrow('Configuration Error: NEXT_PUBLIC_APPWRITE_PROJECT_ID is not configured in production environment variables.')
+    }
   })
 })
+

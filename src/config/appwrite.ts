@@ -1,5 +1,5 @@
 import { Storage, Functions } from 'appwrite'
-import { client, account, databases } from '@/lib/appwrite'
+import { client, account, databases, getAppwriteConfig, validateAppwriteConfig } from '@/lib/appwrite'
 
 /**
  * Appwrite Configuration
@@ -8,7 +8,7 @@ import { client, account, databases } from '@/lib/appwrite'
  * All Appwrite SDK instances are exported from here for application-wide consistency.
  */
 
-export { client, account, databases }
+export { client, account, databases, getAppwriteConfig, validateAppwriteConfig }
 
 // Initialize additional Appwrite services
 export const storage = new Storage(client)

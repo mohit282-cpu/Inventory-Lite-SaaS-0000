@@ -1,4 +1,5 @@
 import { account } from '@/config/appwrite'
+import { getAppwriteConfig, validateAppwriteConfig } from '@/lib/appwrite'
 import { ID, Models } from 'appwrite'
 import { formatE164Phone } from '@/lib/utils'
 
@@ -13,6 +14,7 @@ export class AuthService {
    * Register a new user account
    */
   async register(email: string, password: string, name: string, phone?: string): Promise<Models.User<Models.Preferences>> {
+    validateAppwriteConfig()
     const userAcc = await account.create(
       ID.unique(),
       email,
@@ -38,6 +40,7 @@ export class AuthService {
    */
   async updatePhone(phone: string, password?: string): Promise<Models.User<Models.Preferences> | null> {
     if (!phone || !phone.trim()) return null
+    validateAppwriteConfig()
     const formattedPhone = formatE164Phone(phone)
 
     // 1. Try Web SDK account.updatePhone if password is provided
@@ -63,6 +66,7 @@ export class AuthService {
    * Automatically clears any pre-existing active session to prevent 409 conflict errors
    */
   async login(email: string, password: string): Promise<Models.Session> {
+    validateAppwriteConfig()
     try {
       await account.deleteSession('current')
     } catch {
@@ -93,6 +97,9 @@ export class AuthService {
    * Get current user account (authoritative check via Appwrite account.get())
    */
   async getCurrentUser(): Promise<Models.User<Models.Preferences> | null> {
+    if (!getAppwriteConfig().isConfigured) {
+      return null
+    }
     try {
       const user = await account.get()
       if (user && typeof document !== 'undefined') {

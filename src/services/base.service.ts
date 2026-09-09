@@ -1,4 +1,5 @@
 import { databases, DATABASE_ID } from '@/config/appwrite'
+import { validateAppwriteConfig } from '@/lib/appwrite'
 import { ID, Query, Models, Permission, Role } from 'appwrite'
 import { sanitizeAppwriteDocId } from '@/lib/utils'
 
@@ -69,6 +70,7 @@ export abstract class BaseService {
     permissions?: string[],
     customId?: string
   ): Promise<T> {
+    validateAppwriteConfig()
     const { $id, $createdAt, $updatedAt, $databaseId, $collectionId, $permissions, ...cleanData } = data || {}
 
     const collectionsWithUpdatedAt = new Set<string>([
@@ -234,6 +236,7 @@ export abstract class BaseService {
    * Get a document by ID with tenant isolation verification
    */
   async getById<T>(id: string, businessId: string): Promise<T> {
+    validateAppwriteConfig()
     const document = await databases.getDocument(
       DATABASE_ID,
       this.collectionId,
@@ -253,6 +256,7 @@ export abstract class BaseService {
    */
   async list<T>(businessId: string, queries: any[] = []): Promise<T[]> {
     try {
+      validateAppwriteConfig()
       if (businessId === 'system') {
         const result = await databases.listDocuments(
           DATABASE_ID,
@@ -319,6 +323,7 @@ export abstract class BaseService {
    * Update a document with tenant isolation verification
    */
   async update<T>(id: string, data: any, businessId: string): Promise<T> {
+    validateAppwriteConfig()
     // Verify tenant isolation before update (getById will throw if businessId doesn't match)
     if (businessId !== 'system') {
       await this.getById(id, businessId)
@@ -390,6 +395,7 @@ export abstract class BaseService {
    * Delete a document with tenant isolation verification
    */
   async delete(id: string, businessId: string): Promise<boolean> {
+    validateAppwriteConfig()
     // Verify tenant isolation before delete
     if (businessId !== 'system') {
       await this.getById(id, businessId)
