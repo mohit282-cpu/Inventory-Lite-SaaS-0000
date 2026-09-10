@@ -53,7 +53,8 @@ export async function POST(request: Request) {
       message: 'Thank you for contacting Inventory Lite support! Our team will reach out to you shortly.',
       data: { name, phone, businessName, messageLength: message.length, messageReceived: true },
     })
-  } catch {
+  } catch (error) {
+    console.error('[Contact API Error]:', error)
     return NextResponse.json(
       { success: false, error: 'Failed to process support request. Please try again.' },
       { status: 500 }

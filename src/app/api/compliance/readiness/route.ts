@@ -27,6 +27,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const authHeader = request.headers.get('authorization')
+    const internalKey = process.env.INTERNAL_API_KEY
+    if (!internalKey || authHeader !== `Bearer ${internalKey}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     // Run all checks in parallel for performance
     const [
       accountingInitialized,

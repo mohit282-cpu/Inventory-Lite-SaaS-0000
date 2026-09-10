@@ -52,7 +52,8 @@ export async function POST(request: Request) {
       success: true,
       message: 'Thank you for subscribing! You are now on our update list.',
     })
-  } catch {
+  } catch (error) {
+    console.error('[Subscribe API Error]:', error)
     return NextResponse.json(
       { success: false, error: 'Failed to process subscription request. Please try again.' },
       { status: 500 }

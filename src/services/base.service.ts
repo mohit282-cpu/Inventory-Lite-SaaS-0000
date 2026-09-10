@@ -275,6 +275,15 @@ export abstract class BaseService {
       return this.mapDocuments<T>(result.documents)
     } catch (err: any) {
       if (
+        err?.code === 401 ||
+        err?.code === 403 ||
+        (err?.message && (err.message.includes('unauthorized') || err.message.includes('Missing scopes')))
+      ) {
+        const { ForbiddenError } = await import('@/lib/security');
+        throw new ForbiddenError(`Access collection '${this.collectionId}'`, 'unauthenticated');
+      }
+
+      if (
         err?.code === 404 ||
         (err?.message &&
           (err.message.includes('could not be found') ||
