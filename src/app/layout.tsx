@@ -70,6 +70,13 @@ export default function RootLayout({
   return (
     <html lang="ne" className={`${inter.variable} ${devanagari.variable}`}>
       <head>
+        {/* Privacy-friendly analytics by Plausible */}
+        <script async src="https://plausible.io/js/pa-oJU_XzCp6dglBNgpahH7h.js" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init();`,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `

@@ -1,3 +1,4 @@
+Add this snippet to your site's <head>
 'use client'
 
 import { useEffect } from 'react'
