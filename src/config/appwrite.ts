@@ -78,23 +78,50 @@ export async function getCurrentUser() {
 }
 
 /**
- * Get active business context for the current session
+ * Get active business context for the current session with preference & parameter resolution
  */
-export async function getActiveBusinessContext() {
+export async function getActiveBusinessContext(requestedBusinessId?: string) {
   try {
     const user = await getCurrentUser()
     if (!user) {
       return null
     }
+
     const membershipDocs = await databases.listDocuments(
       DATABASE_ID,
       COLLECTIONS.BUSINESS_MEMBERS,
-      [Query.equal('userId', user.$id), Query.limit(1)]
+      [Query.equal('userId', user.$id), Query.limit(100)]
     )
+
     if (membershipDocs.documents.length === 0) {
       return { user, businessId: null, role: null }
     }
-    const activeMember = membershipDocs.documents[0]
+
+    const members = membershipDocs.documents
+    let activeMember = members[0]
+
+    // 1. Check if explicit requestedBusinessId matches a valid membership
+    if (requestedBusinessId && requestedBusinessId.trim() !== '') {
+      const match = members.find((m) => m.businessId === requestedBusinessId)
+      if (match) {
+        activeMember = match
+      }
+    } else {
+      // 2. Fall back to user's stored preferred active business ID if present
+      try {
+        const { userService } = await import('@/services/user.service')
+        const profile = await userService.getUserProfile(user.$id)
+        if (profile?.preferences?.activeBusinessId) {
+          const match = members.find((m) => m.businessId === profile.preferences.activeBusinessId)
+          if (match) {
+            activeMember = match
+          }
+        }
+      } catch {
+        // Fall back to first membership if profile lookup fails
+      }
+    }
+
     return {
       user,
       businessId: activeMember.businessId as string,

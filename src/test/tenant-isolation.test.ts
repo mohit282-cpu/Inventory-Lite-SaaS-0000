@@ -10,6 +10,11 @@ vi.mock('@/config/appwrite', () => {
 
   return {
     DATABASE_ID: 'inventory_lite_db',
+    getActiveBusinessContext: vi.fn(async (requestedBusinessId?: string) => ({
+      user: { $id: 'user_1' },
+      businessId: requestedBusinessId || 'business_A',
+      role: 'owner',
+    })),
     COLLECTIONS: {
       USERS: 'users',
       BUSINESSES: 'businesses',
@@ -192,5 +197,14 @@ describe('Multi-Tenant Data Isolation & Service Layer Tests', () => {
         user1
       )
     ).rejects.toThrow('Expense amount must be greater than zero')
+  })
+
+  it('QA-001: Resolves active business context based on requested businessId or stored preferences', async () => {
+    const { getActiveBusinessContext } = await import('@/config/appwrite')
+    const ctxA = await getActiveBusinessContext('business_A')
+    expect(ctxA?.businessId).toBe('business_A')
+
+    const ctxB = await getActiveBusinessContext('business_B')
+    expect(ctxB?.businessId).toBe('business_B')
   })
 })

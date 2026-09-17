@@ -42,6 +42,7 @@ interface AuthContextType {
     timezone?: string
   }) => Promise<Business>
   completeOnboarding: (businessId?: string) => Promise<void>
+  switchBusiness: (businessId: string) => Promise<void>
   refreshAuth: () => Promise<void>
   retryAuth: () => Promise<void>
   clearError: () => void
@@ -458,6 +459,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const switchBusiness = async (targetBusinessId: string): Promise<void> => {
+    if (!user) throw new Error('Authentication required')
+    const hasMembership = memberships.some((m) => m.businessId === targetBusinessId)
+    if (!hasMembership) {
+      throw new Error(`Unauthorized: You are not a member of business '${targetBusinessId}'`)
+    }
+    const business = await businessService.getBusiness(targetBusinessId)
+    if (isMountedRef.current) {
+      setActiveBusiness(business)
+    }
+    await userService.updateUserPreferences(user.$id, { activeBusinessId: targetBusinessId }).catch(() => {})
+  }
+
   const isAuthLoading = authStatus === 'INITIALIZING' || authStatus === 'ONLINE_AUTHENTICATING'
 
   return (
@@ -481,6 +495,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         createBusinessOnboarding,
         completeOnboarding,
+        switchBusiness,
         refreshAuth,
         retryAuth,
         clearError,
