@@ -37,7 +37,7 @@ jobs:
         run: npm run lint
 
       - name: 3. Dependency Vulnerability Audit
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high
 
       - name: 4. Vitest Unit, Security, & Concurrency Test Suite
         run: npm run test

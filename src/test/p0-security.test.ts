@@ -52,10 +52,13 @@ describe('P0 Security Hardening Regression Tests', () => {
     const originalEnv = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID
     delete process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID
 
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
     const config = getAppwriteConfig()
     expect(config.isConfigured).toBe(false)
     expect(() => validateAppwriteConfig()).toThrow(/Configuration Error: NEXT_PUBLIC_APPWRITE_PROJECT_ID is not configured/)
 
+    consoleSpy.mockRestore()
     process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID = originalEnv
   })
 
@@ -92,10 +95,12 @@ describe('P0 Security Hardening Regression Tests', () => {
 
   it('[SEC-07] Should enforce batch limits and cursor pagination for scalable query performance', async () => {
     const service = new TestBaseService()
-    const startTime = performance.now()
-    expect(service).toBeDefined()
-    const duration = performance.now() - startTime
-    expect(duration).toBeLessThan(100) // Execution threshold < 100ms
+    const mockList = vi.spyOn(service, 'list').mockResolvedValue([])
+
+    const result = await service.listAll('biz_test_123')
+    expect(result).toEqual([])
+    expect(mockList).toHaveBeenCalledWith('biz_test_123', expect.arrayContaining([expect.objectContaining({})]))
+    mockList.mockRestore()
   })
 })
 
