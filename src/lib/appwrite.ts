@@ -27,26 +27,35 @@ export interface AppwriteConfigInfo {
 
 export function getAppwriteConfig(): AppwriteConfigInfo {
   const envProjectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID
-  const isEnvInvalid = !envProjectId ||
-    envProjectId.trim() === '' ||
-    envProjectId === 'your_project_id' ||
-    envProjectId === 'unconfigured_appwrite_project_id'
+  const activeProjectId = envProjectId && envProjectId.trim() !== '' && envProjectId !== 'your_project_id' && envProjectId !== 'unconfigured_appwrite_project_id'
+    ? envProjectId
+    : DEFAULT_PROJECT_ID
 
-  const activeProjectId = isEnvInvalid ? DEFAULT_PROJECT_ID : envProjectId
   const activeEndpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || DEFAULT_ENDPOINT
-  const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST)
+
+  const isConfigured = Boolean(
+    activeProjectId &&
+    activeProjectId.trim() !== '' &&
+    activeProjectId !== 'your_project_id' &&
+    activeProjectId !== 'unconfigured_appwrite_project_id'
+  )
 
   return {
     endpoint: activeEndpoint,
     projectId: activeProjectId,
-    isConfigured: isTest || !isEnvInvalid,
+    isConfigured,
   }
 }
 
 export function validateAppwriteConfig(): void {
   const config = getAppwriteConfig()
-  if (!config.isConfigured && process.env.NODE_ENV === 'production') {
-    const errorMsg = 'Configuration Error: NEXT_PUBLIC_APPWRITE_PROJECT_ID is not configured in production environment variables. Deployment halted.'
+  if (!config.isConfigured) {
+    const isDev = process.env.NODE_ENV === 'development'
+    const envSource = isDev ? 'local environment variables' : 'production environment variables'
+    const actionGuide = isDev
+      ? 'Please ensure NEXT_PUBLIC_APPWRITE_PROJECT_ID is set in your .env.local file.'
+      : 'Please set NEXT_PUBLIC_APPWRITE_PROJECT_ID in your production hosting provider dashboard.'
+    const errorMsg = `Configuration Error: NEXT_PUBLIC_APPWRITE_PROJECT_ID is not configured in ${envSource}. ${actionGuide}`
     console.error(`[Appwrite Config] ${errorMsg}`)
     throw new Error(errorMsg)
   }
