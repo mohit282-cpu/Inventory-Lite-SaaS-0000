@@ -547,6 +547,18 @@ export async function setupDatabase() {
 
   console.log(`Checking Database: ${DATABASE_ID}...`)
   const dbCheck = await apiRequest(`/databases/${DATABASE_ID}`)
+
+  if (dbCheck.data?.message?.includes('paused') || dbCheck.data?.type === 'project_paused') {
+    console.log('\n----------------------------------------------------')
+    console.log('Notice: Appwrite project is currently PAUSED due to inactivity in Appwrite Cloud.')
+    console.log('To restore your project:')
+    console.log('1. Log into Appwrite Console: https://cloud.appwrite.io')
+    console.log('2. Select project inventory-lite-saa-s-0000 (6aabeb7e0017a4599d1e)')
+    console.log('3. Click "Restore Project" on the yellow banner at the top.')
+    console.log('----------------------------------------------------\n')
+    return
+  }
+
   if (dbCheck.status === 404) {
     console.log(`Creating database '${DATABASE_ID}'...`)
     await apiRequest('/databases', 'POST', {

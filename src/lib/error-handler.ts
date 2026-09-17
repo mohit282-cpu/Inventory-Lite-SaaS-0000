@@ -90,6 +90,10 @@ export function handleApiError(error: any): AppError {
     return new NetworkError('Unable to connect to backend server. Please verify Web Platform domain configuration (CORS) in Appwrite Console.')
   }
 
+  if (message.includes('paused') || message.includes('Project is paused') || type === 'project_paused') {
+    return new AuthenticationError('Appwrite project is currently paused due to inactivity. Please log into Appwrite Console (https://cloud.appwrite.io) and click "Restore Project" to resume operations.')
+  }
+
   if (type === 'user_already_exists' || (code === 409 && message.includes('already exists'))) {
     return new ConflictError('An account with this email address already exists. Please sign in instead.')
   }
