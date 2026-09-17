@@ -1,4 +1,4 @@
-import { BaseService } from './base.service'
+import { BaseService, SYSTEM_TENANT_ID } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { Business, Currency, TaxRegistrationType } from '@/types'
 import { Query } from 'appwrite'
@@ -62,7 +62,7 @@ export class BusinessService extends BaseService {
       timezone: data.timezone || 'Asia/Kathmandu',
     }
 
-    const business = await this.create<Business>(businessData, 'system', userId)
+    const business = await this.create<Business>(businessData, SYSTEM_TENANT_ID, userId)
 
     try {
       const { businessMemberService } = await import('./business-member.service')
@@ -85,7 +85,7 @@ export class BusinessService extends BaseService {
         requiredRole: ['owner', 'admin', 'staff'],
       })
     }
-    return await this.getById<Business>(businessId, 'system')
+    return await this.getById<Business>(businessId, SYSTEM_TENANT_ID)
   }
 
   /**
@@ -137,7 +137,7 @@ export class BusinessService extends BaseService {
       }
     }
 
-    return await this.update<Business>(businessId, payload, 'system')
+    return await this.update<Business>(businessId, payload, SYSTEM_TENANT_ID)
   }
 
   /**
@@ -147,7 +147,7 @@ export class BusinessService extends BaseService {
     if (!userId || userId.trim() === '') {
       throw new Error('Unauthorized: Valid userId required')
     }
-    return await this.list<Business>('system', [
+    return await this.list<Business>(SYSTEM_TENANT_ID, [
       Query.equal('ownerId', userId),
       Query.orderDesc('createdAt')
     ])

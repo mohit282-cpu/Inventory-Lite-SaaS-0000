@@ -1,0 +1,52 @@
+name: Production Readiness & Quality Gate CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  quality-gate:
+    name: Typecheck, Lint, Security, Unit, E2E & Build Gate
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: test
+      NEXT_PUBLIC_APPWRITE_PROJECT_ID: '6aabeb7e0017a4599d1e'
+      NEXT_PUBLIC_APPWRITE_ENDPOINT: 'https://fra.cloud.appwrite.io/v1'
+      NEXT_PUBLIC_APPWRITE_DATABASE_ID: 'inventory_lite_db'
+
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: 1. TypeScript Static Typecheck
+        run: npm run typecheck
+
+      - name: 2. ESLint Code Quality Inspection
+        run: npm run lint
+
+      - name: 3. Dependency Vulnerability Audit
+        run: npm audit --audit-level=high || true
+
+      - name: 4. Vitest Unit, Security, & Concurrency Test Suite
+        run: npm run test
+
+      - name: 5. Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: 6. Playwright End-to-End Browser Tests
+        run: npx playwright test
+
+      - name: 7. Production Build Verification
+        run: npm run build

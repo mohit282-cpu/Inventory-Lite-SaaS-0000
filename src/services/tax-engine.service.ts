@@ -1,4 +1,4 @@
-import { BaseService } from './base.service'
+import { BaseService, SYSTEM_TENANT_ID } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import {
   TaxRate, TaxCategory, TaxTransaction,
@@ -347,7 +347,7 @@ export class TaxEngineService extends BaseService {
         ...input,
       },
       businessId,
-      'system'
+      SYSTEM_TENANT_ID
     )
   }
 

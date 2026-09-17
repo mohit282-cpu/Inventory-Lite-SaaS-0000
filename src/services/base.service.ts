@@ -55,7 +55,7 @@ export abstract class BaseService {
   }
 
   protected isSystemContext(businessId: string): boolean {
-    return Boolean(businessId && (businessId === SYSTEM_TENANT_ID || businessId === 'system'))
+    return Boolean(businessId && businessId === SYSTEM_TENANT_ID)
   }
 
   protected mapDocument<T>(doc: Models.Document): T {
@@ -296,13 +296,7 @@ export abstract class BaseService {
             err.message.includes('Collection with the requested ID') ||
             err.message.includes('collection_not_found')))
       ) {
-        if (CRITICAL_FINANCIAL_COLLECTIONS.has(this.collectionId)) {
-          throw new Error(`Financial data service unavailable: Collection '${this.collectionId}' is missing or uninitialized.`)
-        }
-        if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
-          console.warn(`[BaseService] Collection '${this.collectionId}' not found in database '${DATABASE_ID}'. Returning empty array.`)
-        }
-        return []
+        throw new Error(`Infrastructure Error: Collection '${this.collectionId}' is missing or uninitialized in database '${DATABASE_ID}'. Database schema update required.`)
       }
       throw err
     }

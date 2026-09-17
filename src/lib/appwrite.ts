@@ -1,14 +1,13 @@
 import { Client, Account, Databases } from 'appwrite'
 
 const DEFAULT_ENDPOINT = 'https://fra.cloud.appwrite.io/v1'
-const DEFAULT_PROJECT_ID = '6aabeb7e0017a4599d1e'
 
 const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || DEFAULT_ENDPOINT
-const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || DEFAULT_PROJECT_ID
+const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || ''
 
 const client = new Client()
   .setEndpoint(endpoint)
-  .setProject(projectId)
+  .setProject(projectId || 'unconfigured')
 
 // Run client.ping() to confirm setup
 if (typeof (client as any).ping === 'function') {
@@ -27,23 +26,21 @@ export interface AppwriteConfigInfo {
 
 export function getAppwriteConfig(): AppwriteConfigInfo {
   const envProjectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID
-  const activeProjectId = envProjectId && envProjectId.trim() !== '' && envProjectId !== 'your_project_id' && envProjectId !== 'unconfigured_appwrite_project_id'
-    ? envProjectId
-    : DEFAULT_PROJECT_ID
-
   const activeEndpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || DEFAULT_ENDPOINT
 
-  const isConfigured = Boolean(
-    activeProjectId &&
-    activeProjectId.trim() !== '' &&
-    activeProjectId !== 'your_project_id' &&
-    activeProjectId !== 'unconfigured_appwrite_project_id'
+  const isValidProjectId = Boolean(
+    envProjectId &&
+    envProjectId.trim() !== '' &&
+    envProjectId !== 'your_project_id' &&
+    envProjectId !== 'unconfigured_appwrite_project_id'
   )
+
+  const activeProjectId = isValidProjectId ? (envProjectId as string) : ''
 
   return {
     endpoint: activeEndpoint,
     projectId: activeProjectId,
-    isConfigured,
+    isConfigured: isValidProjectId,
   }
 }
 

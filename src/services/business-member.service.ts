@@ -1,4 +1,4 @@
-import { BaseService } from './base.service'
+import { BaseService, SYSTEM_TENANT_ID } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { BusinessMember, UserRole } from '@/types'
 import { Query, Permission, Role } from 'appwrite'
@@ -126,7 +126,7 @@ export class BusinessMemberService extends BaseService {
    * Get all business memberships for a user
    */
   async getUserMemberships(userId: string): Promise<BusinessMember[]> {
-    return await this.list<BusinessMember>('system', [
+    return await this.list<BusinessMember>(SYSTEM_TENANT_ID, [
       Query.equal('userId', userId)
     ])
   }

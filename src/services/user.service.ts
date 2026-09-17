@@ -1,5 +1,5 @@
 import { Query } from 'appwrite'
-import { BaseService } from './base.service'
+import { BaseService, SYSTEM_TENANT_ID } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { AppUser, UserPreferences } from '@/types'
 
@@ -49,7 +49,7 @@ export class UserService extends BaseService {
     }
 
     // Top-level user entity, pass userId as document ID
-    const doc = await this.create<any>(userData, 'system', userId, undefined, userId)
+    const doc = await this.create<any>(userData, SYSTEM_TENANT_ID, userId, undefined, userId)
 
     return {
       ...doc,
@@ -105,7 +105,7 @@ export class UserService extends BaseService {
    */
   async getUserProfile(userId: string): Promise<AppUser | null> {
     try {
-      const docs = await this.list<any>('system', [Query.equal('$id', userId)])
+      const docs = await this.list<any>(SYSTEM_TENANT_ID, [Query.equal('$id', userId)])
       if (!docs || docs.length === 0) {
         return null
       }
@@ -143,7 +143,7 @@ export class UserService extends BaseService {
       avatar: string
     }>
   ): Promise<AppUser> {
-    const doc = await this.update<any>(userId, data, 'system')
+    const doc = await this.update<any>(userId, data, SYSTEM_TENANT_ID)
     return doc as AppUser
   }
 
@@ -173,7 +173,7 @@ export class UserService extends BaseService {
     const doc = await this.update<any>(
       userId,
       { preferences: JSON.stringify(updatedPreferences) },
-      'system'
+      SYSTEM_TENANT_ID
     )
 
     return {
