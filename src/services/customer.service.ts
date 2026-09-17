@@ -121,7 +121,12 @@ export class CustomerService extends BaseService {
       }
     }
 
-    return await this.update<Customer>(customerId, data, businessId)
+    const updatePayload: any = { ...data }
+    if (typeof data.totalDue === 'number') {
+      updatePayload.dueAmount = data.totalDue
+    }
+
+    return await this.update<Customer>(customerId, updatePayload, businessId)
   }
 
   /**
@@ -173,8 +178,13 @@ export class CustomerService extends BaseService {
     businessId: string
   ): Promise<Customer> {
     const customer = await this.getCustomer(customerId, businessId)
-    const newTotalDue = Math.max(0, (customer.totalDue || 0) + delta)
-    return await this.update<Customer>(customerId, { totalDue: newTotalDue }, businessId)
+    const currentDue = customer.totalDue ?? customer.dueAmount ?? 0
+    const newTotalDue = Math.max(0, currentDue + delta)
+    return await this.update<Customer>(
+      customerId,
+      { totalDue: newTotalDue, dueAmount: newTotalDue },
+      businessId
+    )
   }
 
   /**

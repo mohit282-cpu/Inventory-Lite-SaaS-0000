@@ -166,6 +166,7 @@ export interface Customer extends Models.Document {
   email?: string
   address?: string
   totalDue: number
+  dueAmount?: number
   createdAt: string
   updatedAt: string
 }
