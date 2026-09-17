@@ -22,7 +22,9 @@ export class CustomerService extends BaseService {
       phone?: string
       email?: string
       address?: string
+      panNumber?: string
       totalDue?: number
+      dueAmount?: number
     },
     businessId: string,
     userId: string
@@ -31,13 +33,16 @@ export class CustomerService extends BaseService {
       throw new Error('Customer name is required')
     }
 
+    const due = data.totalDue ?? data.dueAmount ?? 0
+
     const customerData = {
       name: data.name,
       phone: data.phone || '',
       email: data.email || '',
       address: data.address || '',
-      totalDue: data.totalDue || 0,
-      dueAmount: data.totalDue || 0,
+      panNumber: data.panNumber || '',
+      totalDue: due,
+      dueAmount: due,
     }
 
     return await this.create<Customer>(customerData, businessId, userId)
