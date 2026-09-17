@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProductService } from '@/services/product.service'
 import { CategoryService } from '@/services/category.service'
 import { ExpenseService } from '@/services/expense.service'
-
+import { CustomerService } from '@/services/customer.service'
+import { InvoiceService } from '@/services/invoice.service'
 
 // Mock Appwrite databases client
 vi.mock('@/config/appwrite', () => {
@@ -77,6 +78,8 @@ describe('Multi-Tenant Data Isolation & Service Layer Tests', () => {
   let productService: ProductService
   let categoryService: CategoryService
   let expenseService: ExpenseService
+  let customerService: CustomerService
+  let invoiceService: InvoiceService
   const businessA = 'business_111'
   const businessB = 'business_222'
   const user1 = 'user_999'
@@ -85,6 +88,8 @@ describe('Multi-Tenant Data Isolation & Service Layer Tests', () => {
     productService = new ProductService()
     categoryService = new CategoryService()
     expenseService = new ExpenseService()
+    customerService = new CustomerService()
+    invoiceService = new InvoiceService()
   })
 
   it('enforces businessId scope on product creation', async () => {
@@ -123,6 +128,78 @@ describe('Multi-Tenant Data Isolation & Service Layer Tests', () => {
     await expect(productService.getProduct(productA.$id, businessB)).rejects.toThrow(
       'Tenant Isolation Violation'
     )
+  })
+
+  // MANDATORY PENETRATION SUITE (P0 Point 2)
+  describe('Penetration Test Suite — Cross-Tenant Access Controls', () => {
+    it('Pen-Test 1: User A (Business A) cannot GET Business B product', async () => {
+      const prodB = await productService.createProduct(
+        { name: 'Secret Business B Product', unit: 'pcs', purchasePrice: 50, sellingPrice: 100, stockQuantity: 10 },
+        businessB,
+        user1
+      )
+      await expect(productService.getProduct(prodB.$id, businessA)).rejects.toThrow(/Tenant Isolation Violation/)
+    })
+
+    it('Pen-Test 2: User A (Business A) cannot GET Business B customer', async () => {
+      const custB = await customerService.createCustomer(
+        { name: 'Private Customer B', phone: '9800000000' },
+        businessB,
+        user1
+      )
+      await expect(customerService.getCustomer(custB.$id, businessA)).rejects.toThrow(/Tenant Isolation Violation/)
+    })
+
+    it('Pen-Test 3: User A (Business A) cannot GET Business B invoice', async () => {
+      const prodB = await productService.createProduct(
+        { name: 'Invoice Product B', unit: 'pcs', purchasePrice: 50, sellingPrice: 100, stockQuantity: 10 },
+        businessB,
+        user1
+      )
+      const { saleService } = await import('@/services/sale.service')
+      const saleB = await saleService.createSale(
+        { items: [{ productId: prodB.$id, quantity: 1 }], paidAmount: 100, paymentMethod: 'cash' },
+        businessB,
+        user1
+      )
+      const invB = await invoiceService.createInvoice(
+        { saleId: saleB.sale.$id, issueDate: new Date().toISOString(), idempotencyKey: 'pen_test_3_inv_key_unique' },
+        businessB,
+        user1
+      )
+      await expect(invoiceService.getInvoice(invB.$id, businessA)).rejects.toThrow(/Tenant Isolation Violation/)
+    })
+
+    it('Pen-Test 4: User A (Business A) cannot UPDATE Business B product', async () => {
+      const prodB = await productService.createProduct(
+        { name: 'Unmodified Product B', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 5 },
+        businessB,
+        user1
+      )
+      await expect(
+        productService.updateProduct(prodB.$id, { name: 'Hacked Product Name' }, businessA)
+      ).rejects.toThrow(/Tenant Isolation Violation/)
+    })
+
+    it('Pen-Test 5: User A (Business A) cannot DELETE Business B product', async () => {
+      const prodB = await productService.createProduct(
+        { name: 'Protected Product B', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 5 },
+        businessB,
+        user1
+      )
+      await expect(productService.deleteProduct(prodB.$id, businessA)).rejects.toThrow(/Tenant Isolation Violation/)
+    })
+
+    it('Pen-Test 6: User A (Business A) LIST query returns zero records for Business B data', async () => {
+      await productService.createProduct(
+        { name: 'Product B Only', unit: 'pcs', purchasePrice: 15, sellingPrice: 30, stockQuantity: 10 },
+        businessB,
+        user1
+      )
+      const listA = await productService.listProducts(businessA)
+      const foundB = listA.filter((p) => p.businessId === businessB)
+      expect(foundB.length).toBe(0)
+    })
   })
 
   it('allows same SKU in different businesses but prevents duplicates within the same business', async () => {

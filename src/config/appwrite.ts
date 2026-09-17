@@ -66,21 +66,40 @@ export const BUCKETS = {
   DOCUMENTS: 'documents',
 } as const
 
+import { AuthorizationError, classifyError } from '@/lib/error-handler'
+
 /**
- * Get current session user
+ * Get current session user with classified session error logging
  */
 export async function getCurrentUser() {
   try {
     return await account.get()
-  } catch (error) {
+  } catch (error: any) {
+    const statusCode = error?.code || error?.statusCode || 500
+    const category = classifyError(error)
+
+    if (statusCode === 401 || category === 'AUTHENTICATION' || error?.type === 'user_unauthorized') {
+      return null
+    }
+
+    const correlationId = `auth_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+    console.error(`[Appwrite Auth Error] [${correlationId}]`, {
+      correlationId,
+      code: statusCode,
+      category,
+      message: error?.message || 'Session lookup failed',
+      type: error?.type || 'unknown_auth_error',
+    })
     return null
   }
 }
 
 /**
- * Get active business context for the current session with preference & parameter resolution
+ * Get active business context for the current session with strict membership validation and error classification
  */
 export async function getActiveBusinessContext(requestedBusinessId?: string) {
+  const correlationId = `biz_ctx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+
   try {
     const user = await getCurrentUser()
     if (!user) {
@@ -100,12 +119,15 @@ export async function getActiveBusinessContext(requestedBusinessId?: string) {
     const members = membershipDocs.documents
     let activeMember = members[0]
 
-    // 1. Check if explicit requestedBusinessId matches a valid membership
+    // 1. Strict explicit requestedBusinessId validation: throw if requested businessId is not authorized
     if (requestedBusinessId && requestedBusinessId.trim() !== '') {
       const match = members.find((m) => m.businessId === requestedBusinessId)
-      if (match) {
-        activeMember = match
+      if (!match) {
+        throw new AuthorizationError(
+          `Invalid business context: User '${user.$id}' is not an authorized member of business '${requestedBusinessId}'`
+        )
       }
+      activeMember = match
     } else {
       // 2. Fall back to user's stored preferred active business ID if present
       try {
@@ -127,7 +149,23 @@ export async function getActiveBusinessContext(requestedBusinessId?: string) {
       businessId: activeMember.businessId as string,
       role: activeMember.role as string,
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (
+      error instanceof AuthorizationError ||
+      error?.name === 'AuthorizationError' ||
+      error?.message?.includes('Invalid business context') ||
+      error?.message?.startsWith('Unauthorized:')
+    ) {
+      throw error
+    }
+
+    const category = classifyError(error)
+    console.error(`[Appwrite Business Context Error] [${correlationId}]`, {
+      correlationId,
+      code: error?.code || error?.statusCode || 500,
+      category,
+      message: error?.message || 'Workspace context lookup failed',
+    })
     return null
   }
 }

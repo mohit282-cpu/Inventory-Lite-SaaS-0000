@@ -13,7 +13,7 @@ jobs:
 
     env:
       NODE_ENV: test
-      NEXT_PUBLIC_APPWRITE_PROJECT_ID: '6aabeb7e0017a4599d1e'
+      NEXT_PUBLIC_APPWRITE_PROJECT_ID: 'inventory_lite_ci_test_project_id'
       NEXT_PUBLIC_APPWRITE_ENDPOINT: 'https://fra.cloud.appwrite.io/v1'
       NEXT_PUBLIC_APPWRITE_DATABASE_ID: 'inventory_lite_db'
 
