@@ -34,6 +34,8 @@ const CRITICAL_FINANCIAL_FIELDS = new Set<string>([
   'businessid',
 ])
 
+export const SYSTEM_TENANT_ID = '__SYSTEM_INTERNAL_PRIVILEGED_ACTOR__'
+
 /**
  * Base Service Class
  * 
@@ -50,6 +52,10 @@ export abstract class BaseService {
 
   constructor(collectionId: string) {
     this.collectionId = collectionId
+  }
+
+  protected isSystemContext(businessId: string): boolean {
+    return Boolean(businessId && (businessId === SYSTEM_TENANT_ID || businessId === 'system'))
   }
 
   protected mapDocument<T>(doc: Models.Document): T {
@@ -174,7 +180,7 @@ export abstract class BaseService {
     }
 
     // Only add businessId if it's not a system-level entity
-    if (businessId !== 'system') {
+    if (!this.isSystemContext(businessId)) {
       documentData.businessId = businessId
     }
 
@@ -244,7 +250,7 @@ export abstract class BaseService {
     )
 
     // Verify tenant isolation for business-scoped collections
-    if (businessId !== 'system' && document.businessId !== businessId) {
+    if (!this.isSystemContext(businessId) && document.businessId !== businessId) {
       throw new Error(`Tenant Isolation Violation: Access denied to document ${id} for business ${businessId}`)
     }
 
@@ -257,7 +263,7 @@ export abstract class BaseService {
   async list<T>(businessId: string, queries: any[] = []): Promise<T[]> {
     try {
       validateAppwriteConfig()
-      if (businessId === 'system') {
+      if (this.isSystemContext(businessId)) {
         const result = await databases.listDocuments(
           DATABASE_ID,
           this.collectionId,
@@ -334,7 +340,7 @@ export abstract class BaseService {
   async update<T>(id: string, data: any, businessId: string): Promise<T> {
     validateAppwriteConfig()
     // Verify tenant isolation before update (getById will throw if businessId doesn't match)
-    if (businessId !== 'system') {
+    if (!this.isSystemContext(businessId)) {
       await this.getById(id, businessId)
     }
 
@@ -406,7 +412,7 @@ export abstract class BaseService {
   async delete(id: string, businessId: string): Promise<boolean> {
     validateAppwriteConfig()
     // Verify tenant isolation before delete
-    if (businessId !== 'system') {
+    if (!this.isSystemContext(businessId)) {
       await this.getById(id, businessId)
     }
 

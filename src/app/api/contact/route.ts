@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { rateLimiter } from '@/lib/rate-limiter'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,13 +49,15 @@ export async function POST(request: Request) {
     const businessName = sanitizeInput(validation.data.businessName || '')
     const message = sanitizeInput(validation.data.message)
 
+    logger.info('Support contact submission received', { nameLength: name.length, businessProvided: Boolean(businessName) })
+
     return NextResponse.json({
       success: true,
       message: 'Thank you for contacting Inventory Lite support! Our team will reach out to you shortly.',
       data: { name, phone, businessName, messageLength: message.length, messageReceived: true },
     })
   } catch (error) {
-    console.error('[Contact API Error]:', error)
+    logger.error('Contact API Error', error)
     return NextResponse.json(
       { success: false, error: 'Failed to process support request. Please try again.' },
       { status: 500 }

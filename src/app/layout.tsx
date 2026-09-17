@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata, Viewport } from "next"
 import { Inter, Noto_Sans_Devanagari } from "next/font/google"
 import "./globals.css"
@@ -8,6 +9,7 @@ import { RouteGuard } from "@/components/auth/route-guard"
 import { Toaster } from "@/components/ui/toaster"
 import { SWRegister } from "@/components/pwa/sw-register"
 import { ExtensionErrorSuppressor } from "@/components/ui/extension-error-suppressor"
+import { PlausibleTracker } from "@/components/PlausibleTracker"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -114,6 +116,9 @@ export default function RootLayout({
           <AuthProvider>
             <AppwriteInitializer />
             <SWRegister />
+            <Suspense fallback={null}>
+              <PlausibleTracker />
+            </Suspense>
             <RouteGuard>
               {children}
             </RouteGuard>

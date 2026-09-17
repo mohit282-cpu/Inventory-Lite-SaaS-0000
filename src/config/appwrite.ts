@@ -1,4 +1,4 @@
-import { Storage, Functions } from 'appwrite'
+import { Storage, Functions, Query } from 'appwrite'
 import { client, account, databases, getAppwriteConfig, validateAppwriteConfig } from '@/lib/appwrite'
 
 /**
@@ -86,7 +86,20 @@ export async function getActiveBusinessContext() {
     if (!user) {
       return null
     }
-    return null
+    const membershipDocs = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTIONS.BUSINESS_MEMBERS,
+      [Query.equal('userId', user.$id), Query.limit(1)]
+    )
+    if (membershipDocs.documents.length === 0) {
+      return { user, businessId: null, role: null }
+    }
+    const activeMember = membershipDocs.documents[0]
+    return {
+      user,
+      businessId: activeMember.businessId as string,
+      role: activeMember.role as string,
+    }
   } catch (error) {
     return null
   }
