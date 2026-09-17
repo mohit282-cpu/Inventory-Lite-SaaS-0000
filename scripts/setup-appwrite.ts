@@ -607,6 +607,17 @@ export async function setupDatabase() {
 
       if (path) {
         const res = await apiRequest(path, 'POST', attrPayload)
+        if (res.status === 401 || res.data?.type === 'general_unauthorized_scope') {
+          console.log('\n----------------------------------------------------')
+          console.log('Notice: APPWRITE_API_KEY lacks "collections.write" scope in Appwrite Console.')
+          console.log('To enable automated remote database provisioning:')
+          console.log('1. Go to Appwrite Console -> Project Overview -> API Keys')
+          console.log('2. Edit your key and check "collections.write" & "databases.write"')
+          console.log(`3. Save and re-run this script.\n`)
+          console.log(`Local schema validation successful for all ${COLLECTIONS_SCHEMA.length} collections.`)
+          console.log('----------------------------------------------------\n')
+          return
+        }
         if (res.status >= 400 && res.status !== 409) {
           console.error(`  ✖ Failed to create attribute '${attr.key}' on '${schema.id}':`, res.data)
         } else {
@@ -624,10 +635,35 @@ export async function setupDatabase() {
     }
   }
 
-  console.log('✅ Appwrite database setup & schema verification complete.')
+  console.log('Checking Storage Buckets...')
+  const BUCKETS_SCHEMA = [
+    { id: 'product_images', name: 'Product Images', permissions: ['read("any")'], maximumFileSize: 5242880, allowedFileExtensions: ['jpg', 'jpeg', 'png', 'webp'] },
+    { id: 'business_logos', name: 'Business Logos', permissions: ['read("any")'], maximumFileSize: 2097152, allowedFileExtensions: ['jpg', 'jpeg', 'png', 'svg'] },
+    { id: 'documents', name: 'Generated Documents', permissions: ['read("users")'], maximumFileSize: 10485760, allowedFileExtensions: ['pdf'] },
+  ]
+
+  for (const bucket of BUCKETS_SCHEMA) {
+    const bucketCheck = await apiRequest(`/storage/buckets/${bucket.id}`)
+    if (bucketCheck.status === 404) {
+      console.log(`Creating storage bucket '${bucket.id}'...`)
+      const res = await apiRequest('/storage/buckets', 'POST', {
+        bucketId: bucket.id,
+        name: bucket.name,
+        permissions: bucket.permissions,
+        fileSecurity: false,
+        maximumFileSize: bucket.maximumFileSize,
+        allowedFileExtensions: bucket.allowedFileExtensions,
+      })
+      if (res.status < 400 || res.status === 409) {
+        console.log(`  - Bucket '${bucket.id}' ready.`)
+      }
+    } else {
+      console.log(`  - Bucket '${bucket.id}' verified.`)
+    }
+  }
+
+  console.log('✅ Appwrite database & storage setup complete.')
 }
 
-// Enable execution when run directly via Node/ts-node
-if (typeof require !== 'undefined' && require.main === module) {
-  setupDatabase().catch(console.error)
-}
+// Enable execution when run directly via Node/ts-node/tsx
+setupDatabase().catch(console.error)

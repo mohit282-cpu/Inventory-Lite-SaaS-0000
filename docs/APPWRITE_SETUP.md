@@ -127,7 +127,7 @@ To authorize your Vercel deployment:
 
 > [!IMPORTANT]
 > Also ensure the Vercel Project Settings -> **Environment Variables** contains:
-> - `NEXT_PUBLIC_APPWRITE_PROJECT_ID` = `6a85664100023f1deffb`
+> - `NEXT_PUBLIC_APPWRITE_PROJECT_ID` = `6aabeb7e0017a4599d1e`
 > - `NEXT_PUBLIC_APPWRITE_ENDPOINT` = `https://fra.cloud.appwrite.io/v1`
 > - `NEXT_PUBLIC_APPWRITE_DATABASE_ID` = `inventory_lite_db`
 
