@@ -67,7 +67,12 @@ export default function LoginPage() {
   return (
     <AuthLayout title="Welcome back" subtitle="Sign in to manage your business.">
       <form
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          handleSubmit(onSubmit)(e)
+        }}
+        noValidate
         className="space-y-4 text-left"
       >
         {isOffline && (
