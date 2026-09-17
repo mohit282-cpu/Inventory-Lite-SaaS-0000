@@ -1,4 +1,3 @@
-import { Suspense } from "react"
 import type { Metadata, Viewport } from "next"
 import { Inter, Noto_Sans_Devanagari } from "next/font/google"
 import "./globals.css"
@@ -9,7 +8,6 @@ import { RouteGuard } from "@/components/auth/route-guard"
 import { Toaster } from "@/components/ui/toaster"
 import { SWRegister } from "@/components/pwa/sw-register"
 import { ExtensionErrorSuppressor } from "@/components/ui/extension-error-suppressor"
-import { PlausibleTracker } from "@/components/PlausibleTracker"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -70,17 +68,6 @@ export default function RootLayout({
   return (
     <html lang="ne" className={`${inter.variable} ${devanagari.variable}`}>
       <head>
-        {/* Privacy-friendly analytics by Plausible */}
-        <script
-          async
-          data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || undefined}
-          src="https://plausible.io/js/pa-oJU_XzCp6dglBNgpahH7h.js"
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init();`,
-          }}
-        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -127,9 +114,6 @@ export default function RootLayout({
           <AuthProvider>
             <AppwriteInitializer />
             <SWRegister />
-            <Suspense fallback={null}>
-              <PlausibleTracker />
-            </Suspense>
             <RouteGuard>
               {children}
             </RouteGuard>
