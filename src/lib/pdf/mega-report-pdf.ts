@@ -144,9 +144,8 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
 
   // ------------------------------------------------ COVER
   coverPage(doc, data)
-  // ------------------------------------------------ TABLE OF CONTENTS
-  const tocY = nextPage(doc, 'portrait', data)
-  drawTocPage(doc, tocY, data)
+  // ------------------------------------------------ TABLE OF CONTENTS (Reserved page 2)
+  nextPage(doc, 'portrait', data)
 
   // ------------------------------------------------ 1. EXECUTIVE SUMMARY
   let y = nextPage(doc, 'portrait', data)
@@ -435,37 +434,44 @@ function coverPage(doc: Page, data: MegaReportData): void {
   doc.setTextColor(203, 213, 225)
   doc.text('Comprehensive One-Click Export', pageWidth - margin, 40, { align: 'right' })
 
-  // Logo placeholder — a clean rounded square with the business initial.
+  // Logo: image embed if valid data URL / image URL, or clean rounded brand badge
   const logoSize = 26
   const logoX = centerX - logoSize / 2
-  const logoY = 88
-  doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-  doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
-  doc.roundedRect(logoX, logoY, logoSize, logoSize, 5, 5, 'FD')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-  const initial = (safeText(biz.name, 'B').trim().charAt(0) || 'B').toUpperCase()
-  doc.text(initial, centerX, logoY + logoSize / 2 + 5, { align: 'center' })
+  const logoY = 82
+  let logoRendered = false
+
+  if (biz.logoUrl && typeof biz.logoUrl === 'string' && (biz.logoUrl.startsWith('data:image/') || biz.logoUrl.startsWith('http'))) {
+    try {
+      doc.addImage(biz.logoUrl, 'PNG', logoX, logoY, logoSize, logoSize)
+      logoRendered = true
+    } catch {
+      logoRendered = false
+    }
+  }
+
+  if (!logoRendered) {
+    doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
+    doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
+    doc.roundedRect(logoX, logoY, logoSize, logoSize, 5, 5, 'FD')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
+    doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
+    const initial = (safeText(biz.name, 'B').trim().charAt(0) || 'B').toUpperCase()
+    doc.text(initial, centerX, logoY + logoSize / 2 + 5, { align: 'center' })
+  }
 
   // Business name
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(24)
+  doc.setFontSize(22)
   doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-  doc.text(truncateText(safeText(biz.name, 'Inventory Lite Store'), 44), centerX, logoY + logoSize + 16, { align: 'center' })
+  doc.text(truncateText(safeText(biz.name, 'Inventory Lite Store'), 44), centerX, logoY + logoSize + 14, { align: 'center' })
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(11)
+  doc.setFontSize(10)
   doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text('Financial Year Report', centerX, logoY + logoSize + 26, { align: 'center' })
+  doc.text('Financial Year Report', centerX, logoY + logoSize + 22, { align: 'center' })
 
-  // Metadata block — two-column ledger of key details.
-  const metaY = logoY + logoSize + 42
-  doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-  doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
-  const blockHeight = 62
-  doc.roundedRect(margin, metaY, inner, blockHeight, 3, 3, 'FD')
-
+  // Metadata block — two-column ledger of key details with dynamic height.
   const infoLines: { label: string; value: string }[] = []
   infoLines.push({ label: 'Financial Year', value: safeText(meta.fiscalYear) })
   infoLines.push({ label: 'Report Period', value: safeText(meta.periodLabel) })
@@ -476,29 +482,36 @@ function coverPage(doc: Page, data: MegaReportData): void {
   if (biz.vatNumber) infoLines.push({ label: 'VAT', value: safeText(biz.vatNumber) })
   if (biz.currency) infoLines.push({ label: 'Currency', value: safeText(biz.currency) })
 
-  const innerY = drawMetadata(doc, {
-    startY: metaY + 8,
+  const metaY = logoY + logoSize + 32
+  const rowsCount = Math.ceil(infoLines.length / 2)
+  const blockHeight = Math.max(54, rowsCount * 14 + 12)
+
+  doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
+  doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
+  doc.roundedRect(margin, metaY, inner, blockHeight, 3, 3, 'FD')
+
+  drawMetadata(doc, {
+    startY: metaY + 6,
     lines: infoLines.map((l) => ({ label: l.label, value: l.value })),
     columnCount: 2,
   })
-  void innerY
 
   // Generated + disclaimer footer (centered)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text(`Generated: ${formatBsDateTime(meta.generatedAt)}`, centerX, pageHeight - 32, { align: 'center' })
+  doc.text(`Generated: ${formatBsDateTime(meta.generatedAt)}`, centerX, pageHeight - 30, { align: 'center' })
   doc.setTextColor(PDF_COLORS.ink600[0], PDF_COLORS.ink600[1], PDF_COLORS.ink600[2])
   doc.text(
     'Prepared for internal business management purposes.',
     centerX,
-    pageHeight - 26,
+    pageHeight - 24,
     { align: 'center' },
   )
   doc.text(
     'This report does not constitute official tax certification or IRD approval.',
     centerX,
-    pageHeight - 21,
+    pageHeight - 19,
     { align: 'center' },
   )
 }
@@ -1433,33 +1446,27 @@ function drawProfitLoss(doc: Page, y: number, data: MegaReportData): number {
   const p = data.profitability
   const k = data.kpis
 
-  const rows: { label: string; value: string; strong?: boolean }[] = [
-    { label: 'Gross Sales', value: formatNpr(p.grossSales) },
-    { label: 'Discounts', value: formatNpr(p.discounts) },
-    { label: 'Sales Returns', value: formatNpr(p.salesReturns) },
-    { label: 'NET SALES', value: formatNpr(p.netSales), strong: true },
-    { label: 'Cost of Goods Sold (COGS)', value: formatNpr(p.cogs) },
-    { label: 'GROSS PROFIT', value: formatNpr(k.grossProfit), strong: true },
-    { label: 'Gross Margin %', value: formatPercent(p.grossMarginPercent) },
-    { label: 'Operating Expenses', value: formatNpr(p.expenses) },
-    { label: 'NET PROFIT', value: formatNpr(p.netProfit), strong: true },
-    { label: 'Net Margin %', value: formatPercent(p.netMarginPercent) },
+  const body = [
+    ['Gross Sales', formatNpr(p.grossSales)],
+    ['Discounts', formatNpr(p.discounts)],
+    ['Sales Returns', formatNpr(p.salesReturns)],
+    ['NET SALES', formatNpr(p.netSales)],
+    ['Cost of Goods Sold (COGS)', formatNpr(p.cogs)],
+    ['GROSS PROFIT', formatNpr(k.grossProfit)],
+    ['Gross Margin %', formatPercent(p.grossMarginPercent)],
+    ['Operating Expenses', formatNpr(p.expenses)],
+    ['NET PROFIT', formatNpr(p.netProfit)],
+    ['Net Margin %', formatPercent(p.netMarginPercent)],
   ]
 
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const margin = PDF_SPACING.pageMargin
-  let yy = y
-  rows.forEach((r) => {
-    doc.setFillColor(r.strong ? PDF_COLORS.canvas100[0] : PDF_COLORS.canvas50[0], r.strong ? PDF_COLORS.canvas100[1] : PDF_COLORS.canvas50[1], r.strong ? PDF_COLORS.canvas100[2] : PDF_COLORS.canvas50[2])
-    doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-    doc.rect(margin, yy, pageWidth - margin * 2, 12, 'FD')
-    doc.setFont('helvetica', r.strong ? 'bold' : 'normal')
-    doc.setFontSize(r.strong ? 10 : 9)
-    doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-    doc.text(truncateText(r.label, 60), margin + 4, yy + 8)
-    doc.setFont('helvetica', r.strong ? 'bold' : 'normal')
-    doc.text(truncateText(r.value, 20), pageWidth - margin - 4, yy + 8, { align: 'right' })
-    yy += 12
+  const finalY = drawTable(doc, {
+    startY: y,
+    columns: [
+      { head: 'Financial Line Item', width: 110 },
+      { head: 'Amount (NPR)', align: 'right' },
+    ],
+    body,
+    striped: true,
   })
 
   if (k.costDataMissingCount > 0) {
@@ -1468,39 +1475,36 @@ function drawProfitLoss(doc: Page, y: number, data: MegaReportData): number {
     doc.setTextColor(PDF_COLORS.negative800[0], PDF_COLORS.negative800[1], PDF_COLORS.negative800[2])
     doc.text(
       `Note: ${formatNumber(k.costDataMissingCount)} product(s) are missing cost data, so COGS/gross profit may be understated.`,
-      margin,
-      yy + 6,
+      PDF_SPACING.pageMargin,
+      finalY + 2,
     )
+    return finalY + 8
   }
-  return yy + 8
+  return finalY
 }
 
 function drawVatSummary(doc: Page, y: number, data: MegaReportData): number {
   const v = data.vatSummary
-  const rows: { label: string; value: string; strong?: boolean }[] = [
-    { label: 'Taxable Sales', value: formatNpr(v.taxableSales) },
-    { label: 'Output VAT Charged', value: formatNpr(v.outputVat), strong: true },
-    { label: 'Taxable Purchases', value: formatNpr(v.taxablePurchases) },
-    { label: 'Input VAT Paid', value: formatNpr(v.inputVat), strong: true },
-    { label: `VAT Rate (Default)`, value: formatPercent(v.vatRate) },
-    { label: 'NET VAT POSITION', value: formatNpr(v.netVatPosition), strong: true },
-    { label: 'Status', value: v.status === 'PAYABLE' ? 'VAT Payable' : 'Refundable Credit', strong: true },
+
+  const body = [
+    ['Taxable Sales', formatNpr(v.taxableSales)],
+    ['Output VAT Charged', formatNpr(v.outputVat)],
+    ['Taxable Purchases', formatNpr(v.taxablePurchases)],
+    ['Input VAT Paid', formatNpr(v.inputVat)],
+    ['VAT Rate (Default)', formatPercent(v.vatRate)],
+    ['NET VAT POSITION', formatNpr(v.netVatPosition)],
+    ['Status', v.status === 'PAYABLE' ? 'VAT Payable' : 'Refundable Credit'],
   ]
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const margin = PDF_SPACING.pageMargin
-  let yy = y
-  rows.forEach((r) => {
-    doc.setFillColor(r.strong ? PDF_COLORS.canvas100[0] : PDF_COLORS.canvas50[0], r.strong ? PDF_COLORS.canvas100[1] : PDF_COLORS.canvas50[1], r.strong ? PDF_COLORS.canvas100[2] : PDF_COLORS.canvas50[2])
-    doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-    doc.rect(margin, yy, pageWidth - margin * 2, 12, 'FD')
-    doc.setFont('helvetica', r.strong ? 'bold' : 'normal')
-    doc.setFontSize(r.strong ? 10 : 9)
-    doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-    doc.text(truncateText(r.label, 55), margin + 4, yy + 8)
-    doc.text(truncateText(r.value, 20), pageWidth - margin - 4, yy + 8, { align: 'right' })
-    yy += 12
+
+  return drawTable(doc, {
+    startY: y,
+    columns: [
+      { head: 'VAT / Tax Summary Item', width: 110 },
+      { head: 'Value', align: 'right' },
+    ],
+    body,
+    striped: true,
   })
-  return yy + 4
 }
 
 function drawCreditNotes(doc: Page, y: number, data: MegaReportData): number {

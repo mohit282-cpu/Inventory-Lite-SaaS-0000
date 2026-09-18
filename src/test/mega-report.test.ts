@@ -186,6 +186,24 @@ describe('Mega Business Report', () => {
       expect(cn.creditNoteNumber).toBeTruthy()
     }
   })
+
+  it('guarantees 100% financial parity between PDF and Excel export data structures', () => {
+    const pdfDoc = generateMegaReportPdf({ data })
+    const wb = buildMegaReportWorkbook({ data })
+
+    expect(pdfDoc.getNumberOfPages()).toBeGreaterThan(5)
+    expect(wb.worksheets.map((w) => w.name)).toContain('Profit & Loss')
+    expect(wb.worksheets.map((w) => w.name)).toContain('VAT Summary')
+
+    // Shared authoritative values
+    expect(data.profitability.netSales).toBe(8500)
+    expect(data.profitability.cogs).toBe(4000)
+    expect(data.profitability.grossProfit).toBe(4500)
+    expect(data.profitability.expenses).toBe(1500)
+    expect(data.profitability.netProfit).toBe(3000)
+    expect(data.vatSummary.outputVat).toBe(1300)
+    expect(data.vatSummary.inputVat).toBe(0)
+  })
 })
 
 describe('MegaReportExport section registry', () => {

@@ -39,7 +39,7 @@ export interface MegaReportExcelOptions {
   include?: Set<MegaSectionKey>
 }
 
-const NUM_FMT = 'Rs. #,##0.00'
+const NUM_FMT = 'Rs. #,##0.00;[Red]Rs. -#,##0.00;"Rs. 0.00"'
 const INT_FMT = '#,##0'
 const DATE_FMT = 'DD/MM/YYYY'
 

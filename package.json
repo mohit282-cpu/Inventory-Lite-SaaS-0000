@@ -64,7 +64,8 @@
   },
   "allowScripts": {
     "unrs-resolver": true,
-    "esbuild": true
+    "esbuild": true,
+    "core-js": false
   },
   "overrides": {
     "esbuild": "^0.25.0",
