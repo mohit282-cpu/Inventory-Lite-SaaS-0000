@@ -27,6 +27,7 @@ import {
   AlertCircle,
   UserPlus,
   CreditCard,
+  Printer,
 } from 'lucide-react'
 import {
   Dialog,
@@ -305,7 +306,7 @@ export default function CreateSalePage() {
   }
 
   // Submit Complete Sale
-  const handleCompleteSale = async () => {
+  const handleCompleteSale = async (autoPrint = true, printFormat?: 'thermal' | 'a4') => {
     if (!activeBusiness?.$id || !user?.$id) return
     if (cart.length === 0) {
       toast({
@@ -381,8 +382,10 @@ export default function CreateSalePage() {
         description: `Sale #${result.sale.saleNumber || result.sale.$id} recorded. Total: Rs. ${result.sale.total.toFixed(2)}`,
       })
 
+      const printQuery = autoPrint ? `?print=true${printFormat ? `&format=${printFormat}` : ''}` : ''
+
       if (result.invoice?.$id) {
-        router.push(`/app/invoices/${result.invoice.$id}`)
+        router.push(`/app/invoices/${result.invoice.$id}${printQuery}`)
       } else {
         router.push(`/app/sales/${result.sale.$id}`)
       }
@@ -982,22 +985,42 @@ export default function CreateSalePage() {
               )}
             </div>
 
-            {/* Complete Sale Action Trigger */}
-            <Button
-              onClick={handleCompleteSale}
-              disabled={isSubmitting || cart.length === 0}
-              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-sm disabled:opacity-50 mt-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing Transaction...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="mr-2 h-5 w-5" /> Complete Sale & Print Invoice
-                </>
-              )}
-            </Button>
+            {/* Complete Sale Fast Action Triggers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+              <Button
+                type="button"
+                onClick={() => handleCompleteSale(true, 'a4')}
+                disabled={isSubmitting || cart.length === 0}
+                className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-sm disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-1.5 h-4 w-4 shrink-0" /> Complete & Print A4
+                  </>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                onClick={() => handleCompleteSale(true, 'thermal')}
+                disabled={isSubmitting || cart.length === 0}
+                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs sm:text-sm shadow-sm disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+                  </>
+                ) : (
+                  <>
+                    <Printer className="mr-1.5 h-4 w-4 shrink-0" /> Fast Thermal Receipt
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

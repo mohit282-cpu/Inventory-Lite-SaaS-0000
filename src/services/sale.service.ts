@@ -111,8 +111,15 @@ export class SaleService extends BaseService {
           if (typeof item.quantity !== 'number' || isNaN(item.quantity) || !isFinite(item.quantity) || item.quantity <= 0) {
             throw new Error('Item quantity must be a positive number greater than zero')
           }
+        }
 
-          const product = await productService.getProduct(item.productId, businessId)
+        const products = await Promise.all(
+          data.items.map((item) => productService.getProduct(item.productId, businessId))
+        )
+
+        for (let i = 0; i < data.items.length; i++) {
+          const item = data.items[i]
+          const product = products[i]
           if (!product) {
             throw new Error(`Product record '${item.productId}' not found or inaccessible`)
           }

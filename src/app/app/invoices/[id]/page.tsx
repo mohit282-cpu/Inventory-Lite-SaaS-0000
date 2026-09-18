@@ -55,12 +55,21 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
     fetchDetails()
   }, [fetchDetails])
 
+  // Set print format from query string if present
+  useEffect(() => {
+    const fmt = searchParams?.get('format')
+    if (fmt === 'thermal' || fmt === 'THERMAL') {
+      setFormat('THERMAL')
+    }
+  }, [searchParams])
+
   // Auto-trigger print if ?print=true is present in query string
   useEffect(() => {
     if (details && searchParams?.get('print') === 'true') {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         window.print()
-      }, 500)
+      }, 50)
+      return () => clearTimeout(timer)
     }
   }, [details, searchParams])
 
