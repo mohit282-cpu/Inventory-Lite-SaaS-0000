@@ -311,10 +311,11 @@ export class SaleService extends BaseService {
           } catch {}
         }
 
-        // 9. Create accounting journal entry (non-blocking hook)
+        // 9. Create accounting journal entry (tracked non-blocking hook)
+        let accountingPosted = false
         try {
           const { hookSaleJournalEntry } = await import('@/lib/accounting-hooks')
-          await hookSaleJournalEntry({
+          accountingPosted = await hookSaleJournalEntry({
             businessId,
             userId,
             saleId: sale.$id,
@@ -328,12 +329,18 @@ export class SaleService extends BaseService {
             dueAmount: totals.dueAmount,
             vatEnabled: data.vatEnabled ?? true,
           })
-        } catch {
-          // Non-critical — accounting hook failure should not break sale
+        } catch (acctErr: any) {
+          accountingPosted = false
+          console.warn('[SaleService] Accounting hook threw error:', acctErr?.message)
         }
 
+        const accountingStatus = accountingPosted ? 'ACCOUNTING_POSTED' : 'ACCOUNTING_FAILED'
+        try {
+          await this.update<Sale>(sale.$id, { accountingStatus }, businessId)
+        } catch {}
+
         return {
-          sale: { ...sale, changeAmount: totals.changeAmount },
+          sale: { ...sale, changeAmount: totals.changeAmount, accountingStatus } as any,
           items: createdItems,
           invoice,
         }
@@ -343,6 +350,8 @@ export class SaleService extends BaseService {
           console.error('Sale transaction failed. Executing compensating rollback:', err)
         }
 
+        const rollbackErrors: string[] = []
+
         // Rollback stock deductions
         for (const deduction of processedDeductions) {
           try {
@@ -351,9 +360,10 @@ export class SaleService extends BaseService {
               deduction.quantity,
               businessId,
               userId,
-              `Rollback failed sale ${sale.$id}`
+              `Rollback failed sale ${sale?.$id || 'unknown'}`
             )
-          } catch (rbStockErr) {
+          } catch (rbStockErr: any) {
+            rollbackErrors.push(`Stock rollback error for product ${deduction.productId}: ${rbStockErr?.message}`)
             console.error('Stock rollback error:', rbStockErr)
           }
         }
@@ -362,16 +372,36 @@ export class SaleService extends BaseService {
         for (const createdItem of createdItems) {
           try {
             await saleItemService.delete(createdItem.$id, businessId)
-          } catch (rbItemErr) {
+          } catch (rbItemErr: any) {
+            rollbackErrors.push(`Sale item rollback error for ${createdItem.$id}: ${rbItemErr?.message}`)
             console.error('Sale item rollback error:', rbItemErr)
           }
         }
 
         // Delete created sale document
-        try {
-          await this.delete(sale.$id, businessId)
-        } catch (rbSaleErr) {
-          console.error('Sale document rollback error:', rbSaleErr)
+        if (sale) {
+          try {
+            await this.delete(sale.$id, businessId)
+          } catch (rbSaleErr: any) {
+            rollbackErrors.push(`Sale document rollback error for ${sale.$id}: ${rbSaleErr?.message}`)
+            console.error('Sale document rollback error:', rbSaleErr)
+          }
+        }
+
+        if (rollbackErrors.length > 0) {
+          try {
+            await auditLogService.logEvent(businessId, userId, 'rollback_failed', sale?.$id || 'unknown', {
+              affectedResourceIds: {
+                saleId: sale?.$id,
+                itemIds: createdItems.map((i) => i.$id),
+                deductedProducts: processedDeductions,
+              },
+              failedPhase: 'sale_creation_rollback',
+              error: err?.message,
+              rollbackErrors,
+              reconciliationRequired: true,
+            })
+          } catch {}
         }
 
         throw new Error(`Sale transaction failed and was safely rolled back: ${err.message}`)

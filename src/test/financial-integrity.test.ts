@@ -460,4 +460,40 @@ describe('Mandatory 12 Financial Transaction Integrity Tests', () => {
     expect(totals.taxAmount).toBe(0)
     expect(totals.total).toBe(1000)
   })
+
+  // MANDATORY HARDENING TEST: Missing critical financial attribute throws loud Schema Error
+  it('Schema Integrity: Unknown critical financial attribute throws loud Infrastructure/Schema Error', async () => {
+    const { databases } = await import('@/config/appwrite')
+    const originalCreate = databases.createDocument
+
+    // Simulate Appwrite error returning "Unknown attribute: total"
+    vi.spyOn(databases, 'createDocument').mockImplementationOnce(async () => {
+      throw new Error('Unknown attribute: "total"')
+    })
+
+    await expect(
+      saleService.create({ total: 500, name: 'Test' }, bizId, userId)
+    ).rejects.toThrow('Infrastructure/Schema Error: Critical financial or required attribute "total" is not provisioned')
+
+    databases.createDocument = originalCreate
+  })
+
+  // MANDATORY HARDENING TEST: Accounting hook failure tracks ACCOUNTING_FAILED status
+  it('Accounting Reliability: Accounting hook failure updates accountingStatus to ACCOUNTING_FAILED', async () => {
+    const hooks = await import('@/lib/accounting-hooks')
+    const spy = vi.spyOn(hooks, 'hookSaleJournalEntry').mockResolvedValueOnce(false)
+
+    const saleRes = await saleService.createSale(
+      {
+        items: [{ productId: prodId, quantity: 1 }],
+        paidAmount: 113,
+        paymentMethod: 'cash',
+      },
+      bizId,
+      userId
+    )
+
+    expect(saleRes.sale.accountingStatus).toBe('ACCOUNTING_FAILED')
+    spy.mockRestore()
+  })
 })

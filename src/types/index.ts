@@ -198,6 +198,8 @@ export interface Sale extends Models.Document {
   changeAmount?: number
   paymentMethod: PaymentMethod
   status: SaleStatus
+  accountingStatus?: 'ACCOUNTING_POSTED' | 'ACCOUNTING_PENDING' | 'ACCOUNTING_FAILED'
+  transactionState?: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'ROLLBACK_REQUIRED' | 'ROLLBACK_FAILED'
   dueDate?: string
   createdBy: string
   createdAt: string

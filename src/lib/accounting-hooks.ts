@@ -87,9 +87,9 @@ export interface SalesReturnAccountingHookParams {
 
 /**
  * Hook: Create journal entry after a sale is completed.
- * Non-blocking — failures are logged but do not affect the sale.
+ * Returns true if journal entry was posted successfully, false if failed.
  */
-export async function hookSaleJournalEntry(params: SaleAccountingHookParams): Promise<void> {
+export async function hookSaleJournalEntry(params: SaleAccountingHookParams): Promise<boolean> {
   try {
     const entry = await accountingService.createSaleJournalEntry(
       params.businessId,
@@ -123,6 +123,7 @@ export async function hookSaleJournalEntry(params: SaleAccountingHookParams): Pr
       entityId: params.saleId,
       entryNumber: entry.entryNumber,
     })
+    return true
   } catch (err: any) {
     console.warn(`[AccountingHook] Failed to create journal entry for sale ${params.saleNumber}:`, err?.message)
     try {
@@ -135,13 +136,15 @@ export async function hookSaleJournalEntry(params: SaleAccountingHookParams): Pr
         reconciliationRequired: true,
       })
     } catch {}
+    return false
   }
 }
 
 /**
  * Hook: Create journal entry after a purchase is completed.
+ * Returns true if journal entry was posted successfully, false if failed.
  */
-export async function hookPurchaseJournalEntry(params: PurchaseAccountingHookParams): Promise<void> {
+export async function hookPurchaseJournalEntry(params: PurchaseAccountingHookParams): Promise<boolean> {
   try {
     const entry = await accountingService.createPurchaseJournalEntry(
       params.businessId,
@@ -175,15 +178,27 @@ export async function hookPurchaseJournalEntry(params: PurchaseAccountingHookPar
       entityId: params.purchaseId,
       entryNumber: entry.entryNumber,
     })
+    return true
   } catch (err: any) {
     console.warn(`[AccountingHook] Failed to create journal entry for purchase ${params.purchaseNumber}:`, err?.message)
+    try {
+      await auditLogService.logEvent(params.businessId, params.userId, 'journal_entry_failed', params.purchaseId, {
+        entityType: 'purchase',
+        purchaseNumber: params.purchaseNumber,
+        total: params.total,
+        error: err?.message || 'Accounting hook error',
+        reconciliationRequired: true,
+      })
+    } catch {}
+    return false
   }
 }
 
 /**
  * Hook: Create journal entry after a customer payment is received.
+ * Returns true if journal entry was posted successfully, false if failed.
  */
-export async function hookPaymentReceivedJournalEntry(params: PaymentAccountingHookParams): Promise<void> {
+export async function hookPaymentReceivedJournalEntry(params: PaymentAccountingHookParams): Promise<boolean> {
   try {
     const entry = await accountingService.createPaymentReceivedJournalEntry(
       params.businessId,
@@ -197,15 +212,27 @@ export async function hookPaymentReceivedJournalEntry(params: PaymentAccountingH
       entityId: params.paymentId,
       entryNumber: entry.entryNumber,
     })
+    return true
   } catch (err: any) {
     console.warn(`[AccountingHook] Failed to create journal entry for payment ${params.paymentId}:`, err?.message)
+    try {
+      await auditLogService.logEvent(params.businessId, params.userId, 'journal_entry_failed', params.paymentId, {
+        entityType: 'payment',
+        paymentId: params.paymentId,
+        amount: params.amount,
+        error: err?.message || 'Accounting hook error',
+        reconciliationRequired: true,
+      })
+    } catch {}
+    return false
   }
 }
 
 /**
  * Hook: Create journal entry after a supplier payment is made.
+ * Returns true if journal entry was posted successfully, false if failed.
  */
-export async function hookSupplierPaymentJournalEntry(params: SupplierPaymentAccountingHookParams): Promise<void> {
+export async function hookSupplierPaymentJournalEntry(params: SupplierPaymentAccountingHookParams): Promise<boolean> {
   try {
     const entry = await accountingService.createSupplierPaymentJournalEntry(
       params.businessId,
@@ -219,15 +246,27 @@ export async function hookSupplierPaymentJournalEntry(params: SupplierPaymentAcc
       entityId: params.paymentId,
       entryNumber: entry.entryNumber,
     })
+    return true
   } catch (err: any) {
     console.warn(`[AccountingHook] Failed to create journal entry for supplier payment ${params.paymentId}:`, err?.message)
+    try {
+      await auditLogService.logEvent(params.businessId, params.userId, 'journal_entry_failed', params.paymentId, {
+        entityType: 'supplier_payment',
+        paymentId: params.paymentId,
+        amount: params.amount,
+        error: err?.message || 'Accounting hook error',
+        reconciliationRequired: true,
+      })
+    } catch {}
+    return false
   }
 }
 
 /**
  * Hook: Create journal entry after an expense is recorded.
+ * Returns true if journal entry was posted successfully, false if failed.
  */
-export async function hookExpenseJournalEntry(params: ExpenseAccountingHookParams): Promise<void> {
+export async function hookExpenseJournalEntry(params: ExpenseAccountingHookParams): Promise<boolean> {
   try {
     const entry = await accountingService.createExpenseJournalEntry(
       params.businessId,
@@ -241,15 +280,27 @@ export async function hookExpenseJournalEntry(params: ExpenseAccountingHookParam
       entityId: params.expenseId,
       entryNumber: entry.entryNumber,
     })
+    return true
   } catch (err: any) {
     console.warn(`[AccountingHook] Failed to create journal entry for expense ${params.expenseId}:`, err?.message)
+    try {
+      await auditLogService.logEvent(params.businessId, params.userId, 'journal_entry_failed', params.expenseId, {
+        entityType: 'expense',
+        expenseId: params.expenseId,
+        amount: params.amount,
+        error: err?.message || 'Accounting hook error',
+        reconciliationRequired: true,
+      })
+    } catch {}
+    return false
   }
 }
 
 /**
  * Hook: Create journal entry after a sales return is processed.
+ * Returns true if journal entry was posted successfully, false if failed.
  */
-export async function hookSalesReturnJournalEntry(params: SalesReturnAccountingHookParams): Promise<void> {
+export async function hookSalesReturnJournalEntry(params: SalesReturnAccountingHookParams): Promise<boolean> {
   try {
     const entry = await accountingService.createSalesReturnJournalEntry(
       params.businessId,
@@ -263,7 +314,18 @@ export async function hookSalesReturnJournalEntry(params: SalesReturnAccountingH
       entityId: params.returnId,
       entryNumber: entry.entryNumber,
     })
+    return true
   } catch (err: any) {
     console.warn(`[AccountingHook] Failed to create journal entry for sales return ${params.returnNumber}:`, err?.message)
+    try {
+      await auditLogService.logEvent(params.businessId, params.userId, 'journal_entry_failed', params.returnId, {
+        entityType: 'sales_return',
+        returnNumber: params.returnNumber,
+        totalRefund: params.totalRefund,
+        error: err?.message || 'Accounting hook error',
+        reconciliationRequired: true,
+      })
+    } catch {}
+    return false
   }
 }

@@ -5,6 +5,45 @@ import { sanitizeAppwriteDocId } from '@/lib/utils'
 
 export const SYSTEM_TENANT_ID = '__SYSTEM_INTERNAL_PRIVILEGED_ACTOR__'
 
+export const CRITICAL_FINANCIAL_FIELDS = new Set<string>([
+  'total',
+  'subtotal',
+  'paidamount',
+  'dueamount',
+  'tax',
+  'vatamount',
+  'taxableamount',
+  'unitprice',
+  'purchaseprice',
+  'sellingprice',
+  'costprice',
+  'stockquantity',
+  'quantity',
+  'discount',
+  'changeamount',
+  'balance',
+  'totaldue',
+  'totalpaid',
+  'totalpurchases',
+  'amount',
+  'totalrefund',
+  'debit',
+  'credit',
+])
+
+export const REQUIRED_BUSINESS_FIELDS = new Set<string>([
+  'businessid',
+  'customerid',
+  'supplierid',
+  'productid',
+  'saleid',
+  'purchaseid',
+  'invoiceid',
+  'createdby',
+  'paymentmethod',
+  'status',
+])
+
 /**
  * Base Service Class
  * 
@@ -21,6 +60,11 @@ export abstract class BaseService {
 
   constructor(collectionId: string) {
     this.collectionId = collectionId
+  }
+
+  protected isCriticalOrRequiredField(fieldName: string): boolean {
+    const normalized = fieldName.toLowerCase()
+    return CRITICAL_FINANCIAL_FIELDS.has(normalized) || REQUIRED_BUSINESS_FIELDS.has(normalized)
   }
 
   protected isSystemContext(businessId: string): boolean {
@@ -183,7 +227,7 @@ export abstract class BaseService {
           if (match && match[1] && documentData[match[1]] !== undefined) {
             const fieldName = match[1]
 
-            // Ensure field values are preserved on aliases/fallbacks before stripping
+            // Ensure field values are preserved on aliases/fallbacks before checking
             if (fieldName.toLowerCase() === 'dueamount') {
               if (documentData.totalDue === undefined && documentData.dueAmount !== undefined) {
                 documentData.totalDue = documentData.dueAmount
@@ -198,7 +242,11 @@ export abstract class BaseService {
               }
             }
 
-            console.warn(`[BaseService] Attribute "${fieldName}" is not provisioned in collection "${this.collectionId}". Stripping field to allow operation to complete. Please run 'npx tsx scripts/setup-appwrite.ts' to update database schema.`)
+            if (this.isCriticalOrRequiredField(fieldName)) {
+              throw new Error(`Infrastructure/Schema Error: Critical financial or required attribute "${fieldName}" is not provisioned in Appwrite collection "${this.collectionId}". Database schema update required.`)
+            }
+
+            console.warn(`[BaseService] Optional attribute "${fieldName}" is not provisioned in collection "${this.collectionId}". Stripping field to allow operation to complete. Please run 'npx tsx scripts/setup-appwrite.ts' to update database schema.`)
             delete documentData[fieldName]
             attempts++
             continue
@@ -366,7 +414,7 @@ export abstract class BaseService {
           if (match && match[1] && updatePayload[match[1]] !== undefined) {
             const fieldName = match[1]
 
-            // Ensure field values are preserved on aliases/fallbacks before stripping
+            // Ensure field values are preserved on aliases/fallbacks before checking
             if (fieldName.toLowerCase() === 'dueamount') {
               if (updatePayload.totalDue === undefined && updatePayload.dueAmount !== undefined) {
                 updatePayload.totalDue = updatePayload.dueAmount
@@ -381,7 +429,11 @@ export abstract class BaseService {
               }
             }
 
-            console.warn(`[BaseService] Attribute "${fieldName}" is not provisioned in collection "${this.collectionId}". Stripping field to allow operation to complete. Please run 'npx tsx scripts/setup-appwrite.ts' to update database schema.`)
+            if (this.isCriticalOrRequiredField(fieldName)) {
+              throw new Error(`Infrastructure/Schema Error: Critical financial or required attribute "${fieldName}" is not provisioned in Appwrite collection "${this.collectionId}". Database schema update required.`)
+            }
+
+            console.warn(`[BaseService] Optional attribute "${fieldName}" is not provisioned in collection "${this.collectionId}". Stripping field to allow operation to complete. Please run 'npx tsx scripts/setup-appwrite.ts' to update database schema.`)
             delete updatePayload[fieldName]
             attempts++
             continue
