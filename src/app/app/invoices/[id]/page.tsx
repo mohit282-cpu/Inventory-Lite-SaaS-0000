@@ -55,12 +55,23 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
     fetchDetails()
   }, [fetchDetails])
 
-  // Auto-trigger print if ?print=true is present in query string
+  // Auto-trigger print if ?print=true is present in query string with deterministic readiness
   useEffect(() => {
     if (details && searchParams?.get('print') === 'true') {
-      setTimeout(() => {
-        window.print()
-      }, 500)
+      const triggerPrintWhenReady = () => {
+        if (typeof document !== 'undefined' && (document as any).fonts?.ready) {
+          ;(document as any).fonts.ready.then(() => {
+            requestAnimationFrame(() => {
+              window.print()
+            })
+          })
+        } else {
+          requestAnimationFrame(() => {
+            window.print()
+          })
+        }
+      }
+      triggerPrintWhenReady()
     }
   }, [details, searchParams])
 

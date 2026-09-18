@@ -306,7 +306,7 @@ export default function CreateSalePage() {
 
   // Submit Complete Sale
   const handleCompleteSale = async () => {
-    if (!activeBusiness?.$id || !user?.$id) return
+    if (isSubmitting || !activeBusiness?.$id || !user?.$id) return
     if (cart.length === 0) {
       toast({
         title: 'Cart is empty',
@@ -372,6 +372,7 @@ export default function CreateSalePage() {
         taxRate: effectiveTaxRate,
         paidAmount: effectivePaidAmount,
         paymentMethod,
+        idempotencyKey: `pos_${activeBusiness.$id}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       }
 
       const result = await saleService.createSale(payload, activeBusiness.$id, user.$id)

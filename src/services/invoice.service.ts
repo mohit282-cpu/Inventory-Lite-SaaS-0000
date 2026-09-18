@@ -144,23 +144,17 @@ export class InvoiceService extends BaseService {
   async getInvoiceFullDetails(invoiceId: string, businessId: string): Promise<InvoiceFullDetails> {
     const invoice = await this.getById<Invoice>(invoiceId, businessId)
     const sale = await saleService.getSale(invoice.saleId, businessId)
-    const saleItems = await saleItemService.listSaleItems(invoice.saleId, businessId)
-    
-    let customer: Customer | null = null
-    if (sale.customerId) {
-      try {
-        customer = await customerService.getCustomer(sale.customerId, businessId)
-      } catch (err) {
-        console.warn('Could not load customer for invoice:', err)
-      }
-    }
 
-    let business: any = null
-    try {
-      business = await businessService.getBusiness(businessId)
-    } catch {
-      business = { $id: businessId, name: 'Business' }
-    }
+    const [saleItems, customer, business] = await Promise.all([
+      saleItemService.listSaleItems(invoice.saleId, businessId),
+      sale.customerId
+        ? customerService.getCustomer(sale.customerId, businessId).catch((err) => {
+            console.warn('Could not load customer for invoice:', err)
+            return null
+          })
+        : Promise.resolve(null),
+      businessService.getBusiness(businessId).catch(() => ({ $id: businessId, name: 'Business' } as Business)),
+    ])
 
     return {
       invoice,

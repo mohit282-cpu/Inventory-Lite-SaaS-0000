@@ -77,10 +77,11 @@ export class SaleService extends BaseService {
 
     const persistentCheck = async (): Promise<{ sale: Sale; items: any[]; invoice?: any } | null> => {
       if (!data.idempotencyKey) return null
-      const existingSales = await this.listSales(businessId)
-      const matchedSale = existingSales.find(
-        (s: any) => s.idempotencyKey === data.idempotencyKey || (s as any).referenceId === data.idempotencyKey
-      )
+      const matches = await this.list<Sale>(businessId, [
+        Query.equal('idempotencyKey', data.idempotencyKey),
+        Query.limit(1),
+      ])
+      const matchedSale = matches.length > 0 ? matches[0] : null
       if (matchedSale) {
         const items = await saleItemService.listSaleItems(matchedSale.$id, businessId)
         return { sale: matchedSale, items }
@@ -98,52 +99,46 @@ export class SaleService extends BaseService {
       },
       persistentCheck,
       async () => {
-        // 2. Server-side product price verification
-        const validatedItems: Array<{
-          productId: string
-          quantity: number
-          unitPrice: number
-          discount: number
-          productName: string
-        }> = []
-
-        for (const item of data.items) {
-          if (typeof item.quantity !== 'number' || isNaN(item.quantity) || !isFinite(item.quantity) || item.quantity <= 0) {
-            throw new Error('Item quantity must be a positive number greater than zero')
-          }
-
-          const product = await productService.getProduct(item.productId, businessId)
-          if (!product) {
-            throw new Error(`Product record '${item.productId}' not found or inaccessible`)
-          }
-
-          if (product.stockQuantity < item.quantity) {
-            throw new Error(`Insufficient stock for product '${product.name}'. Available: ${product.stockQuantity}, Requested: ${item.quantity}`)
-          }
-
-          const catalogPrice = product.sellingPrice
-          let effectiveUnitPrice = catalogPrice
-
-          if (item.unitPrice !== undefined && Math.abs(item.unitPrice - catalogPrice) > 0.01) {
-            if (authCtx.memberRole !== 'owner') {
-              throw new Error('PRICE_OVERRIDE_NOT_AUTHORIZED: Cashiers cannot modify unit price.')
+        // 2. Server-side product price verification (Parallel reads via Promise.all)
+        const validatedItems = await Promise.all(
+          data.items.map(async (item) => {
+            if (typeof item.quantity !== 'number' || isNaN(item.quantity) || !isFinite(item.quantity) || item.quantity <= 0) {
+              throw new Error('Item quantity must be a positive number greater than zero')
             }
-            effectiveUnitPrice = item.unitPrice
-            await auditLogService.logEvent(businessId, userId, 'price_override', product.$id, {
-              productName: product.name,
-              catalogPrice,
-              overriddenPrice: effectiveUnitPrice,
-            })
-          }
 
-          validatedItems.push({
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: effectiveUnitPrice,
-            discount: item.discount || 0,
-            productName: product.name,
+            const product = await productService.getProduct(item.productId, businessId)
+            if (!product) {
+              throw new Error(`Product record '${item.productId}' not found or inaccessible`)
+            }
+
+            if (product.stockQuantity < item.quantity) {
+              throw new Error(`Insufficient stock for product '${product.name}'. Available: ${product.stockQuantity}, Requested: ${item.quantity}`)
+            }
+
+            const catalogPrice = product.sellingPrice
+            let effectiveUnitPrice = catalogPrice
+
+            if (item.unitPrice !== undefined && Math.abs(item.unitPrice - catalogPrice) > 0.01) {
+              if (authCtx.memberRole !== 'owner') {
+                throw new Error('PRICE_OVERRIDE_NOT_AUTHORIZED: Cashiers cannot modify unit price.')
+              }
+              effectiveUnitPrice = item.unitPrice
+              await auditLogService.logEvent(businessId, userId, 'price_override', product.$id, {
+                productName: product.name,
+                catalogPrice,
+                overriddenPrice: effectiveUnitPrice,
+              })
+            }
+
+            return {
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: effectiveUnitPrice,
+              discount: item.discount || 0,
+              productName: product.name,
+            }
           })
-        }
+        )
 
         // 3. Server-Side Totals Recalculation
         const effectivePaidAmount = isFullUdhaar ? 0 : (data.paidAmount || 0)

@@ -125,6 +125,16 @@ export async function hookSaleJournalEntry(params: SaleAccountingHookParams): Pr
     })
   } catch (err: any) {
     console.warn(`[AccountingHook] Failed to create journal entry for sale ${params.saleNumber}:`, err?.message)
+    try {
+      await auditLogService.logEvent(params.businessId, params.userId, 'journal_entry_failed', params.saleId, {
+        entityType: 'sale',
+        saleNumber: params.saleNumber,
+        total: params.total,
+        taxAmount: params.taxAmount,
+        error: err?.message || 'Accounting hook error',
+        reconciliationRequired: true,
+      })
+    } catch {}
   }
 }
 
