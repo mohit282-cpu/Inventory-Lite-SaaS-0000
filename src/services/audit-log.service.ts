@@ -103,7 +103,18 @@ export class AuditLogService extends BaseService {
 
     queries.push(Query.orderDesc('createdAt'))
 
-    return await this.list<AuditLog>(businessId, queries)
+    try {
+      return await this.list<AuditLog>(businessId, queries)
+    } catch (err: any) {
+      if (
+        err?.message?.includes('audit_logs') ||
+        err?.message?.includes('missing or uninitialized') ||
+        err?.code === 404
+      ) {
+        return []
+      }
+      throw err
+    }
   }
 
   /**

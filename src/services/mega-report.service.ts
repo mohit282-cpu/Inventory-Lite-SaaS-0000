@@ -110,7 +110,7 @@ class CollectionReader extends BaseService {
 
 function collectionList<T extends Models.Document>(collectionId: string, businessId: string, queries: any[] = []): Promise<T[]> {
   const reader = new CollectionReader(collectionId)
-  return reader.listAll<T>(businessId, queries)
+  return reader.listAll<T>(businessId, queries).catch(() => [])
 }
 
 /** Invoice sequence return shape mirroring InvoiceSequenceAudit. */

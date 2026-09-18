@@ -1108,10 +1108,15 @@ export class AuditCenterService {
 
   async getAuditTrail(businessId: string, filters?: AuditFilterParams): Promise<AuditLogEntry[]> {
     const f = resolveFilters(filters)
-    const logs = await auditLogService.getBusinessAuditLogs(businessId, {
-      dateFrom: f.dateFrom,
-      dateTo: f.dateTo,
-    })
+    let logs: AuditLogEntry[] = []
+    try {
+      logs = await auditLogService.getBusinessAuditLogs(businessId, {
+        dateFrom: f.dateFrom,
+        dateTo: f.dateTo,
+      })
+    } catch {
+      logs = []
+    }
 
     if (logs.length > 0) {
       return logs
