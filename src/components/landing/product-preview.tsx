@@ -53,7 +53,7 @@ export function LandingProductPreview() {
         
         {/* Section Headline */}
         <div className="max-w-3xl text-left space-y-2">
-          <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2.5 sm:px-3 py-1 rounded-md border border-indigo-500/20">
+          <span className="text-[11px] sm:text-xs font-bold text-indigo-300 bg-indigo-950/80 px-2.5 sm:px-3 py-1 rounded-md border border-indigo-800">
             {t('productPreview.badge')}
           </span>
           <h2 className="text-[1.5rem] sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white tracking-tight leading-[1.2]">

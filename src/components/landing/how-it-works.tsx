@@ -56,7 +56,7 @@ export function LandingHowItWorks() {
                       <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
                         <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                       </div>
-                      <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-400 bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded">
+                      <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-600 bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded">
                         {item.num}
                       </span>
                     </div>

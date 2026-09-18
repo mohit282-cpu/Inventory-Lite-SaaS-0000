@@ -48,9 +48,9 @@ export function LandingFooter() {
           {/* Navigation Links */}
           <div className="md:col-span-7 grid grid-cols-2 gap-6 sm:gap-8">
             <div>
-              <h4 className="font-bold text-slate-200 uppercase tracking-wider text-xs sm:text-sm mb-3 sm:mb-4">
+              <h3 className="font-bold text-slate-200 uppercase tracking-wider text-xs sm:text-sm mb-3 sm:mb-4">
                 {t('footer.productHeading')}
-              </h4>
+              </h3>
               <ul className="space-y-2.5">
                 <li><a href="#features" className="text-xs sm:text-sm text-slate-400 hover:text-white transition-colors inline-block">{t('footer.features')}</a></li>
                 <li><a href="#pricing" className="text-xs sm:text-sm text-slate-400 hover:text-white transition-colors inline-block">{t('footer.pricing')}</a></li>
@@ -60,9 +60,9 @@ export function LandingFooter() {
             </div>
 
             <div>
-              <h4 className="font-bold text-slate-200 uppercase tracking-wider text-xs sm:text-sm mb-3 sm:mb-4">
+              <h3 className="font-bold text-slate-200 uppercase tracking-wider text-xs sm:text-sm mb-3 sm:mb-4">
                 {t('footer.supportHeading')}
-              </h4>
+              </h3>
               <ul className="space-y-2.5">
                 <li>
                   <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="text-xs sm:text-sm text-slate-400 hover:text-white transition-colors inline-flex items-center gap-1.5">

@@ -38,16 +38,16 @@ export function LandingHero() {
           
           {/* Left Column: Headline, Copy & Primary Actions */}
           <div className="lg:col-span-5 text-left space-y-4 sm:space-y-5">
-            <div className="inline-block text-xs sm:text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-indigo-100">
+            <div className="inline-block text-xs sm:text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-indigo-100">
               {t('hero.badge')}
             </div>
 
             <h1 className="text-[1.625rem] sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
               <span className="block">{t('hero.titleLine1')}</span>
-              <span className="block text-indigo-600 mt-1 sm:mt-2">{t('hero.titleLine2')}</span>
+              <span className="block text-indigo-700 mt-1 sm:mt-2">{t('hero.titleLine2')}</span>
             </h1>
 
-            <p className="text-sm sm:text-lg text-slate-600 leading-[1.65] max-w-lg">
+            <p className="text-sm sm:text-lg text-slate-700 leading-[1.65] max-w-lg">
               {t('hero.description')}
             </p>
 
@@ -55,7 +55,7 @@ export function LandingHero() {
               <Button
                 asChild
                 size="lg"
-                className="h-12 sm:h-13 px-6 sm:px-7 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-sm sm:text-base lg:text-lg"
+                className="h-12 sm:h-13 px-6 sm:px-7 bg-emerald-700 hover:bg-emerald-800 text-white font-bold shadow-md text-sm sm:text-base lg:text-lg"
               >
                 <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                   <WhatsAppIcon className="h-5 w-5 mr-2 shrink-0" />
@@ -76,7 +76,7 @@ export function LandingHero() {
             </div>
 
             {/* Pricing hint */}
-            <p className="text-xs sm:text-sm text-slate-500 font-medium">
+            <p className="text-xs sm:text-sm text-slate-700 font-medium">
               {t('hero.pricingHint')}
             </p>
 
@@ -137,12 +137,12 @@ export function LandingHero() {
                   {/* Callout badges overlaid on screenshot */}
                   <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 right-2 sm:right-3 flex flex-wrap gap-1.5 sm:gap-2">
                     {[
-                      { label: 'hero.calloutSales', color: 'bg-emerald-500/90 text-white' },
-                      { label: 'hero.calloutStock', color: 'bg-blue-500/90 text-white' },
-                      { label: 'hero.calloutUdhaar', color: 'bg-amber-500/90 text-white' },
-                      { label: 'hero.calloutReports', color: 'bg-indigo-500/90 text-white' },
+                      { label: 'hero.calloutSales', color: 'bg-emerald-700 text-white shadow-sm' },
+                      { label: 'hero.calloutStock', color: 'bg-blue-700 text-white shadow-sm' },
+                      { label: 'hero.calloutUdhaar', color: 'bg-amber-700 text-white shadow-sm' },
+                      { label: 'hero.calloutReports', color: 'bg-indigo-700 text-white shadow-sm' },
                     ].map((c) => (
-                      <span key={c.label} className={`text-[9px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md backdrop-blur-sm ${c.color}`}>
+                      <span key={c.label} className={`text-[9px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md ${c.color}`}>
                         {t(c.label)}
                       </span>
                     ))}

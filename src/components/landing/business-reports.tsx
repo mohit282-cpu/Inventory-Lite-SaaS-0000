@@ -105,9 +105,9 @@ export function LandingBusinessReports() {
                       <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
                     <div>
-                      <h4 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 leading-snug">
+                      <h3 className="text-sm sm:text-base lg:text-lg font-bold text-slate-900 leading-snug">
                         {item.title}
-                      </h4>
+                      </h3>
                       <p className="text-xs sm:text-sm text-slate-600 leading-[1.6] mt-0.5">
                         {item.desc}
                       </p>

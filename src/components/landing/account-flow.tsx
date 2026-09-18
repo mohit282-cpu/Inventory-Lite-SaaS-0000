@@ -35,7 +35,7 @@ export function LandingAccountFlow() {
     <section className="py-10 sm:py-16 lg:py-20 bg-white border-b border-slate-200 text-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7 sm:space-y-10">
         <div className="max-w-3xl text-left space-y-3">
-          <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-emerald-100">
+          <span className="text-[11px] sm:text-xs font-bold tracking-wider text-emerald-700 bg-emerald-50 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-emerald-100">
             {t('accountFlow.badge')}
           </span>
           <h2 className="text-[1.5rem] sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.2]">
@@ -57,7 +57,7 @@ export function LandingAccountFlow() {
                     <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
                       <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
-                    <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-400 bg-slate-200/80 px-1.5 sm:px-2 py-0.5 rounded">
+                    <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-700 bg-slate-200/80 px-1.5 sm:px-2 py-0.5 rounded">
                       {idx + 1}
                     </span>
                   </div>
@@ -78,7 +78,7 @@ export function LandingAccountFlow() {
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 sm:px-6 py-3 rounded-lg shadow-md transition-colors text-sm sm:text-base min-h-[48px]"
+            className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 sm:px-6 py-3 rounded-lg shadow-md transition-colors text-sm sm:text-base min-h-[48px]"
           >
             <WhatsAppIcon className="h-5 w-5" />
             {t('hero.startFree')}

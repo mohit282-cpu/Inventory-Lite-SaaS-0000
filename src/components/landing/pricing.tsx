@@ -78,24 +78,24 @@ export function LandingPricing() {
                 <div className="mb-5 sm:mb-6 border-b border-slate-100 pb-5">
                   {/* Regular Price Cross-out */}
                   {plan.regularPriceFormatted && (
-                    <p className="text-xs sm:text-sm text-slate-400 font-mono mb-1">
+                    <p className="text-xs sm:text-sm text-slate-600 font-mono mb-1">
                       <span className="line-through">NPR {plan.regularPriceFormatted}</span>
                     </p>
                   )}
 
                   {/* Primary Price */}
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-xs sm:text-sm font-bold text-slate-500">NPR</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-600">NPR</span>
                     <span className="text-[2.25rem] sm:text-4xl lg:text-5xl font-black font-mono text-slate-900 leading-none tracking-tight">
                       {plan.priceFormatted}
                     </span>
-                    <span className="text-xs sm:text-sm font-semibold text-slate-500">
+                    <span className="text-xs sm:text-sm font-semibold text-slate-600">
                       {period}
                     </span>
                   </div>
 
                   {/* Billing Period Note */}
-                  <p className="text-xs text-slate-500 font-medium mt-1">
+                  <p className="text-xs text-slate-600 font-medium mt-1">
                     {billingNote}
                   </p>
 
@@ -130,7 +130,7 @@ export function LandingPricing() {
                   ))}
                 </ul>
 
-                <p className="text-[11px] sm:text-xs text-slate-400 mb-5 leading-relaxed">
+                <p className="text-[11px] sm:text-xs text-slate-600 mb-5 leading-relaxed">
                   {t('pricing.oneStoreNote')}
                 </p>
 
