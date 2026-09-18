@@ -226,27 +226,45 @@ export abstract class BaseService {
           const match = err.message.match(/Unknown attribute:\s*"([^"]+)"/i)
           if (match && match[1] && documentData[match[1]] !== undefined) {
             const fieldName = match[1]
+            const lowerField = fieldName.toLowerCase()
+            let isSafelyAliased = false
 
             // Ensure field values are preserved on aliases/fallbacks before checking
-            if (fieldName.toLowerCase() === 'dueamount') {
-              if (documentData.totalDue === undefined && documentData.dueAmount !== undefined) {
-                documentData.totalDue = documentData.dueAmount
-              }
-            } else if (fieldName.toLowerCase() === 'totaldue') {
-              if (documentData.dueAmount === undefined && documentData.totalDue !== undefined) {
-                documentData.dueAmount = documentData.totalDue
-              }
-            } else if (fieldName.toLowerCase() === 'vatamount') {
+            if (lowerField === 'vatamount') {
               if (documentData.tax === undefined && documentData.vatAmount !== undefined) {
                 documentData.tax = documentData.vatAmount
               }
+              if (documentData.tax !== undefined) {
+                isSafelyAliased = true
+              }
+            } else if (lowerField === 'tax') {
+              if (documentData.vatAmount === undefined && documentData.tax !== undefined) {
+                documentData.vatAmount = documentData.tax
+              }
+              if (documentData.vatAmount !== undefined) {
+                isSafelyAliased = true
+              }
+            } else if (lowerField === 'dueamount') {
+              if (documentData.totalDue === undefined && documentData.dueAmount !== undefined) {
+                documentData.totalDue = documentData.dueAmount
+              }
+              if (documentData.totalDue !== undefined) {
+                isSafelyAliased = true
+              }
+            } else if (lowerField === 'totaldue') {
+              if (documentData.dueAmount === undefined && documentData.totalDue !== undefined) {
+                documentData.dueAmount = documentData.totalDue
+              }
+              if (documentData.dueAmount !== undefined) {
+                isSafelyAliased = true
+              }
             }
 
-            if (this.isCriticalOrRequiredField(fieldName)) {
+            if (!isSafelyAliased && this.isCriticalOrRequiredField(fieldName)) {
               throw new Error(`Infrastructure/Schema Error: Critical financial or required attribute "${fieldName}" is not provisioned in Appwrite collection "${this.collectionId}". Database schema update required.`)
             }
 
-            console.warn(`[BaseService] Optional attribute "${fieldName}" is not provisioned in collection "${this.collectionId}". Stripping field to allow operation to complete. Please run 'npx tsx scripts/setup-appwrite.ts' to update database schema.`)
+            console.warn(`[BaseService] Attribute "${fieldName}" is not provisioned in collection "${this.collectionId}". ${isSafelyAliased ? 'Field is safely aliased.' : 'Stripping optional field.'} Retrying operation.`)
             delete documentData[fieldName]
             attempts++
             continue
@@ -413,27 +431,45 @@ export abstract class BaseService {
           const match = err.message.match(/Unknown attribute:\s*"([^"]+)"/i)
           if (match && match[1] && updatePayload[match[1]] !== undefined) {
             const fieldName = match[1]
+            const lowerField = fieldName.toLowerCase()
+            let isSafelyAliased = false
 
             // Ensure field values are preserved on aliases/fallbacks before checking
-            if (fieldName.toLowerCase() === 'dueamount') {
-              if (updatePayload.totalDue === undefined && updatePayload.dueAmount !== undefined) {
-                updatePayload.totalDue = updatePayload.dueAmount
-              }
-            } else if (fieldName.toLowerCase() === 'totaldue') {
-              if (updatePayload.dueAmount === undefined && updatePayload.totalDue !== undefined) {
-                updatePayload.dueAmount = updatePayload.totalDue
-              }
-            } else if (fieldName.toLowerCase() === 'vatamount') {
+            if (lowerField === 'vatamount') {
               if (updatePayload.tax === undefined && updatePayload.vatAmount !== undefined) {
                 updatePayload.tax = updatePayload.vatAmount
               }
+              if (updatePayload.tax !== undefined) {
+                isSafelyAliased = true
+              }
+            } else if (lowerField === 'tax') {
+              if (updatePayload.vatAmount === undefined && updatePayload.tax !== undefined) {
+                updatePayload.vatAmount = updatePayload.tax
+              }
+              if (updatePayload.vatAmount !== undefined) {
+                isSafelyAliased = true
+              }
+            } else if (lowerField === 'dueamount') {
+              if (updatePayload.totalDue === undefined && updatePayload.dueAmount !== undefined) {
+                updatePayload.totalDue = updatePayload.dueAmount
+              }
+              if (updatePayload.totalDue !== undefined) {
+                isSafelyAliased = true
+              }
+            } else if (lowerField === 'totaldue') {
+              if (updatePayload.dueAmount === undefined && updatePayload.totalDue !== undefined) {
+                updatePayload.dueAmount = updatePayload.totalDue
+              }
+              if (updatePayload.dueAmount !== undefined) {
+                isSafelyAliased = true
+              }
             }
 
-            if (this.isCriticalOrRequiredField(fieldName)) {
+            if (!isSafelyAliased && this.isCriticalOrRequiredField(fieldName)) {
               throw new Error(`Infrastructure/Schema Error: Critical financial or required attribute "${fieldName}" is not provisioned in Appwrite collection "${this.collectionId}". Database schema update required.`)
             }
 
-            console.warn(`[BaseService] Optional attribute "${fieldName}" is not provisioned in collection "${this.collectionId}". Stripping field to allow operation to complete. Please run 'npx tsx scripts/setup-appwrite.ts' to update database schema.`)
+            console.warn(`[BaseService] Attribute "${fieldName}" is not provisioned in collection "${this.collectionId}". ${isSafelyAliased ? 'Field is safely aliased.' : 'Stripping optional field.'} Retrying operation.`)
             delete updatePayload[fieldName]
             attempts++
             continue
