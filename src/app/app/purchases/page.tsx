@@ -122,7 +122,7 @@ export default function PurchasesPage() {
             <ShoppingBag className="h-7 w-7 text-indigo-600" />
             Stock Purchases & Intake
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             Record purchase orders from vendors, update inventory stock, and track supplier payables.
           </p>
         </div>
@@ -169,6 +169,7 @@ export default function PurchasesPage() {
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <select
+            aria-label="Filter purchases by supplier"
             value={selectedSupplierId}
             onChange={(e) => setSelectedSupplierId(e.target.value)}
             className="h-9 px-3 rounded-lg border border-slate-200 text-xs bg-slate-50 font-medium text-slate-700"
@@ -182,6 +183,7 @@ export default function PurchasesPage() {
           </select>
 
           <select
+            aria-label="Filter purchases by status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
             className="h-9 px-3 rounded-lg border border-slate-200 text-xs bg-slate-50 font-medium text-slate-700"
@@ -229,9 +231,9 @@ export default function PurchasesPage() {
                   return (
                     <tr key={p.$id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-indigo-700">
-                        {p.purchaseNumber || `PUR-${p.$id.slice(-6)}`}
+                        {(p.purchaseNumber || `Pur-${p.$id.slice(-6)}`).replace(/^PUR-/i, 'Pur-')}
                         {p.supplierInvoiceNumber && (
-                          <div className="text-[10px] text-slate-400 font-normal">
+                          <div className="text-[10px] text-slate-500 font-normal">
                             Bill #: {p.supplierInvoiceNumber}
                           </div>
                         )}
@@ -271,26 +273,25 @@ export default function PurchasesPage() {
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => {
                               setSelectedPurchase(p)
                               setIsDetailOpen(true)
                             }}
-                            className="h-7 text-[11px] font-bold text-indigo-700 border-indigo-200 hover:bg-indigo-50 px-2"
                             title="View purchase details"
                           >
-                            <Eye className="mr-1 h-3 w-3" /> View
+                            <Eye className="mr-1 h-3.5 w-3.5" /> View
                           </Button>
                           {p.status !== 'cancelled' && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleCancelPurchase(p)}
-                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-600"
                               title="Cancel purchase order"
+                              aria-label={`Cancel purchase ${p.purchaseNumber || p.$id}`}
                             >
-                              <XCircle className="h-3.5 w-3.5" />
+                              <XCircle className="h-3.5 w-3.5 text-slate-400 hover:text-red-600" />
                             </Button>
                           )}
                         </div>

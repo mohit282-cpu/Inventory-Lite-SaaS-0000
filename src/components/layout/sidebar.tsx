@@ -118,7 +118,7 @@ export function Sidebar() {
       </div>
 
       {/* Grouped Navigation */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto scrollbar-thin space-y-4">
+      <nav aria-label="Main Navigation" className="flex-1 px-3 py-3 overflow-y-auto scrollbar-thin space-y-4">
         {NAVIGATION_GROUPS.map((group) => (
           <div key={group.label}>
             {!isCollapsed && (

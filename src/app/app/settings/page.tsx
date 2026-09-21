@@ -379,41 +379,40 @@ export default function SettingsPage() {
       />
 
       {/* Settings Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 w-fit overflow-x-auto text-xs">
         <button
           onClick={() => setActiveTab('business')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors ${
             activeTab === 'business'
-              ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'bg-white text-slate-900 shadow-xs font-semibold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
           }`}
         >
-          <Building className="h-4 w-4" /> 1. Business Profile
+          <Building className="h-4 w-4 text-indigo-600" /> 1. Business Profile
         </button>
 
         <button
           onClick={() => setActiveTab('account')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-xs transition-all ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors ${
             activeTab === 'account'
-              ? 'bg-indigo-50 text-indigo-700 border-2 border-indigo-600'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'bg-white text-slate-900 shadow-xs font-semibold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
           }`}
         >
-          <User className="h-4 w-4" /> 2. User Account & Security
+          <User className="h-4 w-4 text-indigo-600" /> 2. User Account & Security
         </button>
-
       </div>
 
       {/* TAB 1: BUSINESS PROFILE SETTINGS */}
       {activeTab === 'business' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="border-slate-200 bg-white shadow-sm p-5 h-fit space-y-4">
+          <Card className="border-slate-200 bg-white shadow-xs p-5 h-fit space-y-4">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
               <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg border border-indigo-100">
                 <Store className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="font-extrabold text-slate-900 text-base">{activeBusiness?.name || 'My Business'}</h3>
+                <h2 className="font-extrabold text-slate-900 text-base">{activeBusiness?.name || 'My Business'}</h2>
                 <p className="text-xs text-slate-500 capitalize font-medium">Your Role: {currentRole}</p>
               </div>
             </div>
@@ -438,7 +437,7 @@ export default function SettingsPage() {
             </div>
           </Card>
 
-          <Card className="lg:col-span-2 border-slate-200 bg-white shadow-sm p-6">
+          <Card className="lg:col-span-2 border-slate-200 bg-white shadow-xs p-6">
             <CardHeader className="px-0 pt-0">
               <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <Building className="h-5 w-5 text-indigo-600" /> Business Profile & Tax Credentials
@@ -477,7 +476,7 @@ export default function SettingsPage() {
                 <div className="space-y-3 pt-2 border-t border-slate-100">
                   <div>
                     <Label className="text-xs font-bold text-slate-700">Tax Registration Type</Label>
-                    <p className="text-[11px] text-slate-400">Select your shop/business tax registration type in Nepal.</p>
+                    <p className="text-xs text-slate-600 mt-0.5">Select your shop/business tax registration type in Nepal.</p>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3">
@@ -487,9 +486,9 @@ export default function SettingsPage() {
                         setTaxRegistrationType('NONE')
                         setTaxRegistrationNumber('')
                       }}
-                      className={`p-3 rounded-lg border text-xs font-semibold transition-all text-center ${
+                      className={`p-3 rounded-lg border text-xs font-semibold transition-colors text-center ${
                         taxRegistrationType === 'NONE'
-                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-800 ring-1 ring-indigo-600'
                           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                       }`}
                     >
@@ -499,9 +498,9 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => setTaxRegistrationType('PAN')}
-                      className={`p-3 rounded-lg border text-xs font-semibold transition-all text-center ${
+                      className={`p-3 rounded-lg border text-xs font-semibold transition-colors text-center ${
                         taxRegistrationType === 'PAN'
-                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-800 ring-1 ring-indigo-600'
                           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                       }`}
                     >
@@ -511,9 +510,9 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => setTaxRegistrationType('VAT')}
-                      className={`p-3 rounded-lg border text-xs font-semibold transition-all text-center ${
+                      className={`p-3 rounded-lg border text-xs font-semibold transition-colors text-center ${
                         taxRegistrationType === 'VAT'
-                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 ring-1 ring-indigo-600'
+                          ? 'border-indigo-600 bg-indigo-50/50 text-indigo-800 ring-1 ring-indigo-600'
                           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                       }`}
                     >
@@ -533,7 +532,7 @@ export default function SettingsPage() {
                         placeholder={taxRegistrationType === 'VAT' ? 'e.g. 100223344' : 'e.g. 600112233'}
                         className="font-mono text-sm h-10"
                       />
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-xs text-slate-600">
                         {taxRegistrationType === 'VAT'
                           ? 'VAT Registered: New bills will default to 13% VAT ON.'
                           : 'PAN Registered: New bills will default to VAT OFF.'}
@@ -606,9 +605,9 @@ export default function SettingsPage() {
           <Card className="lg:col-span-3 border-slate-200 bg-white shadow-sm p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                   <CalendarIcon className="h-5 w-5 text-indigo-600" /> Nepal Dual Calendar Settings
-                </h3>
+                </h2>
                 <p className="text-xs text-slate-500 mt-1 font-medium">
                   Set Bikram Sambat (BS) or Gregorian (AD) as your primary application calendar and configure dual-date display preferences.
                 </p>
@@ -743,9 +742,9 @@ export default function SettingsPage() {
           <div className="lg:col-span-3 border-2 border-red-200 bg-red-50/40 shadow-sm p-6 rounded-xl space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-base font-extrabold text-red-900 flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-red-900 flex items-center gap-2">
                   <Trash2 className="h-5 w-5 text-red-600" /> Danger Zone — Delete Selected Business
-                </h3>
+                </h2>
                 <p className="text-xs text-red-700 mt-1 font-medium">
                   Permanently delete this business entity and its data. Your Inventory Lite user account will remain active.
                 </p>
@@ -893,9 +892,9 @@ export default function SettingsPage() {
           <Card className="border-indigo-100 bg-indigo-50/30 shadow-sm p-6 space-y-3">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                   <Smartphone className="h-5 w-5 text-indigo-600" /> Inventory Lite Application Installation
-                </h3>
+                </h2>
                 <p className="text-xs text-slate-500 mt-1 font-medium">
                   Install Inventory Lite as a fast, native-feeling app on your Phone, Tablet, or PC.
                 </p>
@@ -908,9 +907,9 @@ export default function SettingsPage() {
           <div className="md:col-span-2 border-2 border-red-200 bg-red-50/40 shadow-sm p-6 rounded-xl space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-red-200/60">
               <div>
-                <h3 className="text-base font-extrabold text-red-900 flex items-center gap-2">
+                <h2 className="text-base font-extrabold text-red-900 flex items-center gap-2">
                   <Trash2 className="h-5 w-5 text-red-600" /> Danger Zone — Delete Account
-                </h3>
+                </h2>
                 <p className="text-xs text-red-700 mt-1 font-medium max-w-2xl leading-relaxed">
                   Delete your Inventory Lite account and permanently remove all business data associated with it. This action cannot be undone. Your authentication identity will be preserved, but your account will be blocked and you will no longer be able to access Inventory Lite.
                 </p>

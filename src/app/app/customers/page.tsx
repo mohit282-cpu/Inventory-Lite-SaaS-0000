@@ -217,39 +217,39 @@ export default function CustomersPage() {
         <div className="flex items-center justify-end gap-1">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setDetailsCustomer(item)
               setIsDetailsOpen(true)
             }}
-            className="h-9 w-9 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-600 rounded-lg"
             title="View Customer Details & Ledger"
+            aria-label={`View details for ${item.name}`}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4 text-slate-500" />
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setSelectedCustomer(item)
               setIsFormOpen(true)
             }}
-            className="h-9 w-9 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-600 rounded-lg"
             title="Edit Customer Info"
+            aria-label={`Edit ${item.name}`}
           >
-            <Edit className="h-4 w-4" />
+            <Edit className="h-4 w-4 text-slate-500" />
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setCustomerToDelete(item)
               setIsDeleteOpen(true)
             }}
-            className="h-9 w-9 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50 focus:ring-2 focus:ring-red-600 rounded-lg"
             title="Delete Customer"
+            aria-label={`Delete ${item.name}`}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 text-slate-500 hover:text-red-600" />
           </Button>
         </div>
       ),
@@ -267,7 +267,6 @@ export default function CustomersPage() {
               setSelectedCustomer(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold h-11 px-4 rounded-lg shadow-xs"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Customer
           </Button>
@@ -295,7 +294,6 @@ export default function CustomersPage() {
               setSelectedCustomer(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold h-11 px-4 rounded-lg shadow-xs"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Customer
           </Button>

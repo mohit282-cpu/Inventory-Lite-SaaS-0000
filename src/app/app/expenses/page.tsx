@@ -185,27 +185,27 @@ export default function ExpensesPage() {
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setEditingExpense(item)
               setFormOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
             title="Edit Expense"
+            aria-label={`Edit expense ${item.title || item.description}`}
           >
-            <Edit className="h-4 w-4" />
+            <Edit className="h-4 w-4 text-slate-500" />
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setDeletingExpenseId(item.$id)
               setDeleteConfirmOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50"
             title="Delete Expense"
+            aria-label={`Delete expense ${item.title || item.description}`}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 text-slate-500 hover:text-red-600" />
           </Button>
         </div>
       ),
@@ -227,7 +227,6 @@ export default function ExpensesPage() {
               setEditingExpense(null)
               setFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
           >
             <Plus className="mr-2 h-4 w-4" /> Record New Expense
           </Button>
@@ -238,7 +237,7 @@ export default function ExpensesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="border-slate-200 bg-white shadow-sm p-5">
           <div className="flex items-center justify-between pb-2">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-bold text-slate-600">
               Today&apos;s Expenses
             </span>
             <Calendar className="h-4 w-4 text-rose-600 shrink-0" />
@@ -251,7 +250,7 @@ export default function ExpensesPage() {
 
         <Card className="border-slate-200 bg-white shadow-sm p-5">
           <div className="flex items-center justify-between pb-2">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-bold text-slate-600">
               This Month&apos;s Expenses
             </span>
             <Receipt className="h-4 w-4 text-amber-600 shrink-0" />
@@ -264,7 +263,7 @@ export default function ExpensesPage() {
 
         <Card className="border-slate-200 bg-white shadow-sm p-5">
           <div className="flex items-center justify-between pb-2">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-bold text-slate-600">
               All-Time Total Expenses
             </span>
             <CreditCard className="h-4 w-4 text-slate-400 shrink-0" />
@@ -287,7 +286,7 @@ export default function ExpensesPage() {
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full sm:w-44">
+            <SelectTrigger aria-label="Filter expenses by category" className="w-full sm:w-44">
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
@@ -303,7 +302,7 @@ export default function ExpensesPage() {
           </Select>
 
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-full sm:w-36">
+            <SelectTrigger aria-label="Filter expenses by date range" className="w-full sm:w-36">
               <SelectValue placeholder="All Time" />
             </SelectTrigger>
             <SelectContent>
@@ -327,7 +326,6 @@ export default function ExpensesPage() {
               setEditingExpense(null)
               setFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
           >
             <Plus className="mr-2 h-4 w-4" /> Record Expense
           </Button>

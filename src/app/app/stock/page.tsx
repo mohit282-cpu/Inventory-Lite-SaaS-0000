@@ -459,16 +459,15 @@ export default function StockMovementsPage() {
               onClick={handleExportPdf}
               disabled={isExporting}
               variant="outline"
-              className="border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-950 font-bold h-10 px-3.5 shadow-sm"
             >
               {isExporting ? (
                 <>
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin text-indigo-700" />
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                   Generating PDF...
                 </>
               ) : (
                 <>
-                  <FileText className="mr-1.5 h-4 w-4 text-indigo-700" />
+                  <FileText className="mr-1.5 h-4 w-4 text-indigo-600" />
                   Export PDF
                 </>
               )}
@@ -478,7 +477,6 @@ export default function StockMovementsPage() {
                 setPreselectedProductId(undefined)
                 setIsStockInOpen(true)
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-3.5"
             >
               <ArrowDownRight className="mr-1.5 h-4 w-4" /> Stock In
             </Button>
@@ -487,7 +485,7 @@ export default function StockMovementsPage() {
                 setPreselectedProductId(undefined)
                 setIsStockOutOpen(true)
               }}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-3.5"
+              variant="destructive"
             >
               <ArrowUpRight className="mr-1.5 h-4 w-4" /> Stock Out
             </Button>
@@ -497,7 +495,6 @@ export default function StockMovementsPage() {
                 setIsAdjustmentOpen(true)
               }}
               variant="outline"
-              className="border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold h-10 px-3.5"
             >
               <RefreshCw className="mr-1.5 h-4 w-4" /> Adjust Stock
             </Button>
@@ -529,7 +526,6 @@ export default function StockMovementsPage() {
                   setPreselectedProductId(p.$id)
                   setIsStockInOpen(true)
                 }}
-                className="h-7 text-xs border-amber-300 bg-white text-amber-900 hover:bg-amber-100 font-bold"
               >
                 + Restock {p.name}
               </Button>
@@ -556,7 +552,7 @@ export default function StockMovementsPage() {
           <div className="space-y-1">
             <Label className="text-xs font-bold text-slate-700">Product</Label>
             <Select value={selectedProductFilter} onValueChange={setSelectedProductFilter}>
-              <SelectTrigger className="h-9 text-xs bg-white border-slate-300">
+              <SelectTrigger aria-label="Filter by product" className="h-9 text-xs bg-white border-slate-300">
                 <SelectValue placeholder="All Products" />
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200">
@@ -574,7 +570,7 @@ export default function StockMovementsPage() {
           <div className="space-y-1">
             <Label className="text-xs font-bold text-slate-700">Movement Type</Label>
             <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
-              <SelectTrigger className="h-9 text-xs bg-white border-slate-300">
+              <SelectTrigger aria-label="Filter by movement type" className="h-9 text-xs bg-white border-slate-300">
                 <SelectValue placeholder="All Movements" />
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200">
@@ -590,7 +586,7 @@ export default function StockMovementsPage() {
           <div className="space-y-1">
             <Label className="text-xs font-bold text-slate-700">Date Range Preset</Label>
             <Select value={datePreset} onValueChange={(val) => handleDatePresetChange(val as DatePreset)}>
-              <SelectTrigger className="h-9 text-xs bg-white border-slate-300">
+              <SelectTrigger aria-label="Filter by date range preset" className="h-9 text-xs bg-white border-slate-300">
                 <SelectValue placeholder="All History" />
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200">
@@ -680,7 +676,7 @@ export default function StockMovementsPage() {
                 setPreselectedProductId(undefined)
                 setIsStockInOpen(true)
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
             >
               <ArrowDownRight className="mr-1.5 h-4 w-4" /> Record First Stock In
             </Button>

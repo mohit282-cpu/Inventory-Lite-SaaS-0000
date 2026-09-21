@@ -505,9 +505,9 @@ export default function CreateSalePage() {
         <div className="lg:col-span-5 space-y-4">
           <div className="p-5 rounded-xl border border-slate-200 bg-white space-y-4 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+              <h2 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4 text-indigo-600" /> Current Cart ({cart.length})
-              </h3>
+              </h2>
               {cart.length > 0 && (
                 <button
                   type="button"
@@ -585,7 +585,7 @@ export default function CreateSalePage() {
                 </Dialog>
               </div>
               <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                <SelectTrigger className="text-xs font-medium">
+                <SelectTrigger aria-label="Select Customer" className="text-xs font-medium">
                   <SelectValue placeholder="Walk-in Guest / Select Customer" />
                 </SelectTrigger>
                 <SelectContent className="max-h-48">
@@ -793,7 +793,7 @@ export default function CreateSalePage() {
                       className="h-8 font-mono text-xs bg-white border-slate-300"
                     />
                   ) : (
-                    <div className="h-8 rounded-md bg-slate-100 border border-slate-200 text-slate-400 text-xs font-mono font-bold flex items-center justify-center">
+                    <div className="h-8 rounded-md bg-slate-100 border border-slate-200 text-slate-600 text-xs font-mono font-bold flex items-center justify-center">
                       VAT Disabled (0%)
                     </div>
                   )}
@@ -819,7 +819,7 @@ export default function CreateSalePage() {
                     }}
                     className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
                       paymentMode === 'full_payment'
-                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs font-extrabold'
+                        ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs font-extrabold'
                         : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
@@ -874,7 +874,7 @@ export default function CreateSalePage() {
                       }
                     }}
                   >
-                    <SelectTrigger className="h-8 text-xs font-medium">
+                    <SelectTrigger aria-label="Select Payment Channel" className="h-8 text-xs font-medium">
                       <SelectValue placeholder="Payment Method" />
                     </SelectTrigger>
                     <SelectContent>
@@ -904,12 +904,12 @@ export default function CreateSalePage() {
 
               {/* Dynamic Payment Mode Summaries */}
               {paymentMode === 'full_payment' && (
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-1 text-xs">
-                  <div className="font-extrabold flex items-center justify-between text-emerald-900">
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-slate-900 space-y-1 text-xs">
+                  <div className="font-extrabold flex items-center justify-between text-slate-900">
                     <span className="flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Full Payment Summary
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-950 font-black text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-emerald-200 text-slate-900 font-black text-[10px]">
                       PAID IN FULL
                     </span>
                   </div>
@@ -923,12 +923,12 @@ export default function CreateSalePage() {
               )}
 
               {paymentMode === 'partial_udhaar' && (
-                <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-950 space-y-1 text-xs">
-                  <div className="font-extrabold flex items-center justify-between text-indigo-900">
+                <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-slate-900 space-y-1 text-xs">
+                  <div className="font-extrabold flex items-center justify-between text-slate-900">
                     <span className="flex items-center gap-1.5">
                       <AlertCircle className="h-4 w-4 text-indigo-600" /> Partial Udhaar Summary
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-indigo-200 text-indigo-950 font-black text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-indigo-200 text-slate-900 font-black text-[10px]">
                       PARTIAL / DUE
                     </span>
                   </div>
@@ -946,19 +946,19 @@ export default function CreateSalePage() {
                       Paid Received: <span className="font-mono font-bold text-emerald-700">NPR {effectivePaidAmount.toFixed(2)}</span>
                     </div>
                     <div>
-                      Udhaar Added: <span className="font-mono font-extrabold text-indigo-800">NPR {dueAmount.toFixed(2)}</span>
+                      Udhaar Added: <span className="font-mono font-extrabold text-indigo-700">NPR {dueAmount.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
               )}
 
               {paymentMode === 'full_udhaar' && (
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 space-y-1 text-xs">
-                  <div className="font-extrabold flex items-center justify-between text-amber-900">
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-slate-900 space-y-1 text-xs">
+                  <div className="font-extrabold flex items-center justify-between text-slate-900">
                     <span className="flex items-center gap-1.5">
                       <CreditCard className="h-4 w-4 text-amber-600" /> Full Udhaar Summary
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-950 font-black text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-amber-200 text-slate-900 font-black text-[10px]">
                       UNPAID / FULL UDHAAR
                     </span>
                   </div>

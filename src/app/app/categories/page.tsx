@@ -142,27 +142,27 @@ export default function CategoriesPage() {
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setSelectedCategory(item)
               setIsFormOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
+            aria-label="Edit Category"
             title="Edit Category"
           >
             <Edit className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setCategoryToDelete(item)
               setIsDeleteOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50"
+            aria-label="Delete Category"
             title="Delete Category"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       ),
@@ -180,7 +180,6 @@ export default function CategoriesPage() {
               setSelectedCategory(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Category
           </Button>
@@ -207,7 +206,6 @@ export default function CategoriesPage() {
               setSelectedCategory(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Category
           </Button>

@@ -169,17 +169,17 @@ export default function CalendarPage() {
             onClick={handlePrevMonth}
             variant="outline"
             size="sm"
-            className="h-10 px-3 font-bold border-slate-300 hover:bg-slate-50"
+            className="text-xs font-semibold gap-1"
           >
-            <ChevronLeft className="h-4 w-4 mr-1" /> Previous Month
+            <ChevronLeft className="h-4 w-4" /> Previous Month
           </Button>
           <Button
             onClick={handleNextMonth}
             variant="outline"
             size="sm"
-            className="h-10 px-3 font-bold border-slate-300 hover:bg-slate-50"
+            className="text-xs font-semibold gap-1"
           >
-            Next Month <ChevronRight className="h-4 w-4 ml-1" />
+            Next Month <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
@@ -195,9 +195,10 @@ export default function CalendarPage() {
         <div className="flex items-center justify-end gap-2">
           <Button
             onClick={handleToday}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4 shadow-xs"
+            size="sm"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold gap-1.5 shadow-xs"
           >
-            <Sparkles className="h-4 w-4 mr-1.5" /> Today
+            <Sparkles className="h-4 w-4" /> Today
           </Button>
         </div>
       </div>
@@ -206,7 +207,7 @@ export default function CalendarPage() {
         {/* ==================== MONTHLY CALENDAR GRID ==================== */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-xs">
           {/* Day Headers (Sun - Sat) */}
-          <div className="grid grid-cols-7 gap-1 text-center font-extrabold text-xs text-slate-500 uppercase pb-3 border-b border-slate-100">
+          <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-500 pb-3 border-b border-slate-100">
             {BS_DAYS_EN.map((day) => (
               <div key={day} className="py-1">
                 {day}
@@ -258,19 +259,19 @@ export default function CalendarPage() {
                     <span
                       className={`font-black text-base sm:text-lg font-mono ${
                         isSelected
-                          ? 'text-indigo-900'
+                          ? 'text-indigo-800'
                           : isCurrentDay
-                          ? 'text-amber-900'
+                          ? 'text-amber-800'
                           : cell.isCurrentMonth
                           ? 'text-slate-900'
-                          : 'text-slate-400'
+                          : 'text-slate-600'
                       }`}
                     >
                       {cell.bsDay}
                     </span>
 
                     {/* AD Day Number (SUBORDINATE / SECONDARY) */}
-                    <span className="text-[10px] font-bold text-slate-400 font-mono">
+                    <span className="text-[10px] font-bold text-slate-600 font-mono">
                       {cell.adDay} AD
                     </span>
                   </div>
@@ -279,17 +280,17 @@ export default function CalendarPage() {
                   {cell.isCurrentMonth && (hasSales || hasPayments || hasExpenses) && (
                     <div className="space-y-0.5 mt-1">
                       {hasSales && (
-                        <div className="text-[9px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded flex items-center justify-between">
+                        <div className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded flex items-center justify-between">
                           <span>{dayEv.salesCount} Sales</span>
                         </div>
                       )}
                       {hasPayments && (
-                        <div className="text-[9px] font-extrabold bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded flex items-center justify-between">
+                        <div className="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded flex items-center justify-between">
                           <span>{dayEv.paymentsCount} Pay</span>
                         </div>
                       )}
                       {hasExpenses && (
-                        <div className="text-[9px] font-extrabold bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded flex items-center justify-between">
+                        <div className="text-[9px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded flex items-center justify-between">
                           <span>{dayEv.expensesCount} Exp</span>
                         </div>
                       )}
@@ -303,21 +304,21 @@ export default function CalendarPage() {
 
         {/* ==================== DATE DETAILS PANEL ==================== */}
         <div className="space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm p-6 space-y-5">
+          <Card className="border-slate-200 bg-white shadow-xs p-6 space-y-5">
             <div>
-              <div className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600 mb-1">
-                Selected Date Details
+              <div className="text-xs font-bold text-indigo-600 mb-1">
+                Selected date details
               </div>
               <h3 className="text-xl font-black text-slate-900 font-mono">{formattedSelectedBS}</h3>
               <p className="text-sm font-semibold text-slate-500 mt-0.5">{formattedSelectedAD} (A.D.)</p>
-              <div className="inline-block mt-2 bg-slate-100 text-slate-700 px-3 py-1 rounded text-xs font-bold border border-slate-200">
+              <div className="inline-block mt-2 bg-slate-100 text-slate-600 px-3 py-1 rounded text-xs font-bold border border-slate-200">
                 Financial Year: {financialYearInfo.label}
               </div>
             </div>
 
             <div className="border-t border-slate-100 pt-4 space-y-3">
-              <h4 className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">
-                Business Activity Summary
+              <h4 className="font-bold text-xs text-slate-600">
+                Business activity summary
               </h4>
 
               <div className="grid grid-cols-1 gap-2.5">
@@ -356,7 +357,7 @@ export default function CalendarPage() {
                 {/* Payments */}
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                    <div className="h-9 w-9 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
                       <CreditCard className="h-4 w-4" />
                     </div>
                     <div>
@@ -364,7 +365,7 @@ export default function CalendarPage() {
                       <div className="text-[11px] text-slate-500">{selectedDaySummary.paymentsCount} payments received</div>
                     </div>
                   </div>
-                  <div className="font-mono font-extrabold text-blue-700 text-sm">
+                  <div className="font-mono font-extrabold text-indigo-700 text-sm">
                     {formatNPR(selectedDaySummary.paymentsTotal)}
                   </div>
                 </div>
@@ -389,8 +390,8 @@ export default function CalendarPage() {
 
             <div className="border-t border-slate-100 pt-4 flex flex-col gap-2">
               <Link href="/app/sales/new">
-                <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold h-10 text-xs">
-                  Create New POS Sale <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs gap-1.5">
+                  Create New POS Sale <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </Link>
             </div>

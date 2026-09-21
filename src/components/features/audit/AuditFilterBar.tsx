@@ -104,7 +104,7 @@ export function AuditFilterBar({
             value={filters.fiscalYear || currentFY}
             onValueChange={handleFiscalYearChange}
           >
-            <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-200">
+            <SelectTrigger aria-label="Fiscal Year" className="h-9 text-xs bg-slate-50 border-slate-200">
               <SelectValue placeholder="Select FY" />
             </SelectTrigger>
             <SelectContent>
@@ -122,6 +122,7 @@ export function AuditFilterBar({
           <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Date From</label>
           <Input
             type="date"
+            aria-label="Date From"
             value={filters.dateFrom || ''}
             onChange={(e) => onFilterChange({ ...filters, dateFrom: e.target.value || undefined })}
             className={`h-9 text-xs bg-slate-50 border-slate-200 ${dateError ? 'border-red-400 ring-1 ring-red-400' : ''}`}
@@ -133,6 +134,7 @@ export function AuditFilterBar({
           <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Date To</label>
           <Input
             type="date"
+            aria-label="Date To"
             value={filters.dateTo || ''}
             min={filters.dateFrom || undefined}
             onChange={(e) => onFilterChange({ ...filters, dateTo: e.target.value || undefined })}
@@ -147,7 +149,7 @@ export function AuditFilterBar({
             value={filters.customerId || 'all'}
             onValueChange={(val) => onFilterChange({ ...filters, customerId: val === 'all' ? undefined : val })}
           >
-            <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-200">
+            <SelectTrigger aria-label="Customer" className="h-9 text-xs bg-slate-50 border-slate-200">
               <SelectValue placeholder="All Customers" />
             </SelectTrigger>
             <SelectContent>
@@ -168,7 +170,7 @@ export function AuditFilterBar({
             value={filters.supplierId || 'all'}
             onValueChange={(val) => onFilterChange({ ...filters, supplierId: val === 'all' ? undefined : val })}
           >
-            <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-200">
+            <SelectTrigger aria-label="Supplier" className="h-9 text-xs bg-slate-50 border-slate-200">
               <SelectValue placeholder="All Suppliers" />
             </SelectTrigger>
             <SelectContent>
@@ -189,7 +191,7 @@ export function AuditFilterBar({
             value={filters.documentStatus || 'all'}
             onValueChange={(val) => onFilterChange({ ...filters, documentStatus: val === 'all' ? undefined : val })}
           >
-            <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-200">
+            <SelectTrigger aria-label="Document Status" className="h-9 text-xs bg-slate-50 border-slate-200">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -208,7 +210,7 @@ export function AuditFilterBar({
             value={filters.paymentMethod || 'all'}
             onValueChange={(val) => onFilterChange({ ...filters, paymentMethod: val === 'all' ? undefined : val as PaymentMethod })}
           >
-            <SelectTrigger className="h-9 text-xs bg-slate-50 border-slate-200">
+            <SelectTrigger aria-label="Payment Method" className="h-9 text-xs bg-slate-50 border-slate-200">
               <SelectValue placeholder="All Methods" />
             </SelectTrigger>
             <SelectContent>

@@ -212,13 +212,12 @@ export default function CreditPage() {
       render: (item) => (
         <div className="flex items-center justify-end gap-1.5">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => {
               setSelectedDrawerItem(item)
               setIsDrawerOpen(true)
             }}
-            className="h-9 px-2.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg"
           >
             <Eye className="mr-1 h-3.5 w-3.5" /> View / Pay
           </Button>
@@ -235,7 +234,7 @@ export default function CreditPage() {
         actions={
           <Button
             onClick={() => setIsRecordPaymentOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 px-4 rounded-lg shadow-xs"
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
           >
             <Plus className="mr-2 h-4 w-4" /> Record Payment
           </Button>
@@ -246,7 +245,7 @@ export default function CreditPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Credit Due */}
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
             <span>Total Credit Due</span>
             <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 flex items-center justify-center">
               <Wallet className="h-4 w-4" />
@@ -259,7 +258,7 @@ export default function CreditPage() {
 
         {/* Card 2: Customers With Credit */}
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
             <span>Customers With Credit</span>
             <div className="h-8 w-8 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center">
               <Users className="h-4 w-4" />
@@ -272,7 +271,7 @@ export default function CreditPage() {
 
         {/* Card 3: Overdue Amount */}
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
             <span>Overdue Amount</span>
             <div className="h-8 w-8 rounded-lg bg-red-50 text-red-700 border border-red-100 flex items-center justify-center">
               <AlertCircle className="h-4 w-4" />
@@ -285,7 +284,7 @@ export default function CreditPage() {
 
         {/* Card 4: Payments Received This Month */}
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
             <span>Payments This Month</span>
             <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center">
               <TrendingUp className="h-4 w-4" />
@@ -316,7 +315,7 @@ export default function CreditPage() {
               value={statusFilter}
               onValueChange={(val) => setStatusFilter(val as any)}
             >
-              <SelectTrigger className="h-11 bg-white border-slate-300 text-slate-800 text-xs font-medium rounded-lg">
+              <SelectTrigger aria-label="Filter transactions by credit status" className="h-11 bg-white border-slate-300 text-slate-800 text-xs font-medium rounded-lg">
                 <SelectValue placeholder="Status: Unpaid / Partial" />
               </SelectTrigger>
               <SelectContent>
@@ -332,7 +331,7 @@ export default function CreditPage() {
           {/* Customer Filter */}
           <div className="sm:col-span-3 flex gap-2">
             <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-              <SelectTrigger className="h-11 bg-white border-slate-300 text-slate-800 text-xs font-medium rounded-lg flex-1">
+              <SelectTrigger aria-label="Filter transactions by customer" className="h-11 bg-white border-slate-300 text-slate-800 text-xs font-medium rounded-lg flex-1">
                 <SelectValue placeholder="Filter Customer" />
               </SelectTrigger>
               <SelectContent className="max-h-48">

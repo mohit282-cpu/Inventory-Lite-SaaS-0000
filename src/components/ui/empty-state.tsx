@@ -50,7 +50,7 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
             {renderIcon()}
           </div>
         )}
-        <h3 className="text-base font-bold text-slate-900 mb-1">{title}</h3>
+        <h2 className="text-base font-bold text-slate-900 mb-1">{title}</h2>
         {description && (
           <p className="text-xs text-slate-500 mb-4 max-w-sm leading-relaxed">
             {description}

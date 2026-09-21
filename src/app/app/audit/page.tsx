@@ -253,8 +253,8 @@ export default function AuditCenterPage() {
             <button
               type="button"
               onClick={() => setViewMode('owner')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'owner' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+                viewMode === 'owner' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
               <Briefcase className="h-3.5 w-3.5 text-indigo-600" /> Owner View
@@ -262,8 +262,8 @@ export default function AuditCenterPage() {
             <button
               type="button"
               onClick={() => setViewMode('accountant')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'accountant' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+                viewMode === 'accountant' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
               <FileText className="h-3.5 w-3.5 text-indigo-600" /> Accountant View
@@ -271,11 +271,11 @@ export default function AuditCenterPage() {
             <button
               type="button"
               onClick={() => setViewMode('auditor')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'auditor' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+                viewMode === 'auditor' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
-              <Eye className="h-3.5 w-3.5" /> Auditor View
+              <Eye className="h-3.5 w-3.5 text-amber-600" /> Auditor View
             </button>
           </div>
         </div>
@@ -301,13 +301,13 @@ export default function AuditCenterPage() {
                 key={t.id}
                 type="button"
                 onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                   isActive
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5 text-slate-500" />
                 <span>{t.label}</span>
               </button>
             )

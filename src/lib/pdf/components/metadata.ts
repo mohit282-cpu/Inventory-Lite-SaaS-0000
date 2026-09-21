@@ -7,7 +7,7 @@
 
 import jsPDF from 'jspdf'
 import { PDF_COLORS, PDF_FONT, PDF_SPACING } from '@/lib/pdf/theme'
-import { safeText } from '@/lib/pdf/fonts'
+import { safeText, truncateText } from '@/lib/pdf/fonts'
 
 export interface InfoLine {
   label: string
@@ -21,39 +21,52 @@ export interface PdfMetadataOptions {
 }
 
 /**
- * Draw metadata lines in a vertical stack (label: value on separate lines when
- * columnCount is 1, otherwise laid out in columns).
- * Returns the new y below the block.
+ * Draw metadata lines in a structured multi-column layout.
+ * Guarantees bold label with `: ` separator, readable value alignment,
+ * safe text wrapping/truncation, and clean vertical line spacing.
+ * Returns the new y coordinate below the block.
  */
 export function drawMetadata(doc: jsPDF, opts: PdfMetadataOptions): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
-  const columnCount = opts.columnCount ?? 1
+  const columnCount = Math.max(1, opts.columnCount ?? 1)
   const usable = pageWidth - margin * 2
-  const colWidth = usable / columnCount
-  const gap = 6
+  const colWidth = (usable - (columnCount - 1) * 8) / columnCount
+  const rowHeight = 6.5
 
-  const lines = opts.lines.filter((l) => safeText(l.value) !== '-')
+  const lines = opts.lines.filter((l) => {
+    const val = safeText(l.value).trim()
+    return val !== '' && val !== '-' && val !== '—'
+  })
 
-  let y = opts.startY
+  if (lines.length === 0) return opts.startY
+
+  let maxY = opts.startY
+
   lines.forEach((line, idx) => {
     const col = idx % columnCount
     const row = Math.floor(idx / columnCount)
-    const x = margin + col * colWidth + (col > 0 ? gap : 0)
-    const lineY = opts.startY + row * 5
+    const x = margin + col * (colWidth + 8)
+    const lineY = opts.startY + row * rowHeight
+
+    const rawLabel = safeText(line.label).trim()
+    const labelStr = rawLabel.endsWith(':') ? `${rawLabel} ` : `${rawLabel}: `
 
     doc.setFont(PDF_FONT.base, 'bold')
     doc.setFontSize(8)
     doc.setTextColor(PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2])
-    doc.text(`${safeText(line.label)}: `, x, lineY)
+    doc.text(labelStr, x, lineY)
+
+    const labelWidth = doc.getTextWidth(labelStr)
+    const maxValueWidth = Math.max(20, colWidth - labelWidth - 2)
 
     doc.setFont(PDF_FONT.base, 'normal')
     doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-    const labelWidth = doc.getTextWidth(`${safeText(line.label)}: `)
-    doc.text(safeText(line.value), x + labelWidth, lineY)
+    const valStr = truncateText(safeText(line.value), Math.floor(maxValueWidth / 1.8))
+    doc.text(valStr, x + labelWidth, lineY)
 
-    y = lineY
+    if (lineY > maxY) maxY = lineY
   })
 
-  return Math.max(opts.startY, y) + 4
+  return maxY + 5
 }

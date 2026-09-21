@@ -123,7 +123,7 @@ export default function SuppliersPage() {
             <Truck className="h-7 w-7 text-indigo-600" />
             Supplier Management
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             Manage vendors, track purchases, payable balances, and supplier payment ledger history.
           </p>
         </div>
@@ -218,7 +218,7 @@ export default function SuppliersPage() {
                       ) : (
                         '—'
                       )}
-                      {s.email && <div className="text-[11px] text-slate-400">{s.email}</div>}
+                      {s.email && <div className="text-[11px] text-slate-600">{s.email}</div>}
                     </td>
                     <td className="py-3 px-3 font-mono text-slate-700">
                       {s.panVatNumber ? s.panVatNumber : '—'}

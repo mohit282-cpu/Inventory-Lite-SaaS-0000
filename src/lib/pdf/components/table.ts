@@ -107,6 +107,8 @@ export function drawTable(doc: jsPDF, opts: PdfTableOptions): number {
       body: bodyRows,
       foot: footRows,
       theme: striped ? 'striped' : 'grid',
+      showHead: 'everyPage',
+      showFoot: 'lastPage',
       styles: {
         fontSize: opts.fontScale === 'dense' ? 7.5 : 8,
         cellPadding: opts.fontScale === 'dense' ? PDF_SPACING.denseCellPadding : PDF_SPACING.tableCellPadding,
