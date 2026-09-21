@@ -280,12 +280,11 @@ export default function ProductsPage() {
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setDetailsProduct(item)
               setIsDetailsOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
             aria-label="View Product Details"
             title="View Details"
           >
@@ -293,12 +292,11 @@ export default function ProductsPage() {
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setSelectedProduct(item)
               setIsFormOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
             aria-label="Edit Product"
             title="Edit Product"
           >
@@ -306,16 +304,15 @@ export default function ProductsPage() {
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={() => {
               setProductToDelete(item)
               setIsDeleteOpen(true)
             }}
-            className="h-8 w-8 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50"
             aria-label="Delete Product"
             title="Delete Product"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 text-red-600" />
           </Button>
         </div>
       ),
@@ -333,7 +330,6 @@ export default function ProductsPage() {
               setSelectedProduct(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>
@@ -355,7 +351,7 @@ export default function ProductsPage() {
             value={selectedCategoryFilter}
             onValueChange={setSelectedCategoryFilter}
           >
-            <SelectTrigger className="w-full sm:w-44">
+            <SelectTrigger className="w-full sm:w-44" aria-label="Filter products by category">
               <Filter className="mr-2 h-3.5 w-3.5 text-slate-400" />
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
@@ -374,7 +370,7 @@ export default function ProductsPage() {
             value={selectedStatusFilter}
             onValueChange={setSelectedStatusFilter}
           >
-            <SelectTrigger className="w-full sm:w-40">
+            <SelectTrigger className="w-full sm:w-40" aria-label="Filter products by stock status">
               <SelectValue placeholder="All Stock Status" />
             </SelectTrigger>
             <SelectContent>
@@ -400,7 +396,6 @@ export default function ProductsPage() {
               setSelectedProduct(null)
               setIsFormOpen(true)
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
           >
             <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>

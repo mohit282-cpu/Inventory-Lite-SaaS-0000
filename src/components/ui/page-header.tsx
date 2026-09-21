@@ -19,7 +19,7 @@ export function PageHeader({
       <div className="min-w-0">
         {showBreadcrumbs && <Breadcrumbs />}
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
-        {description && <p className="text-sm sm:text-base text-slate-500 font-normal mt-1">{description}</p>}
+        {description && <p className="text-sm sm:text-base text-slate-600 font-normal mt-1">{description}</p>}
       </div>
 
       {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
