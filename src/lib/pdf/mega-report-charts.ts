@@ -92,8 +92,16 @@ export function drawBarChart(
   const n = bars.length
   const groupWidth = innerWidth / n
   const barSpacing = 3
-  const barMax = Math.max(6, groupWidth - barSpacing * 2 - (isPaired ? 2 : 0))
+  const maxBarWidthAllowed = n === 1 ? 24 : 32
+  const barMax = Math.min(maxBarWidthAllowed, Math.max(6, groupWidth - barSpacing * 2 - (isPaired ? 2 : 0)))
   const barWidth = isPaired ? Math.max(2.5, (barMax - 2) / 2) : barMax
+
+  if (n === 1) {
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(7)
+    doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
+    doc.text('Single reporting period available', x + width - 6, y, { align: 'right' })
+  }
 
   // Horizontal gridlines + Y axis labels (0, 25%, 50%, 75%, 100% of niceMax)
   doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])

@@ -54,6 +54,13 @@ function nextPage(doc: Page, orientation: 'portrait' | 'landscape', data?: MegaR
 
 /** Professional slim header on every content page (business + report + FY + rule). */
 function drawPageHeader(doc: Page, data: MegaReportData, pageNumber: number): void {
+  const d = doc as any
+  if (!d._drawnHeaderPages) d._drawnHeaderPages = new Set<number>()
+  if (d._drawnHeaderPages.has(pageNumber)) return
+  d._drawnHeaderPages.add(pageNumber)
+
+  if (pageNumber <= 1) return // Cover page has no slim header
+
   const meta = data.meta
   const biz = meta.business
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -442,14 +449,18 @@ function coverPage(doc: Page, data: MegaReportData): void {
   }
 
   if (!logoRendered) {
+    const badgeW = 28
+    const badgeH = 28
+    const badgeX = centerX - badgeW / 2
     doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
     doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
-    doc.roundedRect(logoX, logoY, logoSize, logoSize, 5, 5, 'FD')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(16)
-    doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-    const initial = (safeText(biz.name, 'B').trim().charAt(0) || 'B').toUpperCase()
-    doc.text(initial, centerX, logoY + logoSize / 2 + 5, { align: 'center' })
+    doc.roundedRect(badgeX, logoY, badgeW, badgeH, 6, 6, 'FD')
+
+    // Inner professional chart bars emblem
+    doc.setFillColor(PDF_COLORS.accent700[0], PDF_COLORS.accent700[1], PDF_COLORS.accent700[2])
+    doc.rect(badgeX + 6, logoY + 16, 4, 7, 'F')
+    doc.rect(badgeX + 12, logoY + 11, 4, 12, 'F')
+    doc.rect(badgeX + 18, logoY + 7, 4, 16, 'F')
   }
 
   // Business name (Product identity is 'Inventory Lite' in header; Business identity is biz.name)
