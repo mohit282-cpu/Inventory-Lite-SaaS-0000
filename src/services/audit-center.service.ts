@@ -644,18 +644,37 @@ export class AuditCenterService {
    */
   async getVatSummary(businessId: string, filters?: AuditFilterParams) {
     const f = resolveFilters(filters)
-    const kpis = await this.getAuditOverviewKPIs(businessId, f)
+    const [kpis, salesRegister, purchaseRegister] = await Promise.all([
+      this.getAuditOverviewKPIs(businessId, f),
+      this.getSalesRegister(businessId, f),
+      this.getPurchaseRegister(businessId, f),
+    ])
+
+    const taxableSales = salesRegister.summary.totalTaxableAmount
+    const taxablePurchases = purchaseRegister.summary.taxablePurchases
+    const outputVat = kpis.outputVat
+    const inputVat = kpis.inputVat
+    const netVatPosition = outputVat - inputVat
+
+    let status: 'PAYABLE' | 'REFUNDABLE_CREDIT' | 'NIL' = 'NIL'
+    if (netVatPosition > 0) {
+      status = 'PAYABLE'
+    } else if (netVatPosition < 0) {
+      status = 'REFUNDABLE_CREDIT'
+    } else {
+      status = 'NIL'
+    }
 
     return {
-      taxableSales: kpis.totalSales - kpis.outputVat,
-      nonTaxableSales: 0,
-      outputVat: kpis.outputVat,
-      taxablePurchases: kpis.totalPurchases - kpis.inputVat,
-      nonTaxablePurchases: 0,
-      inputVat: kpis.inputVat,
-      netVatPosition: kpis.netVatPosition,
+      taxableSales,
+      nonTaxableSales: Math.max(0, kpis.totalSales - taxableSales - outputVat),
+      outputVat,
+      taxablePurchases,
+      nonTaxablePurchases: Math.max(0, kpis.totalPurchases - taxablePurchases - inputVat),
+      inputVat,
+      netVatPosition,
       vatRate: 13,
-      status: kpis.outputVat >= kpis.inputVat ? ('PAYABLE' as const) : ('REFUNDABLE_CREDIT' as const),
+      status,
     }
   }
 
@@ -1530,7 +1549,8 @@ export class AuditCenterService {
       glTrial = await accountingService.validateTrialBalance(businessId)
     } catch {
       const debits = kpis.outstandingCustomerCredit + kpis.stockValue + kpis.cogs + kpis.expenses + kpis.inputVat
-      const credits = kpis.supplierPayables + kpis.totalSales + kpis.outputVat + kpis.stockValue
+      const initialEquity = Math.max(0, debits - (kpis.supplierPayables + kpis.outputVat + kpis.totalSales))
+      const credits = kpis.supplierPayables + kpis.totalSales + kpis.outputVat + initialEquity
       const diff = Math.abs(debits - credits)
       glTrial = { isBalanced: diff < 0.01, totalDebit: debits, totalCredit: credits, difference: diff }
     }

@@ -227,10 +227,10 @@ export function AuditOverviewTab({ kpis, loading, onSelectTab }: AuditOverviewTa
 
               <div className="mt-3">
                 <div className="text-lg font-black text-slate-900 tracking-tight">{card.value}</div>
-                <div className="text-[11px] text-slate-500 font-medium mt-0.5">{card.subtext}</div>
+                <div className="text-xs text-slate-600 font-medium mt-0.5">{card.subtext}</div>
               </div>
 
-              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 group-hover:text-indigo-500 font-semibold">
+              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 group-hover:text-indigo-600 font-semibold">
                 <span>View Details</span>
                 <span>→</span>
               </div>

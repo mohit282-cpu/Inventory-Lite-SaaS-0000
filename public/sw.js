@@ -43,11 +43,11 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
-// Fetch Event: Cache static assets, Network-First for API requests
+// Fetch Event: Cache static media/icons, Network-First for Next.js chunks, HTML & API requests
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
 
-  // 1. NEVER cache Appwrite database API requests or dynamic server actions (Always Network-First)
+  // 1. NEVER cache Appwrite database API, dynamic server actions, or non-GET requests
   if (
     url.pathname.includes('/v1/databases') ||
     url.pathname.includes('/v1/account') ||
@@ -55,8 +55,7 @@ self.addEventListener('fetch', (event) => {
     event.request.method !== 'GET'
   ) {
     event.respondWith(
-      fetch(event.request).catch((error) => {
-        // Return offline JSON error for API calls during network loss
+      fetch(event.request).catch(() => {
         return new Response(
           JSON.stringify({ error: 'Offline', message: 'You are currently offline. Please check your network connection.' }),
           {
@@ -69,20 +68,42 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // 2. Cache-First for static assets (images, fonts, scripts)
+  // 2. NEVER cache Next.js build chunks or data manifests in SW static cache to prevent ChunkLoadError on new Vercel deployments
+  if (
+    url.pathname.startsWith('/_next/static/chunks/') ||
+    url.pathname.startsWith('/_next/data/') ||
+    url.pathname.startsWith('/_next/webpack-hmr')
+  ) {
+    event.respondWith(
+      fetch(event.request).catch((err) => {
+        return new Response('Chunk fetch error', { status: 404 })
+      })
+    )
+    return
+  }
+
+  // 3. Network-First for HTML Navigation Requests (Ensures latest deployment HTML shell is served)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put('/', copy))
+          }
+          return networkResponse
+        })
+        .catch(() => {
+          return caches.match('/') || new Response('Offline', { status: 503 })
+        })
+    )
+    return
+  }
+
+  // 4. Cache-First with Network Fallback for immutable public static assets (icons, manifest, images)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch background update for cache
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse)
-              })
-            }
-          })
-          .catch(() => {})
         return cachedResponse
       }
 
@@ -100,10 +121,6 @@ self.addEventListener('fetch', (event) => {
           return networkResponse
         })
         .catch(() => {
-          // Offline fallback for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match('/') || new Response('Offline', { status: 503 })
-          }
           return new Response('Network error', { status: 408 })
         })
     })

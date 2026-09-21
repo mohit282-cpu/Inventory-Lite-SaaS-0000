@@ -8,6 +8,7 @@ import { RouteGuard } from "@/components/auth/route-guard"
 import { Toaster } from "@/components/ui/toaster"
 import { SWRegister } from "@/components/pwa/sw-register"
 import { ExtensionErrorSuppressor } from "@/components/ui/extension-error-suppressor"
+import { ChunkErrorRecovery } from "@/components/ui/chunk-error-recovery"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -110,6 +111,7 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
         <ExtensionErrorSuppressor />
+        <ChunkErrorRecovery />
         <LanguageProvider>
           <AuthProvider>
             <AppwriteInitializer />

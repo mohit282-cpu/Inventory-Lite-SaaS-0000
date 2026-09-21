@@ -140,7 +140,7 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
   const doc = createPdf({ orientation: 'portrait' }) as Page
   // Draws the slim header on every page a table occupies (incl. continuation pages).
   const pageHook = (payload: { pageNumber: number }): void => drawPageHeader(doc, data, payload.pageNumber)
-  const sectionPages: number[] = []
+  const sectionPageMap = new Map<MegaSectionKey, number>()
 
   // ------------------------------------------------ COVER
   coverPage(doc, data)
@@ -150,7 +150,7 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
   // ------------------------------------------------ 1. EXECUTIVE SUMMARY
   let y = nextPage(doc, 'portrait', data)
   if (inc('executive_summary')) {
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('executive_summary', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '1. EXECUTIVE SUMMARY', 'Key headline figures for the selected period')
   y = drawSummaryCard(doc, {
     startY: y,
@@ -166,224 +166,197 @@ sectionPages.push(doc.getNumberOfPages());
   }
   // ------------------------------------------------ 2. FINANCIAL OVERVIEW / RECONCILIATION
   if (inc('reconciliation')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('reconciliation', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '2. FINANCIAL RECONCILIATION SUMMARY', 'Cross-report integrity checks')
   y = drawReconciliationSummary(doc, y, data)
 
   }
   // ------------------------------------------------ 3. SALES REGISTER (wide)
   if (inc('sales_register')) {
-  y = nextPage(doc, 'landscape', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('sales_register', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '3. SALES REGISTER', 'All sales invoices in the selected period')
   y = drawSalesRegister(doc, y, data, pageHook)
 
   }
   // ------------------------------------------------ 4. PURCHASE REGISTER (wide)
   if (inc('purchase_register')) {
-  y = nextPage(doc, 'landscape', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('purchase_register', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '4. PURCHASE REGISTER', 'All purchases in the selected period')
   y = drawPurchaseRegister(doc, y, data, pageHook)
 
   }
   // ------------------------------------------------ 5. SALES RETURNS
   if (inc('sales_returns')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('sales_returns', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '5. SALES RETURNS', 'Customer returns and adjustments')
   y = drawReturns(doc, y, data)
 
   }
   // ------------------------------------------------ 6. PURCHASE RETURNS / RETURNS & ADJUSTMENTS
   if (inc('returns_adjustments')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('returns_adjustments', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '6. PURCHASE RETURNS & ADJUSTMENTS', 'Returns, notes and inventory adjustments')
   y = drawReturnsAdjustments(doc, y, data)
 
   }
   // ------------------------------------------------ 7. CUSTOMERS
   if (inc('customers')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('customers', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '7. CUSTOMERS', 'Customer directory')
   y = drawCustomerDirectory(doc, y, data)
 
   }
   // ------------------------------------------------ 8. CUSTOMER LEDGER (wide)
   if (inc('customer_ledger')) {
-  y = nextPage(doc, 'landscape', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('customer_ledger', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '8. CUSTOMER LEDGER', 'Per-customer opening / invoices / payments / closing')
   y = drawCustomerLedger(doc, y, data, pageHook)
 
   }
   // ------------------------------------------------ 9. CUSTOMER UDHAAR / RECEIVABLES
   if (inc('customer_receivables')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('customer_receivables', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '9. CUSTOMER UDHAAR / RECEIVABLES', 'Outstanding receivables with aging')
   y = drawCustomerReceivables(doc, y, data)
 
   }
   // ------------------------------------------------ 10. SUPPLIERS
   if (inc('suppliers')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('suppliers', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '10. SUPPLIERS', 'Supplier directory')
   y = drawSupplierDirectory(doc, y, data)
 
   }
   // ------------------------------------------------ 11. SUPPLIER LEDGER (wide)
   if (inc('supplier_ledger')) {
-  y = nextPage(doc, 'landscape', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('supplier_ledger', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '11. SUPPLIER LEDGER', 'Per-supplier opening / purchases / payments / closing')
   y = drawSupplierLedger(doc, y, data, pageHook)
 
   }
   // ------------------------------------------------ 12. SUPPLIER PAYABLES
   if (inc('supplier_payables')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('supplier_payables', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '12. SUPPLIER PAYABLES', 'Outstanding payables with aging')
   y = drawSupplierPayables(doc, y, data)
 
   }
   // ------------------------------------------------ 13. PAYMENTS (wide)
   if (inc('payments')) {
-  y = nextPage(doc, 'landscape', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('payments', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '13. PAYMENTS REGISTER', 'Customer and supplier payments')
   y = drawPayments(doc, y, data, pageHook)
 
   }
   // ------------------------------------------------ 14. EXPENSES
   if (inc('expenses')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('expenses', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '14. EXPENSES', 'Expense register for the period')
   y = drawExpenses(doc, y, data)
 
   }
   // ------------------------------------------------ 15. PRODUCTS (wide)
   if (inc('products')) {
-  y = nextPage(doc, 'landscape', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('products', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '15. PRODUCTS', 'Product catalog with stock and prices')
   y = drawProducts(doc, y, data, pageHook)
 
   }
   // ------------------------------------------------ 16. CATEGORIES
   if (inc('categories')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('categories', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '16. CATEGORIES', 'Product categories with product counts')
   y = drawCategories(doc, y, data)
 
   }
   // ------------------------------------------------ 17. STOCK & VALUATION (wide)
   if (inc('stock_valuation')) {
-  y = nextPage(doc, 'landscape', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('stock_valuation', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '17. STOCK & INVENTORY VALUATION', 'Valuation and retail summary per product')
   y = drawStockValuation(doc, y, data, pageHook)
 
   }
   // ------------------------------------------------ 18. STOCK MOVEMENT (wide)
   if (inc('stock_movement')) {
-  y = nextPage(doc, 'landscape', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('stock_movement', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '18. STOCK MOVEMENT', 'Inventory movement register')
   y = drawStockMovement(doc, y, data, pageHook)
 
   }
   // ------------------------------------------------ 19. PROFIT & LOSS / COGS
   if (inc('profit_loss')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('profit_loss', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '19. PROFIT & LOSS STATEMENT', 'P&L waterfall with COGS')
   y = drawProfitLoss(doc, y, data)
 
   }
   // ------------------------------------------------ 20. VAT / TAX SUMMARY
   if (inc('vat_summary')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('vat_summary', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '20. VAT / TAX SUMMARY', 'Output VAT, input VAT and net position')
   y = drawVatSummary(doc, y, data)
 
   }
   // ------------------------------------------------ 21. CREDIT NOTES
   if (inc('credit_notes')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('credit_notes', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '21. CREDIT NOTES', 'Credit notes issued')
   y = drawCreditNotes(doc, y, data)
 
   }
   // ------------------------------------------------ 22. DEBIT NOTES
   if (inc('debit_notes')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('debit_notes', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '22. DEBIT NOTES', 'Debit notes issued')
   y = drawDebitNotes(doc, y, data)
 
   }
   // ------------------------------------------------ 23. INVOICES
   if (inc('invoices')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('invoices', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '23. INVOICE REGISTER', 'Invoice summary and sequence integrity')
   y = drawInvoices(doc, y, data)
 
   }
   // ------------------------------------------------ 24. AUDIT TRAIL
   if (inc('audit_trail')) {
-  y = nextPage(doc, 'landscape', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('audit_trail', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '24. AUDIT TRAIL', 'System audit log for the period')
   y = drawAuditTrail(doc, y, data, pageHook)
 
   }
   // ------------------------------------------------ 25. CANCELLED DOCUMENTS
   if (inc('cancelled_documents')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('cancelled_documents', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '25. CANCELLED DOCUMENTS', 'Cancelled transactions in the period')
   y = drawCancelledDocuments(doc, y, data)
 
   }
   // ------------------------------------------------ 26. IRD READINESS
   if (inc('ird_readiness')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('ird_readiness', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '26. IRD READINESS', 'Tax authority readiness and submission status')
   y = drawIrdReadiness(doc, y, data)
 
   }
   // ------------------------------------------------ 27. IRD RECONCILIATION
   if (inc('ird_reconciliation')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('ird_reconciliation', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '27. IRD RECONCILIATION', 'Invoice-level tax authority reconciliation')
   y = drawIrdReconciliation(doc, y, data)
 
   }
   // ------------------------------------------------ 28. DATA INTEGRITY
   if (inc('data_integrity')) {
-  y = nextPage(doc, 'portrait', data)
-sectionPages.push(doc.getNumberOfPages());
+    sectionPageMap.set('data_integrity', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '28. DATA INTEGRITY & QUALITY', 'Warnings, missing data and export notes')
   y = drawIntegrity(doc, y, data)
 
   }
   // Redraw TOC on page 2 with accurate section page numbers.
-  if (sectionPages.length === 28) {
+  if (sectionPageMap.size > 0) {
     doc.setPage(2)
-    drawTocPage(doc, PDF_SPACING.pageMargin, data, sectionPages)
+    drawTocPage(doc, PDF_SPACING.pageMargin, data, sectionPageMap, include)
   }
 
   // Global footer pass: draw footer on every content page except the cover.
@@ -516,7 +489,13 @@ function coverPage(doc: Page, data: MegaReportData): void {
   )
 }
 
-function drawTocPage(doc: Page, startY: number, data?: MegaReportData, sectionPages?: number[]): void {
+function drawTocPage(
+  doc: Page,
+  startY: number,
+  data?: MegaReportData,
+  sectionPages?: Map<MegaSectionKey, number> | number[],
+  include?: Set<MegaSectionKey>,
+): void {
   let y = startY + 4
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
@@ -532,36 +511,38 @@ function drawTocPage(doc: Page, startY: number, data?: MegaReportData, sectionPa
   doc.text(data ? `${safeText(data.meta.business.name)}  |  FY ${safeText(data.meta.fiscalYear)}` : '', margin, y + 4)
   y += 14
 
-  const sections: { n: string; title: string }[] = [
-    { n: '1', title: 'Executive Summary' },
-    { n: '2', title: 'Financial Reconciliation' },
-    { n: '3', title: 'Sales Register' },
-    { n: '4', title: 'Purchase Register' },
-    { n: '5', title: 'Sales Returns' },
-    { n: '6', title: 'Purchase Returns & Adjustments' },
-    { n: '7', title: 'Customers' },
-    { n: '8', title: 'Customer Ledger' },
-    { n: '9', title: 'Customer Receivables' },
-    { n: '10', title: 'Suppliers' },
-    { n: '11', title: 'Supplier Ledger' },
-    { n: '12', title: 'Supplier Payables' },
-    { n: '13', title: 'Payments Register' },
-    { n: '14', title: 'Expenses' },
-    { n: '15', title: 'Products' },
-    { n: '16', title: 'Categories' },
-    { n: '17', title: 'Stock & Inventory Valuation' },
-    { n: '18', title: 'Stock Movement' },
-    { n: '19', title: 'Profit & Loss Statement' },
-    { n: '20', title: 'VAT / Tax Summary' },
-    { n: '21', title: 'Credit Notes' },
-    { n: '22', title: 'Debit Notes' },
-    { n: '23', title: 'Invoice Register' },
-    { n: '24', title: 'Audit Trail' },
-    { n: '25', title: 'Cancelled Documents' },
-    { n: '26', title: 'IRD Readiness' },
-    { n: '27', title: 'IRD Reconciliation' },
-    { n: '28', title: 'Data Integrity & Quality' },
+  const allSections: { key: MegaSectionKey; n: string; title: string }[] = [
+    { key: 'executive_summary', n: '1', title: 'Executive Summary' },
+    { key: 'reconciliation', n: '2', title: 'Financial Reconciliation' },
+    { key: 'sales_register', n: '3', title: 'Sales Register' },
+    { key: 'purchase_register', n: '4', title: 'Purchase Register' },
+    { key: 'sales_returns', n: '5', title: 'Sales Returns' },
+    { key: 'returns_adjustments', n: '6', title: 'Purchase Returns & Adjustments' },
+    { key: 'customers', n: '7', title: 'Customers' },
+    { key: 'customer_ledger', n: '8', title: 'Customer Ledger' },
+    { key: 'customer_receivables', n: '9', title: 'Customer Receivables' },
+    { key: 'suppliers', n: '10', title: 'Suppliers' },
+    { key: 'supplier_ledger', n: '11', title: 'Supplier Ledger' },
+    { key: 'supplier_payables', n: '12', title: 'Supplier Payables' },
+    { key: 'payments', n: '13', title: 'Payments Register' },
+    { key: 'expenses', n: '14', title: 'Expenses' },
+    { key: 'products', n: '15', title: 'Products' },
+    { key: 'categories', n: '16', title: 'Categories' },
+    { key: 'stock_valuation', n: '17', title: 'Stock & Inventory Valuation' },
+    { key: 'stock_movement', n: '18', title: 'Stock Movement' },
+    { key: 'profit_loss', n: '19', title: 'Profit & Loss Statement' },
+    { key: 'vat_summary', n: '20', title: 'VAT / Tax Summary' },
+    { key: 'credit_notes', n: '21', title: 'Credit Notes' },
+    { key: 'debit_notes', n: '22', title: 'Debit Notes' },
+    { key: 'invoices', n: '23', title: 'Invoice Register' },
+    { key: 'audit_trail', n: '24', title: 'Audit Trail' },
+    { key: 'cancelled_documents', n: '25', title: 'Cancelled Documents' },
+    { key: 'ird_readiness', n: '26', title: 'IRD Readiness' },
+    { key: 'ird_reconciliation', n: '27', title: 'IRD Reconciliation' },
+    { key: 'data_integrity', n: '28', title: 'Data Integrity & Quality' },
   ]
+
+  const sections = allSections.filter((s) => sectionEnabled(include, s.key))
 
   const columns = 2
   const colGap = 20
@@ -573,7 +554,13 @@ function drawTocPage(doc: Page, startY: number, data?: MegaReportData, sectionPa
     const row = idx % Math.ceil(sections.length / columns)
     const x = margin + col * (colWidth + colGap)
     const lineY = y + row * rowH
-    const pageNum = sectionPages ? sectionPages[idx] : null
+
+    let pageNum: number | null = null
+    if (sectionPages instanceof Map) {
+      pageNum = sectionPages.get(s.key) ?? null
+    } else if (Array.isArray(sectionPages)) {
+      pageNum = sectionPages[idx] ?? null
+    }
 
     // Number
     doc.setFont('helvetica', 'bold')
@@ -1606,16 +1593,28 @@ function drawInvoices(doc: Page, y: number, data: MegaReportData): number {
   return drawMetadata(doc, { startY: y, lines: infoLines, columnCount: 2 })
 }
 
+function formatAuditMetadataDetails(meta: unknown): string {
+  if (!meta || typeof meta !== 'object') return '—'
+  try {
+    const entries = Object.entries(meta as Record<string, unknown>)
+      .filter(([k, v]) => v !== undefined && v !== null && !k.startsWith('$'))
+      .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+    return entries.length > 0 ? entries.join(' | ') : '—'
+  } catch {
+    return String(meta)
+  }
+}
+
 function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): number {
   const trail = data.auditTrail
-  if (trail.length === 0) return drawEmptyNote(doc, y, 'No audit trail entries for the selected period.')
+  if (trail.length === 0) return drawEmptyNote(doc, y, 'No audit trail entries for the selected period.', data.meta.periodLabel)
 
   const body = trail.map((a) => [
     safeDate(a.timestamp),
     safeText(a.action),
     safeText(a.target),
     safeText(a.userId),
-    safeText(typeof a.metadata === 'object' && a.metadata ? JSON.stringify(a.metadata).substring(0, 120) : ''),
+    safeText(formatAuditMetadataDetails(a.metadata)),
   ])
   return drawTable(doc, {
     startY: y,
@@ -1625,7 +1624,7 @@ function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): 
       { head: 'Action', width: 40 },
       { head: 'Target', width: 44 },
       { head: 'User', width: 30 },
-      { head: 'Metadata' },
+      { head: 'Details' },
     ],
     body,
     fontScale: 'dense',
@@ -1634,7 +1633,7 @@ function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): 
 
 function drawCancelledDocuments(doc: Page, y: number, data: MegaReportData): number {
   const docs = data.cancelledDocuments
-  if (docs.length === 0) return drawEmptyNote(doc, y, 'No cancelled documents for the selected period.')
+  if (docs.length === 0) return drawEmptyNote(doc, y, 'No cancelled documents for the selected period.', data.meta.periodLabel)
 
   const body = docs.map((d) => [
     safeText(d.documentType),
@@ -1648,54 +1647,41 @@ function drawCancelledDocuments(doc: Page, y: number, data: MegaReportData): num
   return drawTable(doc, {
     startY: y,
     columns: [
-      { head: 'Type', width: 22 },
-      { head: 'Number', width: 28 },
+      { head: 'Type', width: 28 },
+      { head: 'Doc #', width: 22 },
       { head: 'Date', width: 20 },
       { head: 'Amount', align: 'right', width: 22 },
-      { head: 'Party', width: 28 },
-      { head: 'Reason' },
-      { head: 'By', width: 22 },
+      { head: 'Party', width: 32 },
+      { head: 'Reason', width: 40 },
+      { head: 'Cancelled By' },
     ],
     body,
-    fontScale: 'dense',
   })
 }
 
 function drawIrdReadiness(doc: Page, y: number, data: MegaReportData): number {
   const ird = data.ird
   const lines = [
-    { label: 'Business', value: ird.businessName },
+    { label: 'Business Name', value: safeText(ird.businessName) },
     { label: 'PAN', value: safeText(ird.panNumber) },
     { label: 'VAT', value: safeText(ird.vatNumber) },
-    { label: 'VAT Registration', value: ird.vatRegistrationStatus },
-    { label: 'Current Fiscal Year', value: ird.currentFiscalYear },
-    { label: 'Electronic Billing', value: ird.electronicBillingStatus },
-    { label: 'CBMS Integration', value: safeText(ird.cbmsIntegrationStatus).replace(/_/g, ' ') },
-    { label: 'Submissions', value: `${formatNumber(ird.cbmsSubmissionCount)} (Accepted ${formatNumber(ird.cbmsAcceptedCount)} / Pending ${formatNumber(ird.cbmsPendingCount)} / Failed ${formatNumber(ird.cbmsFailedCount)})` },
-    { label: 'Last Attempt', value: safeText(ird.lastAttemptAt ?? '—') },
+    { label: 'VAT Registration', value: safeText(ird.vatRegistrationStatus) },
+    { label: 'Electronic Billing', value: safeText(ird.electronicBillingStatus) },
+    { label: 'CBMS Integration Status', value: safeText(ird.cbmsIntegrationStatus).replace(/_/g, ' ') },
+    { label: 'CBMS Submissions', value: `${formatNumber(ird.cbmsSubmissionCount)} Total (${formatNumber(ird.cbmsAcceptedCount)} Accepted)` },
     { label: 'Approval Verified', value: ird.approvalVerified ? 'Yes' : 'No' },
   ]
-  y = drawMetadata(doc, { startY: y, lines, columnCount: 1 })
-
-  doc.setFont('helvetica', 'italic')
-  doc.setFontSize(8)
-  doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text(
-    'Note: This report reflects current configuration and does not constitute official IRD approval or certification.',
-    PDF_SPACING.pageMargin,
-    y + 6,
-  )
-  return y + 8
+  return drawMetadata(doc, { startY: y, lines, columnCount: 2 })
 }
 
 function drawIrdReconciliation(doc: Page, y: number, data: MegaReportData): number {
   const items = data.irdReconciliation
-  if (items.length === 0) return drawEmptyNote(doc, y, 'No IRD reconciliation items for the selected period.')
+  if (items.length === 0) return drawEmptyNote(doc, y, 'No IRD reconciliation records found for the period.', data.meta.periodLabel)
 
   const body = items.map((r) => [
     safeText(r.invoiceNumber),
     safeDate(r.invoiceDate),
-    safeText(r.customerName ?? '—'),
+    safeText(r.customerName),
     formatNpr(r.totalAmount),
     safeText(r.localStatus).replace(/_/g, ' '),
     safeText(r.irdStatus).replace(/_/g, ' '),
@@ -1733,7 +1719,7 @@ function drawIntegrity(doc: Page, y: number, data: MegaReportData): number {
   y += 6
 
   if (issues.length === 0) {
-    drawEmptyNote(doc, y, 'No integrity warnings detected. All checks passed.')
+    drawEmptyNote(doc, y, 'No integrity warnings detected. All checks passed.', data.meta.periodLabel)
     return y
   }
 
@@ -1748,26 +1734,32 @@ function drawIntegrity(doc: Page, y: number, data: MegaReportData): number {
   return yy
 }
 
-function drawEmptyNote(doc: Page, y: number, message: string): number {
+function drawEmptyNote(doc: Page, y: number, message: string, periodLabel?: string): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
   const inner = pageWidth - margin * 2
 
   doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
   doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-  doc.roundedRect(margin, y + 2, inner, 22, 3, 3, 'FD')
+  doc.roundedRect(margin, y + 2, inner, periodLabel ? 26 : 22, 3, 3, 'FD')
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
   doc.setTextColor(PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2])
-  doc.text('NO RECORDS', margin + 6, y + 10)
+  doc.text('NO RECORDS FOUND', margin + 6, y + 10)
 
-  doc.setFont('helvetica', 'italic')
-  doc.setFontSize(7.5)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
   doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
   doc.text(truncateText(safeText(message), 140), margin + 6, y + 17)
+  if (periodLabel) {
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(7.5)
+    doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
+    doc.text(`Period: ${safeText(periodLabel)}`, margin + 6, y + 23)
+  }
 
-  return y + 30
+  return y + (periodLabel ? 34 : 30)
 }
 
 export { sanitizeFilename }

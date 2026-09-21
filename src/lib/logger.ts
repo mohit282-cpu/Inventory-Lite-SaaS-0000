@@ -1,63 +1,105 @@
 /**
- * Production Logger
+ * Production Security & Diagnostic Logger
  * 
- * Provides structured logging with automatic sanitization of sensitive fields 
- * (passwords, tokens, credentials, PII, session data) for production safety.
+ * Safe error and event logging with correlation IDs, safe contextual metadata,
+ * and zero sensitive data exposure (tokens, passwords, database credentials).
  */
 
-const SENSITIVE_KEYS = new Set<string>([
-  'password',
-  'token',
-  'secret',
-  'apikey',
-  'key',
-  'authorization',
-  'session',
-  'sessionid',
-  'cookie',
-  'creditcard',
-  'cvv',
-  'ssn',
-])
+export interface LogContext {
+  path?: string
+  category?: 'AUTH' | 'APPWRITE' | 'CHUNK_LOAD' | 'NAVIGATION' | 'RUNTIME' | 'NETWORK'
+  correlationId?: string
+  userId?: string
+  businessId?: string
+  [key: string]: any
+}
 
-function sanitizeLogData(data: any): any {
-  if (data === null || data === undefined) return data
-  if (typeof data !== 'object') return data
+function generateCorrelationId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `err_${crypto.randomUUID().slice(0, 8)}`
+  }
+  return `err_${Math.random().toString(36).substring(2, 10)}`
+}
+
+function sanitizeData(data: any): any {
+  if (!data || typeof data !== 'object') return data
+
+  const SENSITIVE_KEYS = new Set([
+    'password',
+    'secret',
+    'token',
+    'jwt',
+    'apikey',
+    'api_key',
+    'authorization',
+    'cookie',
+    'sessionid',
+    'appwrite_project_id',
+  ])
 
   if (Array.isArray(data)) {
-    return data.map(sanitizeLogData)
+    return data.map(sanitizeData)
   }
 
   const cleanObj: Record<string, any> = {}
-  for (const [key, val] of Object.entries(data)) {
+  for (const [key, value] of Object.entries(data)) {
     if (SENSITIVE_KEYS.has(key.toLowerCase())) {
       cleanObj[key] = '[REDACTED]'
-    } else if (typeof val === 'object' && val !== null) {
-      cleanObj[key] = sanitizeLogData(val)
+    } else if (typeof value === 'object' && value !== null) {
+      cleanObj[key] = sanitizeData(value)
     } else {
-      cleanObj[key] = val
+      cleanObj[key] = value
     }
   }
   return cleanObj
 }
 
 export const logger = {
-  info(message: string, context?: Record<string, any>) {
-    const payload = context ? sanitizeLogData(context) : ''
-    // eslint-disable-next-line no-console
-    console.log(`[INFO] [${new Date().toISOString()}] ${message}`, payload)
-  },
-  warn(message: string, context?: Record<string, any>) {
-    const payload = context ? sanitizeLogData(context) : ''
-    // eslint-disable-next-line no-console
-    console.warn(`[WARN] [${new Date().toISOString()}] ${message}`, payload)
-  },
-  error(message: string, error?: any, context?: Record<string, any>) {
-    const payload = {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      ...(context ? sanitizeLogData(context) : {}),
+  error(message: string, error?: any, context: LogContext = {}): string {
+    const correlationId = context.correlationId || generateCorrelationId()
+    const timestamp = new Date().toISOString()
+    const path = context.path || (typeof window !== 'undefined' ? window.location.pathname : 'server')
+    const category = context.category || 'RUNTIME'
+
+    const errorDetails = error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    } : { message: String(error) }
+
+    const logEntry = {
+      timestamp,
+      correlationId,
+      category,
+      path,
+      message,
+      error: errorDetails,
+      context: sanitizeData(context),
     }
-    // eslint-disable-next-line no-console
-    console.error(`[ERROR] [${new Date().toISOString()}] ${message}`, payload)
+
+    if (process.env.NODE_ENV === 'production') {
+      console.error(JSON.stringify(logEntry))
+    } else {
+      console.error(`[${category}] ${message} (${correlationId}):`, error, context)
+    }
+
+    return correlationId
+  },
+
+  warn(message: string, context: LogContext = {}): void {
+    const timestamp = new Date().toISOString()
+    const path = context.path || (typeof window !== 'undefined' ? window.location.pathname : 'server')
+
+    if (process.env.NODE_ENV === 'production') {
+      console.warn(JSON.stringify({ timestamp, level: 'WARN', path, message, context: sanitizeData(context) }))
+    } else {
+      console.warn(`[WARN] ${message}:`, context)
+    }
+  },
+
+  info(message: string, context: LogContext = {}): void {
+    if (process.env.NODE_ENV === 'development') {
+      console.info(`[INFO] ${message}:`, context)
+    }
   },
 }

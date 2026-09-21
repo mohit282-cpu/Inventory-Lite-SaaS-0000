@@ -118,13 +118,13 @@ export default function DashboardPage() {
       {/* 1. Refined Dashboard Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
         <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-1">
+          <div className="text-xs font-semibold text-indigo-600 mb-1">
             Dashboard Overview
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Welcome back, {firstName}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Here&apos;s what&apos;s happening with {activeBusiness?.name || 'your business'} today.
           </p>
         </div>
@@ -146,12 +146,12 @@ export default function DashboardPage() {
         {/* Today's Sales */}
         <Card className="p-5 border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between pb-2">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-slate-500">
               Today&apos;s Sales
             </span>
             <ShoppingCart className="h-4 w-4 text-emerald-600 shrink-0" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-700 font-mono tracking-tight">
+          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 font-mono tracking-tight">
             {currency} {(metrics?.todaySales || 0).toFixed(2)}
           </div>
           <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1">
@@ -162,7 +162,7 @@ export default function DashboardPage() {
         {/* This Month's Sales */}
         <Card className="p-5 border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between pb-2">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-slate-500">
               This Month&apos;s Sales
             </span>
             <TrendingUp className="h-4 w-4 text-indigo-600 shrink-0" />
@@ -176,30 +176,30 @@ export default function DashboardPage() {
         {/* Cataloged Products Summary */}
         <Card className="p-5 border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between pb-2">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-slate-500">
               Cataloged Products
             </span>
-            <Package className="h-4 w-4 text-blue-600 shrink-0" />
+            <Package className="h-4 w-4 text-indigo-600 shrink-0" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
             {metrics?.totalProducts || 0}
           </div>
           <div className="flex items-center gap-2 text-xs mt-1.5 font-medium">
             <span className="text-amber-600">{metrics?.lowStockProducts || 0} Low Stock</span>
-            <span className="text-slate-300">•</span>
-            <span className="text-red-600">{metrics?.outOfStockProducts || 0} Out of Stock</span>
+            <span className="text-slate-500">•</span>
+            <span className="text-rose-600">{metrics?.outOfStockProducts || 0} Out of Stock</span>
           </div>
         </Card>
 
         {/* Today's Expenses */}
         <Card className="p-5 border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between pb-2">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-slate-500">
               Today&apos;s Expenses
             </span>
             <CreditCard className="h-4 w-4 text-rose-600 shrink-0" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-rose-700 font-mono tracking-tight">
+          <div className="text-2xl sm:text-3xl font-extrabold text-rose-600 font-mono tracking-tight">
             {currency} {(metrics?.todayExpenses || 0).toFixed(2)}
           </div>
           <p className="text-xs text-slate-500 mt-1.5">Logged operational costs today</p>
@@ -208,10 +208,10 @@ export default function DashboardPage() {
         {/* Monthly Expenses */}
         <Card className="p-5 border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between pb-2">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-slate-500">
               Monthly Expenses
             </span>
-            <CreditCard className="h-4 w-4 text-slate-400 shrink-0" />
+            <CreditCard className="h-4 w-4 text-slate-500 shrink-0" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
             {currency} {(metrics?.thisMonthExpenses || 0).toFixed(2)}
@@ -222,12 +222,12 @@ export default function DashboardPage() {
         {/* Outstanding Dues */}
         <Card className="p-5 border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between pb-2">
-            <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-slate-500">
               Outstanding Dues (Udharo)
             </span>
             <Users className="h-4 w-4 text-amber-600 shrink-0" />
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-amber-700 font-mono tracking-tight">
+          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 font-mono tracking-tight">
             {currency} {(metrics?.totalDue || 0).toFixed(2)}
           </div>
           <p className="text-xs text-slate-500 mt-1.5">From {metrics?.totalCustomers || 0} registered customers</p>
@@ -235,16 +235,16 @@ export default function DashboardPage() {
       </div>
 
       {/* 3. Quiet Informational Notice Banner */}
-      <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-700">
+      <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-600">
         <div className="flex items-start gap-2.5">
-          <Info className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+          <Info className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
           <div>
             <span className="font-bold text-slate-900 mr-1.5">Notice:</span>
-            Inventory Lite provides operational profit estimates (Revenue − COGS − Expenses). For full financial reporting, export detailed reports.
+            Profit shown here is an estimate (Sales minus Costs & Expenses). Export detailed reports for complete financial records.
           </div>
         </div>
         <Link href="/app/audit" className="shrink-0">
-          <Button size="sm" variant="outline" className="h-8 border-slate-300 bg-white text-xs text-slate-800 hover:bg-slate-50 whitespace-nowrap font-semibold">
+          <Button size="sm" variant="outline" className="h-8 border-slate-300 bg-white text-xs text-slate-900 hover:bg-slate-50 whitespace-nowrap font-semibold">
             Audit & Compliance
           </Button>
         </Link>
@@ -255,7 +255,7 @@ export default function DashboardPage() {
         {/* Sales Trend Chart */}
         <Card className="lg:col-span-2 border-slate-200 bg-white p-6 shadow-sm">
           <div className="pb-4 border-b border-slate-100 mb-4">
-            <h3 className="text-base font-bold text-slate-900">Sales Revenue Trend</h3>
+            <h2 className="text-base font-bold text-slate-900">Sales Revenue Trend</h2>
             <p className="text-xs text-slate-500">Daily sales breakdown • Last 7 Days</p>
           </div>
           <SalesTrendChart data={salesTrend} />
@@ -264,7 +264,7 @@ export default function DashboardPage() {
         {/* Payment Methods Share */}
         <Card className="border-slate-200 bg-white p-6 shadow-sm">
           <div className="pb-4 border-b border-slate-100 mb-4">
-            <h3 className="text-base font-bold text-slate-900">Payment Method Share</h3>
+            <h2 className="text-base font-bold text-slate-900">Payment Method Share</h2>
             <p className="text-xs text-slate-500">Sales volume by payment channel</p>
           </div>
           <PaymentMethodsChart data={paymentMethods} />
@@ -277,7 +277,7 @@ export default function DashboardPage() {
         <Card className="lg:col-span-2 border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Top-Selling Products</h3>
+              <h2 className="text-base font-bold text-slate-900">Top-Selling Products</h2>
               <p className="text-xs text-slate-500">Highest revenue catalog items</p>
             </div>
             <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
@@ -293,9 +293,9 @@ export default function DashboardPage() {
         {/* Stock Alerts */}
         <Card className="border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600" /> Low Stock Alerts
-            </h3>
+            </h2>
             <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
               <Link href="/app/stock">Ledger</Link>
             </Button>
@@ -307,15 +307,15 @@ export default function DashboardPage() {
                 <div key={prod.$id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200">
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900 truncate">{prod.name}</p>
-                    <p className="text-[10px] text-slate-500 font-mono">SKU: {prod.sku}</p>
+                    <p className="text-xs text-slate-500 font-mono">SKU: {prod.sku}</p>
                   </div>
                   <div className="text-right shrink-0 ml-2">
                     {prod.stockQuantity === 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded border border-red-200">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
                         <XCircle className="h-3 w-3" /> Out of Stock
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                         <AlertTriangle className="h-3 w-3" /> {prod.stockQuantity} Left
                       </span>
                     )}
@@ -323,7 +323,7 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : (
-              <div className="text-center py-10 text-slate-400 text-xs">
+              <div className="text-center py-10 text-slate-500 text-xs">
                 <p>All stock levels are within healthy thresholds.</p>
               </div>
             )}
@@ -335,9 +335,9 @@ export default function DashboardPage() {
       <Card className="border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Clock className="h-4 w-4 text-indigo-600" /> Recent Sales Activity
-            </h3>
+            </h2>
             <p className="text-xs text-slate-500">Latest orders recorded at the POS counter</p>
           </div>
           <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
@@ -351,7 +351,7 @@ export default function DashboardPage() {
           <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+                <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500">
                   <th className="py-2.5 px-3">Sale #</th>
                   <th className="py-2.5 px-3">Total</th>
                   <th className="py-2.5 px-3">Paid Amount</th>
@@ -363,20 +363,20 @@ export default function DashboardPage() {
               <tbody className="divide-y divide-slate-100">
                 {recentSales.map((sale) => (
                   <tr key={sale.$id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-3 font-mono font-bold text-indigo-700">
-                      {sale.saleNumber || sale.$id.slice(0, 8)}
+                    <td className="py-3 px-3 font-mono font-medium text-indigo-600">
+                      {sale.saleNumber ? sale.saleNumber.replace(/^SALE-/, 'Sale-') : sale.$id.slice(0, 8)}
                     </td>
-                    <td className="py-3 px-3 font-mono font-bold text-emerald-700">
+                    <td className="py-3 px-3 font-mono font-bold text-emerald-600">
                       Rs. {sale.total.toFixed(2)}
                     </td>
-                    <td className="py-3 px-3 font-mono text-slate-700">
+                    <td className="py-3 px-3 font-mono text-slate-600">
                       Rs. {sale.paidAmount.toFixed(2)}
                     </td>
-                    <td className="py-3 px-3 uppercase text-[10px] font-bold text-slate-600">{sale.paymentMethod}</td>
+                    <td className="py-3 px-3 capitalize text-xs text-slate-600">{sale.paymentMethod}</td>
                     <td className="py-3 px-3">
                       <StatusBadge status={sale.status} />
                     </td>
-                    <td className="py-3 px-3 text-right text-[11px] text-slate-500 font-medium">
+                    <td className="py-3 px-3 text-right text-xs text-slate-500 font-medium">
                       {formatBSDate(sale.createdAt)}
                     </td>
                   </tr>
@@ -385,7 +385,7 @@ export default function DashboardPage() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-slate-400 text-xs">
+          <div className="text-center py-8 text-slate-500 text-xs">
             <p>No recent sales orders recorded yet. Open POS Terminal to create your first sale.</p>
           </div>
         )}
@@ -393,3 +393,4 @@ export default function DashboardPage() {
     </div>
   )
 }
+

@@ -24,7 +24,7 @@ interface SalesTrendChartProps {
 
 export function SalesTrendChart({ data }: SalesTrendChartProps) {
   return (
-    <div className="h-64 w-full">
+    <div className="h-64 w-full" role="region" aria-label="Sales Revenue Trend Chart">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data}>
           <defs>
@@ -33,8 +33,8 @@ export function SalesTrendChart({ data }: SalesTrendChartProps) {
               <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.0} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
-          <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+          <XAxis dataKey="date" stroke="#475569" fontSize={11} tickLine={false} />
+          <YAxis stroke="#475569" fontSize={11} tickLine={false} />
           <Tooltip
             contentStyle={{
               backgroundColor: '#ffffff',
@@ -67,7 +67,7 @@ interface PaymentMethodsChartProps {
 export function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
   if (!data.some((p) => p.count > 0)) {
     return (
-      <div className="text-center text-slate-400 text-xs py-8 space-y-2">
+      <div className="text-center text-slate-500 text-xs py-8 space-y-2">
         <CreditCard className="h-8 w-8 mx-auto opacity-30" />
         <p>No payment method transactions logged yet.</p>
       </div>
@@ -75,7 +75,7 @@ export function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
   }
 
   return (
-    <div className="h-64 w-full flex items-center justify-center">
+    <div className="h-64 w-full flex items-center justify-center" role="region" aria-label="Payment Methods Share Chart">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -88,8 +88,12 @@ export function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
             outerRadius={80}
             paddingAngle={4}
           >
-            {data.map((_, index) => (
-              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+            {data.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={CHART_COLORS[index % CHART_COLORS.length]}
+                aria-label={`${entry.name}: Rs. ${entry.total.toFixed(2)}`}
+              />
             ))}
           </Pie>
           <Tooltip
@@ -116,7 +120,7 @@ interface TopProductsChartProps {
 export function TopProductsChart({ data }: TopProductsChartProps) {
   if (data.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-400 text-xs space-y-2">
+      <div className="text-center py-12 text-slate-500 text-xs space-y-2">
         <Package className="h-8 w-8 mx-auto opacity-30" />
         <p>Top selling products will automatically populate here as sales occur.</p>
       </div>
@@ -124,10 +128,10 @@ export function TopProductsChart({ data }: TopProductsChartProps) {
   }
 
   return (
-    <div className="h-56 w-full">
+    <div className="h-56 w-full" role="region" aria-label="Top Selling Products Chart">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical">
-          <XAxis type="number" stroke="#94a3b8" fontSize={11} tickLine={false} />
+          <XAxis type="number" stroke="#475569" fontSize={11} tickLine={false} />
           <YAxis
             dataKey="name"
             type="category"

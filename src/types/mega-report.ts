@@ -199,7 +199,7 @@ export interface MegaReportData {
     inputVat: number
     netVatPosition: number
     vatRate: number
-    status: 'PAYABLE' | 'REFUNDABLE_CREDIT'
+    status: 'PAYABLE' | 'REFUNDABLE_CREDIT' | 'NIL'
   }
   customerLedgers: CustomerLedgerEntry[]
   supplierLedgers: SupplierLedgerEntry[]

@@ -155,7 +155,7 @@ export function Sidebar() {
 
       {/* Sidebar Bottom Footer */}
       {!isCollapsed && (
-        <div className="px-4 py-3 border-t border-slate-200 text-[11px] text-slate-400">
+        <div className="px-4 py-3 border-t border-slate-200 text-xs text-slate-600 font-medium">
           Inventory Lite v1.0 • NPR 0 Free
         </div>
       )}
