@@ -192,7 +192,7 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
   }
   // ------------------------------------------------ 2. FINANCIAL OVERVIEW / RECONCILIATION
   if (inc('reconciliation')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('reconciliation', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '2. FINANCIAL RECONCILIATION SUMMARY', 'Cross-report integrity checks')
     y = drawReconciliationSummary(doc, y, data)
@@ -213,168 +213,168 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
   }
   // ------------------------------------------------ 5. SALES RETURNS
   if (inc('sales_returns')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 22, 'portrait', data)
     sectionPageMap.set('sales_returns', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '5. SALES RETURNS', 'Customer returns and adjustments')
     y = drawReturns(doc, y, data)
   }
   // ------------------------------------------------ 6. PURCHASE RETURNS / RETURNS & ADJUSTMENTS
   if (inc('returns_adjustments')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 22, 'portrait', data)
     sectionPageMap.set('returns_adjustments', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '6. PURCHASE RETURNS & ADJUSTMENTS', 'Returns, notes and inventory adjustments')
     y = drawReturnsAdjustments(doc, y, data)
   }
   // ------------------------------------------------ 7. CUSTOMERS
   if (inc('customers')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('customers', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '7. CUSTOMERS', 'Customer directory')
     y = drawCustomerDirectory(doc, y, data)
   }
-  // ------------------------------------------------ 8. CUSTOMER LEDGER (wide -> landscape)
+  // ------------------------------------------------ 8. CUSTOMER LEDGER
   if (inc('customer_ledger')) {
-    y = ensurePageSpace(doc, y, 45, 'landscape', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('customer_ledger', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '8. CUSTOMER LEDGER', 'Per-customer opening / invoices / payments / closing')
     y = drawCustomerLedger(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 9. CUSTOMER UDHAAR / RECEIVABLES
   if (inc('customer_receivables')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('customer_receivables', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '9. CUSTOMER UDHAAR / RECEIVABLES', 'Outstanding receivables with aging')
     y = drawCustomerReceivables(doc, y, data)
   }
   // ------------------------------------------------ 10. SUPPLIERS
   if (inc('suppliers')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('suppliers', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '10. SUPPLIERS', 'Supplier directory')
     y = drawSupplierDirectory(doc, y, data)
   }
-  // ------------------------------------------------ 11. SUPPLIER LEDGER (wide -> landscape)
+  // ------------------------------------------------ 11. SUPPLIER LEDGER
   if (inc('supplier_ledger')) {
-    y = ensurePageSpace(doc, y, 45, 'landscape', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('supplier_ledger', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '11. SUPPLIER LEDGER', 'Per-supplier opening / purchases / payments / closing')
     y = drawSupplierLedger(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 12. SUPPLIER PAYABLES
   if (inc('supplier_payables')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('supplier_payables', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '12. SUPPLIER PAYABLES', 'Outstanding payables with aging')
     y = drawSupplierPayables(doc, y, data)
   }
-  // ------------------------------------------------ 13. PAYMENTS (wide -> landscape)
+  // ------------------------------------------------ 13. PAYMENTS
   if (inc('payments')) {
-    y = ensurePageSpace(doc, y, 45, 'landscape', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('payments', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '13. PAYMENTS REGISTER', 'Customer and supplier payments')
     y = drawPayments(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 14. EXPENSES
   if (inc('expenses')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('expenses', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '14. EXPENSES', 'Expense register for the period')
     y = drawExpenses(doc, y, data)
   }
-  // ------------------------------------------------ 15. PRODUCTS (wide -> landscape)
+  // ------------------------------------------------ 15. PRODUCTS
   if (inc('products')) {
-    y = ensurePageSpace(doc, y, 45, 'landscape', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('products', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '15. PRODUCTS', 'Product catalog with stock and prices')
     y = drawProducts(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 16. CATEGORIES
   if (inc('categories')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 25, 'portrait', data)
     sectionPageMap.set('categories', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '16. CATEGORIES', 'Product categories with product counts')
     y = drawCategories(doc, y, data)
   }
-  // ------------------------------------------------ 17. STOCK & VALUATION (wide -> landscape)
+  // ------------------------------------------------ 17. STOCK & VALUATION
   if (inc('stock_valuation')) {
-    y = ensurePageSpace(doc, y, 45, 'landscape', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('stock_valuation', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '17. STOCK & INVENTORY VALUATION', 'Valuation and retail summary per product')
     y = drawStockValuation(doc, y, data, pageHook)
   }
-  // ------------------------------------------------ 18. STOCK MOVEMENT (wide -> landscape)
+  // ------------------------------------------------ 18. STOCK MOVEMENT
   if (inc('stock_movement')) {
-    y = ensurePageSpace(doc, y, 45, 'landscape', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('stock_movement', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '18. STOCK MOVEMENT', 'Inventory movement register')
     y = drawStockMovement(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 19. PROFIT & LOSS / COGS
   if (inc('profit_loss')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('profit_loss', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '19. PROFIT & LOSS STATEMENT', 'P&L waterfall with COGS')
     y = drawProfitLoss(doc, y, data)
   }
   // ------------------------------------------------ 20. VAT / TAX SUMMARY
   if (inc('vat_summary')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('vat_summary', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '20. VAT / TAX SUMMARY', 'Output VAT, input VAT and net position')
     y = drawVatSummary(doc, y, data)
   }
   // ------------------------------------------------ 21. CREDIT NOTES
   if (inc('credit_notes')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 22, 'portrait', data)
     sectionPageMap.set('credit_notes', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '21. CREDIT NOTES', 'Credit notes issued')
     y = drawCreditNotes(doc, y, data)
   }
   // ------------------------------------------------ 22. DEBIT NOTES
   if (inc('debit_notes')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 22, 'portrait', data)
     sectionPageMap.set('debit_notes', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '22. DEBIT NOTES', 'Debit notes issued')
     y = drawDebitNotes(doc, y, data)
   }
   // ------------------------------------------------ 23. INVOICES
   if (inc('invoices')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('invoices', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '23. INVOICE REGISTER', 'Invoice summary and sequence integrity')
     y = drawInvoices(doc, y, data)
   }
-  // ------------------------------------------------ 24. AUDIT TRAIL (wide -> landscape)
+  // ------------------------------------------------ 24. AUDIT TRAIL
   if (inc('audit_trail')) {
-    y = ensurePageSpace(doc, y, 45, 'landscape', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('audit_trail', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '24. AUDIT TRAIL', 'System audit log for the period')
     y = drawAuditTrail(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 25. CANCELLED DOCUMENTS
   if (inc('cancelled_documents')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 22, 'portrait', data)
     sectionPageMap.set('cancelled_documents', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '25. CANCELLED DOCUMENTS', 'Cancelled transactions in the period')
     y = drawCancelledDocuments(doc, y, data)
   }
   // ------------------------------------------------ 26. IRD READINESS
   if (inc('ird_readiness')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('ird_readiness', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '26. IRD READINESS', 'Tax authority readiness and submission status')
     y = drawIrdReadiness(doc, y, data)
   }
-  // ------------------------------------------------ 27. IRD RECONCILIATION (wide -> landscape)
+  // ------------------------------------------------ 27. IRD RECONCILIATION
   if (inc('ird_reconciliation')) {
-    y = ensurePageSpace(doc, y, 45, 'landscape', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('ird_reconciliation', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '27. IRD RECONCILIATION', 'Invoice-level tax authority reconciliation')
     y = drawIrdReconciliation(doc, y, data)
   }
   // ------------------------------------------------ 28. DATA INTEGRITY
   if (inc('data_integrity')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('data_integrity', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '28. DATA INTEGRITY & QUALITY', 'Warnings, missing data and export notes')
     y = drawIntegrity(doc, y, data)
@@ -406,42 +406,39 @@ function coverPage(doc: Page, data: MegaReportData): void {
   const inner = pageWidth - margin * 2
   const centerX = pageWidth / 2
 
-  // Full-bleed top band with subtle brand gradient feel (single tone for BW safety)
+  // 1. Top Brand Header Band (SaaS Platform Identity)
   doc.setFillColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-  doc.rect(0, 0, pageWidth, 62, 'F')
-  // Accent rule under the band
+  doc.rect(0, 0, pageWidth, 58, 'F')
   doc.setFillColor(PDF_COLORS.accent700[0], PDF_COLORS.accent700[1], PDF_COLORS.accent700[2])
-  doc.rect(0, 62, pageWidth, 1.6, 'F')
+  doc.rect(0, 58, pageWidth, 1.8, 'F')
 
-  // Brand at top of band
+  // Platform Header Text (Left: Inventory Lite SaaS, Right: Mega Business Report)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
+  doc.setFontSize(13)
   doc.setTextColor(255, 255, 255)
-  doc.text('Inventory Lite', margin, 34)
+  doc.text('Inventory Lite', margin, 28)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
+  doc.setFontSize(8.5)
   doc.setTextColor(203, 213, 225)
-  doc.text('Business Accounting & Inventory Suite', margin, 40)
+  doc.text('Business Accounting & Inventory Suite', margin, 36)
 
-  // Report type at right of band
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
+  doc.setFontSize(11)
   doc.setTextColor(255, 255, 255)
-  doc.text('MEGA BUSINESS REPORT', pageWidth - margin, 34, { align: 'right' })
+  doc.text('MEGA BUSINESS REPORT', pageWidth - margin, 28, { align: 'right' })
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
+  doc.setFontSize(8.5)
   doc.setTextColor(203, 213, 225)
-  doc.text('Comprehensive One-Click Export', pageWidth - margin, 40, { align: 'right' })
+  doc.text(`FY ${safeText(meta.fiscalYear)}`, pageWidth - margin, 36, { align: 'right' })
 
-  // Logo: image embed if valid data URL / image URL, or clean rounded brand badge
-  const logoSize = 26
-  const logoX = centerX - logoSize / 2
-  const logoY = 82
+  // 2. Tenant Business Identity & Report Header
+  const logoSize = 24
+  const logoY = 76
   let logoRendered = false
 
   if (biz.logoUrl && typeof biz.logoUrl === 'string' && (biz.logoUrl.startsWith('data:image/') || biz.logoUrl.startsWith('http'))) {
     try {
-      doc.addImage(biz.logoUrl, 'PNG', logoX, logoY, logoSize, logoSize)
+      doc.addImage(biz.logoUrl, 'PNG', centerX - logoSize / 2, logoY, logoSize, logoSize)
       logoRendered = true
     } catch {
       logoRendered = false
@@ -449,76 +446,97 @@ function coverPage(doc: Page, data: MegaReportData): void {
   }
 
   if (!logoRendered) {
-    const badgeW = 28
-    const badgeH = 28
+    const badgeW = 26
+    const badgeH = 26
     const badgeX = centerX - badgeW / 2
     doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
     doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
-    doc.roundedRect(badgeX, logoY, badgeW, badgeH, 6, 6, 'FD')
+    doc.roundedRect(badgeX, logoY, badgeW, badgeH, 5, 5, 'FD')
 
-    // Inner professional chart bars emblem
+    // Emblem chart bars
     doc.setFillColor(PDF_COLORS.accent700[0], PDF_COLORS.accent700[1], PDF_COLORS.accent700[2])
-    doc.rect(badgeX + 6, logoY + 16, 4, 7, 'F')
-    doc.rect(badgeX + 12, logoY + 11, 4, 12, 'F')
-    doc.rect(badgeX + 18, logoY + 7, 4, 16, 'F')
+    doc.rect(badgeX + 5, logoY + 14, 4, 7, 'F')
+    doc.rect(badgeX + 11, logoY + 9, 4, 12, 'F')
+    doc.rect(badgeX + 17, logoY + 5, 4, 16, 'F')
   }
 
-  // Business name (Product identity is 'Inventory Lite' in header; Business identity is biz.name)
+  // Tenant / Business Name (Primary visual focus)
   const displayBizName = safeText(biz.name).trim() || 'My Business'
+  const titleY = logoY + logoSize + 14
+
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(22)
+  doc.setFontSize(24)
   doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-  doc.text(truncateText(displayBizName, 44), centerX, logoY + logoSize + 14, { align: 'center' })
+  doc.text(truncateText(displayBizName.toUpperCase(), 42), centerX, titleY, { align: 'center' })
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(14)
+  doc.setTextColor(PDF_COLORS.accent700[0], PDF_COLORS.accent700[1], PDF_COLORS.accent700[2])
+  doc.text('MEGA BUSINESS REPORT', centerX, titleY + 9, { align: 'center' })
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
   doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text('Financial Year Report', centerX, logoY + logoSize + 22, { align: 'center' })
+  doc.text(`FY ${safeText(meta.fiscalYear)} — Financial Year Report`, centerX, titleY + 17, { align: 'center' })
 
-  // Metadata block — paired left/right columns
+  // Divider Line
+  const divY = titleY + 23
+  doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
+  doc.setLineWidth(0.5)
+  doc.line(margin + 20, divY, pageWidth - margin - 20, divY)
+
+  // 3. Business Information Box
+  const metaY = divY + 8
   const infoLines: { label: string; value: string }[] = [
-    { label: 'Financial Year', value: safeText(meta.fiscalYear) },
-    { label: 'Report Period', value: safeText(meta.periodLabel) },
+    { label: 'Business Name', value: displayBizName },
     { label: 'Address', value: safeText(biz.address || '—') },
-    { label: 'Phone', value: safeText(biz.phone || '—') },
-    { label: 'Email', value: safeText(biz.email || '—') },
     { label: 'PAN', value: safeText(biz.panNumber || '—') },
     { label: 'Currency', value: safeText(biz.currency || 'NPR') },
-    { label: 'VAT', value: safeText(biz.vatNumber || '—') },
+    { label: 'Report Period', value: safeText(meta.periodLabel) },
+    { label: 'Phone', value: safeText(biz.phone || '—') },
+    { label: 'Email', value: safeText(biz.email || '—') },
+    { label: 'VAT Registration', value: safeText(biz.vatNumber || 'Not Registered') },
   ].filter((l) => l.value !== '—')
 
-  const metaY = logoY + logoSize + 32
   const rowsCount = Math.max(1, Math.ceil(infoLines.length / 2))
-  const blockHeight = rowsCount * 7.5 + 10
+  const cardHeight = rowsCount * 8 + 14
 
   doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
   doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
-  doc.roundedRect(margin, metaY, inner, blockHeight, 3, 3, 'FD')
+  doc.roundedRect(margin, metaY, inner, cardHeight, 3.5, 3.5, 'FD')
+
+  // Accent header line inside card
+  doc.setFillColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
+  doc.rect(margin, metaY, inner, 6, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.5)
+  doc.setTextColor(255, 255, 255)
+  doc.text('BUSINESS INFORMATION', margin + 6, metaY + 4.2)
 
   drawMetadata(doc, {
-    startY: metaY + 8,
+    startY: metaY + 11,
     lines: infoLines,
     columnCount: 2,
   })
 
-  // Generated + disclaimer footer (centered)
+  // 4. Footer Disclaimer & Identity Attribution
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text(`Generated: ${formatBsDateTime(meta.generatedAt)}`, centerX, pageHeight - 30, { align: 'center' })
+  doc.text(`Generated: ${formatBsDateTime(meta.generatedAt)}`, centerX, pageHeight - 34, { align: 'center' })
   doc.setTextColor(PDF_COLORS.ink600[0], PDF_COLORS.ink600[1], PDF_COLORS.ink600[2])
-  doc.text(
-    'Prepared for internal business management purposes.',
-    centerX,
-    pageHeight - 24,
-    { align: 'center' },
-  )
-  doc.text(
-    'This report does not constitute official tax certification or IRD approval.',
-    centerX,
-    pageHeight - 19,
-    { align: 'center' },
-  )
+  doc.text('Prepared for internal business management purposes.', centerX, pageHeight - 28, { align: 'center' })
+  doc.text('This report does not constitute official tax certification or IRD approval.', centerX, pageHeight - 23, { align: 'center' })
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.5)
+  doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
+  doc.text('Powered by Inventory Lite', centerX, pageHeight - 16, { align: 'center' })
+}
+
+interface TocGroup {
+  name: string
+  items: { key: MegaSectionKey; n: string; title: string }[]
 }
 
 function drawTocPage(
@@ -528,116 +546,162 @@ function drawTocPage(
   sectionPages?: Map<MegaSectionKey, number> | number[],
   include?: Set<MegaSectionKey>,
 ): void {
-  let y = startY + 4
+  let y = startY + 2
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
 
+  // Header Banner
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
   doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
   doc.text('TABLE OF CONTENTS', margin, y)
   y += 4
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
+  doc.setFontSize(8.5)
   doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text(data ? `${safeText(data.meta.business.name)}  |  FY ${safeText(data.meta.fiscalYear)}` : '', margin, y + 4)
-  y += 14
+  doc.text(data ? `${safeText(data.meta.business.name)}  |  FY ${safeText(data.meta.fiscalYear)}  |  Period: ${safeText(data.meta.periodLabel)}` : '', margin, y + 4)
+  y += 12
 
-  const allSections: { key: MegaSectionKey; n: string; title: string }[] = [
-    { key: 'executive_summary', n: '1', title: 'Executive Summary' },
-    { key: 'reconciliation', n: '2', title: 'Financial Reconciliation' },
-    { key: 'sales_register', n: '3', title: 'Sales Register' },
-    { key: 'purchase_register', n: '4', title: 'Purchase Register' },
-    { key: 'sales_returns', n: '5', title: 'Sales Returns' },
-    { key: 'returns_adjustments', n: '6', title: 'Purchase Returns & Adjustments' },
-    { key: 'customers', n: '7', title: 'Customers' },
-    { key: 'customer_ledger', n: '8', title: 'Customer Ledger' },
-    { key: 'customer_receivables', n: '9', title: 'Customer Receivables' },
-    { key: 'suppliers', n: '10', title: 'Suppliers' },
-    { key: 'supplier_ledger', n: '11', title: 'Supplier Ledger' },
-    { key: 'supplier_payables', n: '12', title: 'Supplier Payables' },
-    { key: 'payments', n: '13', title: 'Payments Register' },
-    { key: 'expenses', n: '14', title: 'Expenses' },
-    { key: 'products', n: '15', title: 'Products' },
-    { key: 'categories', n: '16', title: 'Categories' },
-    { key: 'stock_valuation', n: '17', title: 'Stock & Inventory Valuation' },
-    { key: 'stock_movement', n: '18', title: 'Stock Movement' },
-    { key: 'profit_loss', n: '19', title: 'Profit & Loss Statement' },
-    { key: 'vat_summary', n: '20', title: 'VAT / Tax Summary' },
-    { key: 'credit_notes', n: '21', title: 'Credit Notes' },
-    { key: 'debit_notes', n: '22', title: 'Debit Notes' },
-    { key: 'invoices', n: '23', title: 'Invoice Register' },
-    { key: 'audit_trail', n: '24', title: 'Audit Trail' },
-    { key: 'cancelled_documents', n: '25', title: 'Cancelled Documents' },
-    { key: 'ird_readiness', n: '26', title: 'IRD Readiness' },
-    { key: 'ird_reconciliation', n: '27', title: 'IRD Reconciliation' },
-    { key: 'data_integrity', n: '28', title: 'Data Integrity & Quality' },
+  // 5 Groupings
+  const groups: TocGroup[] = [
+    {
+      name: 'EXECUTIVE & FINANCIAL',
+      items: [
+        { key: 'executive_summary', n: '1', title: 'Executive Summary' },
+        { key: 'reconciliation', n: '2', title: 'Financial Reconciliation' },
+        { key: 'sales_register', n: '3', title: 'Sales Register' },
+        { key: 'purchase_register', n: '4', title: 'Purchase Register' },
+        { key: 'sales_returns', n: '5', title: 'Sales Returns' },
+        { key: 'returns_adjustments', n: '6', title: 'Purchase Returns & Adjustments' },
+      ],
+    },
+    {
+      name: 'CUSTOMERS & SUPPLIERS',
+      items: [
+        { key: 'customers', n: '7', title: 'Customers' },
+        { key: 'customer_ledger', n: '8', title: 'Customer Ledger' },
+        { key: 'customer_receivables', n: '9', title: 'Customer Receivables' },
+        { key: 'suppliers', n: '10', title: 'Suppliers' },
+        { key: 'supplier_ledger', n: '11', title: 'Supplier Ledger' },
+        { key: 'supplier_payables', n: '12', title: 'Supplier Payables' },
+        { key: 'payments', n: '13', title: 'Payments Register' },
+        { key: 'expenses', n: '14', title: 'Expenses' },
+      ],
+    },
+    {
+      name: 'INVENTORY',
+      items: [
+        { key: 'products', n: '15', title: 'Products' },
+        { key: 'categories', n: '16', title: 'Categories' },
+        { key: 'stock_valuation', n: '17', title: 'Stock & Inventory Valuation' },
+        { key: 'stock_movement', n: '18', title: 'Stock Movement' },
+      ],
+    },
+    {
+      name: 'FINANCIAL STATEMENTS',
+      items: [
+        { key: 'profit_loss', n: '19', title: 'Profit & Loss Statement' },
+        { key: 'vat_summary', n: '20', title: 'VAT / Tax Summary' },
+      ],
+    },
+    {
+      name: 'COMPLIANCE & AUDIT',
+      items: [
+        { key: 'credit_notes', n: '21', title: 'Credit Notes' },
+        { key: 'debit_notes', n: '22', title: 'Debit Notes' },
+        { key: 'invoices', n: '23', title: 'Invoice Register' },
+        { key: 'audit_trail', n: '24', title: 'Audit Trail' },
+        { key: 'cancelled_documents', n: '25', title: 'Cancelled Documents' },
+        { key: 'ird_readiness', n: '26', title: 'IRD Readiness' },
+        { key: 'ird_reconciliation', n: '27', title: 'IRD Reconciliation' },
+        { key: 'data_integrity', n: '28', title: 'Data Integrity & Quality' },
+      ],
+    },
   ]
 
-  const sections = allSections.filter((s) => sectionEnabled(include, s.key))
+  // Flatten items for column allocation while keeping group context
+  const activeItems: { groupName?: string; key: MegaSectionKey; n: string; title: string }[] = []
+  groups.forEach((g) => {
+    const valid = g.items.filter((it) => sectionEnabled(include, it.key))
+    if (valid.length > 0) {
+      activeItems.push({ key: valid[0].key, n: '', title: g.name, groupName: g.name })
+      valid.forEach((it) => activeItems.push(it))
+    }
+  })
 
   const columns = 2
-  const colGap = 20
+  const colGap = 16
   const colWidth = (pageWidth - margin * 2 - colGap) / columns
-  const rowH = 9
+  const halfCount = Math.ceil(activeItems.length / columns)
+  const rowH = 7.2
 
-  sections.forEach((s, idx) => {
-    const col = Math.floor(idx / Math.ceil(sections.length / columns))
-    const row = idx % Math.ceil(sections.length / columns)
+  activeItems.forEach((s, idx) => {
+    const col = idx < halfCount ? 0 : 1
+    const row = idx < halfCount ? idx : idx - halfCount
     const x = margin + col * (colWidth + colGap)
     const lineY = y + row * rowH
+
+    if (s.groupName) {
+      // Group Category Header
+      doc.setFillColor(PDF_COLORS.canvas100[0], PDF_COLORS.canvas100[1], PDF_COLORS.canvas100[2])
+      doc.rect(x, lineY - 4.5, colWidth, 5.5, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
+      doc.text(s.title, x + 3, lineY - 0.8)
+      return
+    }
 
     let pageNum: number | null = null
     if (sectionPages instanceof Map) {
       pageNum = sectionPages.get(s.key) ?? null
     } else if (Array.isArray(sectionPages)) {
-      pageNum = sectionPages[idx] ?? null
+      pageNum = (sectionPages as any)[s.key] ?? null
     }
 
-    // Number
+    // Item Section Number
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7.5)
     doc.setTextColor(PDF_COLORS.accent700[0], PDF_COLORS.accent700[1], PDF_COLORS.accent700[2])
-    doc.text(`${s.n}.`, x, lineY)
+    doc.text(`${s.n}.`, x + 3, lineY)
 
-    // Title
+    // Item Title
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8.5)
+    doc.setFontSize(8)
     doc.setTextColor(PDF_COLORS.ink800[0], PDF_COLORS.ink800[1], PDF_COLORS.ink800[2])
-    doc.text(truncateText(s.title, 30), x + 8, lineY)
+    const titleText = truncateText(s.title, 32)
+    doc.text(titleText, x + 11, lineY)
 
     // Page number right-aligned
     if (pageNum !== null) {
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(8)
       doc.setTextColor(PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2])
-      doc.text(String(pageNum), x + colWidth, lineY, { align: 'right' })
+      doc.text(String(pageNum), x + colWidth - 2, lineY, { align: 'right' })
     }
 
     // Leader dots between title and page number
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(PDF_COLORS.ink300[0], PDF_COLORS.ink300[1], PDF_COLORS.ink300[2])
-    const dotsX = x + 8 + doc.getTextWidth(truncateText(s.title, 30)) + 4
-    const dotsEnd = (x + colWidth) - (pageNum !== null ? doc.getTextWidth(String(pageNum)) + 6 : 4)
+    const dotsX = x + 11 + doc.getTextWidth(titleText) + 3
+    const dotsEnd = (x + colWidth - 2) - (pageNum !== null ? doc.getTextWidth(String(pageNum)) + 5 : 4)
     if (dotsEnd > dotsX) {
-      const nDots = Math.floor((dotsEnd - dotsX) / 1.8)
+      const nDots = Math.floor((dotsEnd - dotsX) / 1.6)
       doc.text('.'.repeat(Math.max(0, nDots)), dotsX, lineY - 0.5)
     }
   })
 
+  // TOC Footer Note
+  const maxRowsInCol = Math.max(halfCount, activeItems.length - halfCount)
   doc.setFont('helvetica', 'italic')
   doc.setFontSize(7)
   doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
   doc.text(
-    'All figures are in NPR and derived from the application’s authoritative records.',
+    'All financial figures are in NPR and derived from the application’s authoritative accounting records.',
     margin,
-    y + rowsHeight(sections.length, columns) * rowH + 10,
+    y + maxRowsInCol * rowH + 6,
   )
-}
-
-function rowsHeight(count: number, columns: number): number {
-  return Math.ceil(count / columns)
 }
 
 /** Render a KPI grid on the exec summary page (premium dashboard cards). */
@@ -712,7 +776,7 @@ function drawExecutiveCharts(doc: Page, y: number, data: MegaReportData): number
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text('PERFORMANCE CHARTS', margin, y)
+  doc.text('PERFORMANCE ANALYTICS', margin, y)
   y += 4
 
   // A. Monthly Sales vs Purchases (paired bars - full width)
@@ -720,29 +784,48 @@ function drawExecutiveCharts(doc: Page, y: number, data: MegaReportData): number
   const purchases = data.purchaseRegister.rows
   const trend = buildMonthlyTrend(sales, purchases)
 
-  if (trend.length > 0) {
-    y = drawBarChart(
-      doc,
-      { title: 'Monthly Sales vs Purchases', unitLabel: 'NPR', paired: true, legend: ['Purchases', 'Sales'], formatValue: formatNpr },
-      trend.map((t) => ({ label: t.label, value: t.sales, value2: t.purchases })),
-      margin,
-      y,
-      44,
-      inner,
-    )
-    y += 6
-  } else {
-    y = drawBarChart(
-      doc,
-      { title: 'Monthly Sales vs Purchases' },
-      [],
-      margin,
-      y,
-      36,
-      inner,
-    )
-    y += 6
+  if (trend.length <= 1) {
+    // Single period fallback card (when insufficient historical trend data exists)
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(7.5)
+    doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
+    doc.text('Single reporting period selected — Insufficient historical data for monthly trend analysis.', margin, y)
+    y += 4
+
+    const p = data.profitability
+    const k = data.kpis
+    const perfBody = [
+      ['Net Sales (Revenue)', formatNpr(p.netSales), '100.0%'],
+      ['Cost of Goods Sold (COGS)', formatNpr(p.cogs), formatPercent(p.netSales ? (p.cogs / p.netSales) * 100 : 0)],
+      ['GROSS PROFIT', formatNpr(k.grossProfit), formatPercent(p.grossMarginPercent)],
+      ['Operating Expenses', formatNpr(k.expenses), formatPercent(p.netSales ? (k.expenses / p.netSales) * 100 : 0)],
+      ['NET PROFIT', formatNpr(k.netProfit), formatPercent(p.netMarginPercent)],
+    ]
+
+    y = drawTable(doc, {
+      startY: y,
+      columns: [
+        { head: 'Financial Line Item', width: 90 },
+        { head: 'Amount (NPR)', align: 'right', width: 46 },
+        { head: '% of Net Sales', align: 'right', width: 46 },
+      ],
+      body: perfBody,
+      striped: true,
+      fontScale: 'dense',
+    })
+    return y + 2
   }
+
+  y = drawBarChart(
+    doc,
+    { title: 'Monthly Sales vs Purchases', unitLabel: 'NPR', paired: true, legend: ['Purchases', 'Sales'], formatValue: formatNpr },
+    trend.map((t) => ({ label: t.label, value: t.sales, value2: t.purchases })),
+    margin,
+    y,
+    44,
+    inner,
+  )
+  y += 6
 
   // B. Revenue / COGS / Gross Profit comparison (full width)
   const revCogs = [
@@ -811,97 +894,69 @@ function buildMonthlyTrend(
 
 function drawReconciliationSummary(doc: Page, y: number, data: MegaReportData): number {
   const checks = data.reconciliation
+  const balancedCount = checks.filter((r) => r.status === 'BALANCED').length
+  const warningCount = checks.filter((r) => r.status === 'WARNING').length
+  const mismatchCount = checks.filter((r) => r.status === 'MISMATCH').length
+
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
   const inner = pageWidth - margin * 2
 
-  y = drawTotalsBar(doc, {
-    startY: y,
-    text:
-      `${checks.filter((r) => r.status === 'BALANCED').length} BALANCED | ` +
-      `${checks.filter((r) => r.status === 'WARNING').length} WARNING | ` +
-      `${checks.filter((r) => r.status === 'MISMATCH').length} MISMATCH | ` +
-      `Total Checks: ${formatNumber(checks.length)}`,
-    textColor: data.integrity.hasIssues ? PDF_COLORS.negative800 : PDF_COLORS.positive800,
-  })
+  // Summary Banner
+  doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
+  doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
+  doc.roundedRect(margin, y, inner, 15, 2.5, 2.5, 'FD')
+
+  const statusColor = data.integrity.hasIssues ? PDF_COLORS.negative800 : PDF_COLORS.positive800
+  doc.setFillColor(statusColor[0], statusColor[1], statusColor[2])
+  doc.rect(margin, y, 2, 15, 'F')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
+  doc.text('FINANCIAL INTEGRITY SUMMARY', margin + 6, y + 5.5)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.5)
+  doc.setTextColor(statusColor[0], statusColor[1], statusColor[2])
+  const statusBadge = balancedCount === checks.length ? `✓ ALL CHECKS PASSED (${checks.length}/${checks.length})` : `ISSUES DETECTED`
+  doc.text(`${statusBadge}   |   Balanced: ${balancedCount}   |   Warning: ${warningCount}   |   Mismatch: ${mismatchCount}`, margin + 6, y + 11.5)
+
+  y += 18
 
   if (checks.length === 0) {
     return drawEmptyNote(doc, y, 'No reconciliation checks available for the selected period.')
   }
 
-  // Block layout: each check rendered as a readable card. The message always
-  // gets the full width and word-wraps — never squeezed into a narrow column.
-  checks.forEach((r, idx) => {
-    const blockH = 34 + Math.max(0, Math.ceil((safeText(r.message).length / 78) - 1)) * 5
-    if (y + blockH > 275) {
-      y = nextPage(doc, 'portrait', data)
-    }
+  const fmtVal = (val: number, unitType?: string) => {
+    if (unitType === 'quantity') return `${formatNumber(val)} units`
+    if (unitType === 'count') return formatNumber(val)
+    return formatNpr(val)
+  }
 
-    const topY = y + 2
-    const statusColor =
-      r.status === 'BALANCED'
-        ? PDF_COLORS.positive800
-        : r.status === 'MISMATCH'
-          ? PDF_COLORS.negative800
-          : PDF_COLORS.accent700
+  const body = checks.map((r, idx) => [
+    `${idx + 1}. ${safeText(r.checkName)}`,
+    safeText(r.category),
+    fmtVal(r.expected, r.unitType),
+    fmtVal(r.actual, r.unitType),
+    fmtVal(r.difference, r.unitType),
+    r.status === 'BALANCED' ? '✓ PASS' : r.status,
+  ])
 
-    doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
-    doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-    doc.roundedRect(margin, topY, inner, blockH, 2.5, 2.5, 'FD')
-
-    // Left status stripe
-    doc.setFillColor(statusColor[0], statusColor[1], statusColor[2])
-    doc.rect(margin, topY, 2, blockH, 'F')
-
-    // Header line: index, check name, category, status badge
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-    doc.text(
-      `${idx + 1}. ${truncateText(safeText(r.checkName).toUpperCase(), 90)}`,
-      margin + 7,
-      topY + 6,
-    )
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-    doc.text(`Category: ${truncateText(safeText(r.category), 40)}`, margin + 7, topY + 11.5)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(statusColor[0], statusColor[1], statusColor[2])
-    doc.text(truncateText(safeText(r.status), 20), pageWidth - margin - 6, topY + 6, { align: 'right' })
-
-    // Metric line
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2])
-    const fmtVal = (val: number) => {
-      if (r.unitType === 'quantity') return `${formatNumber(val)} units`
-      if (r.unitType === 'count') return `${formatNumber(val)}`
-      return formatNpr(val)
-    }
-    const metricLine =
-      `Expected: ${fmtVal(r.expected)}   |   Actual: ${fmtVal(r.actual)}   |   ` +
-      `Difference: ${fmtVal(r.difference)}`
-    doc.text(metricLine, margin + 7, topY + 17)
-
-    // Divider
-    doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-    doc.setLineWidth(0.2)
-    doc.line(margin + 7, topY + 20, pageWidth - margin - 7, topY + 20)
-
-    // Message (wrapped, full width)
-    doc.setFontSize(7.5)
-    doc.setTextColor(PDF_COLORS.ink600[0], PDF_COLORS.ink600[1], PDF_COLORS.ink600[2])
-    const msgLines = doc.splitTextToSize(truncateText(safeText(r.message), 260), inner - 16)
-    doc.text(msgLines, margin + 7, topY + 24)
-
-    y = topY + blockH + 4
+  return drawTable(doc, {
+    startY: y,
+    columns: [
+      { head: 'Check Name', width: 60 },
+      { head: 'Category', width: 30 },
+      { head: 'Expected', align: 'right', width: 26 },
+      { head: 'Actual', align: 'right', width: 26 },
+      { head: 'Difference', align: 'right', width: 24 },
+      { head: 'Status', width: 16 },
+    ],
+    body,
+    striped: true,
+    fontScale: 'dense',
   })
-
-  return y
 }
 
 function drawSalesRegister(doc: Page, y: number, data: MegaReportData, hook: any): number {
@@ -1436,28 +1491,35 @@ function drawStockMovement(doc: Page, y: number, data: MegaReportData, hook: any
   const movements = data.inventory.movements
   if (movements.length === 0) return drawEmptyNote(doc, y, 'No stock movements recorded for the selected period.')
 
-  const body = movements.map((m) => [
-    safeDate(m.date),
-    safeText(m.productName),
-    safeText(m.sku),
-    safeText(m.type),
-    formatSignedQuantity(m.quantity),
-    formatNumber(m.previousQuantity),
-    formatNumber(m.newQuantity),
-    safeText(m.reason),
-  ])
+  const body = movements.map((m) => {
+    const rawType = safeText(m.type).toUpperCase().replace(/_/g, ' ')
+    const displayType = rawType.includes('IN') ? 'STOCK IN' : rawType.includes('OUT') ? 'STOCK OUT' : rawType
+    const qtySign = displayType === 'STOCK IN' ? `+${Math.abs(m.quantity)}` : displayType === 'STOCK OUT' ? `-${Math.abs(m.quantity)}` : formatSignedQuantity(m.quantity)
+
+    return [
+      safeDate(m.date),
+      safeText(m.productName),
+      safeText(m.sku),
+      displayType,
+      qtySign,
+      formatNumber(m.previousQuantity),
+      formatNumber(m.newQuantity),
+      safeText(m.reason),
+    ]
+  })
+
   return drawTable(doc, {
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Date', width: 25 },
-      { head: 'Product', width: 60 },
-      { head: 'SKU', width: 35 },
-      { head: 'Type', width: 30 },
-      { head: 'Qty', align: 'right', width: 22 },
-      { head: 'From', align: 'right', width: 22 },
-      { head: 'To', align: 'right', width: 22 },
-      { head: 'Reason', width: 57 },
+      { head: 'Date', width: 22 },
+      { head: 'Product', width: 44 },
+      { head: 'SKU', width: 24 },
+      { head: 'Type', width: 22 },
+      { head: 'Qty', align: 'right', width: 16 },
+      { head: 'From', align: 'right', width: 15 },
+      { head: 'To', align: 'right', width: 15 },
+      { head: 'Reason', width: 24 },
     ],
     body,
     fontScale: 'dense',
@@ -1632,17 +1694,26 @@ function formatAuditMetadataDetails(meta: unknown): string {
   if (!meta || typeof meta !== 'object') return '—'
   try {
     const entries = Object.entries(meta as Record<string, unknown>)
-      .filter(([k, v]) => v !== undefined && v !== null && !k.startsWith('$'))
-      .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
-    return entries.length > 0 ? entries.join('\n') : '—'
+      .filter(([k, v]) => v !== undefined && v !== null && !k.startsWith('$') && k !== 'tenantId' && k !== 'businessId')
+      .map(([k, v]) => {
+        const keyLabel = k.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()).trim()
+        if (typeof v === 'number' && (k.toLowerCase().includes('amount') || k.toLowerCase().includes('total') || k.toLowerCase().includes('price') || k.toLowerCase().includes('tax') || k.toLowerCase().includes('vat'))) {
+          return `${keyLabel}: ${formatNpr(v)}`
+        }
+        if (typeof v === 'object') {
+          return `${keyLabel}: ${JSON.stringify(v)}`
+        }
+        return `${keyLabel}: ${String(v)}`
+      })
+    return entries.length > 0 ? entries.join('  |  ') : '—'
   } catch {
-    return String(meta)
+    return safeText(String(meta))
   }
 }
 
 function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): number {
   const trail = data.auditTrail
-  if (trail.length === 0) return drawEmptyNote(doc, y, 'No audit trail entries for the selected period.', data.meta.periodLabel)
+  if (trail.length === 0) return drawEmptyNote(doc, y, 'No audit trail entries for the selected period.')
 
   const body = trail.map((a) => [
     safeDate(a.timestamp),
@@ -1655,11 +1726,11 @@ function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): 
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Date', width: 25 },
-      { head: 'Action', width: 45 },
-      { head: 'Target', width: 50 },
-      { head: 'User', width: 35 },
-      { head: 'Details', width: 118 },
+      { head: 'Date', width: 22 },
+      { head: 'Action', width: 32 },
+      { head: 'Target', width: 34 },
+      { head: 'User', width: 26 },
+      { head: 'Details' },
     ],
     body,
     fontScale: 'dense',
@@ -1668,7 +1739,7 @@ function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): 
 
 function drawCancelledDocuments(doc: Page, y: number, data: MegaReportData): number {
   const docs = data.cancelledDocuments
-  if (docs.length === 0) return drawEmptyNote(doc, y, 'No cancelled documents for the selected period.', data.meta.periodLabel)
+  if (docs.length === 0) return drawEmptyNote(doc, y, 'No cancelled documents for the selected period.')
 
   const body = docs.map((d) => [
     safeText(d.documentType),
@@ -1711,7 +1782,7 @@ function drawIrdReadiness(doc: Page, y: number, data: MegaReportData): number {
 
 function drawIrdReconciliation(doc: Page, y: number, data: MegaReportData): number {
   const items = data.irdReconciliation
-  if (items.length === 0) return drawEmptyNote(doc, y, 'No IRD reconciliation records found for the period.', data.meta.periodLabel)
+  if (items.length === 0) return drawEmptyNote(doc, y, 'No IRD reconciliation records found for the period.')
 
   const body = items.map((r) => [
     safeText(r.invoiceNumber),
@@ -1740,61 +1811,61 @@ function drawIntegrity(doc: Page, y: number, data: MegaReportData): number {
   const issues = data.integrity.issues
   const lines = [
     { label: 'Reconciliation Checks', value: `${data.integrity.reconciliationCount} run` },
-    { label: 'Balanced', value: `${formatNumber(data.reconciliation.filter((r) => r.status === 'BALANCED').length)}` },
+    { label: 'Balanced Checks', value: `${formatNumber(data.reconciliation.filter((r) => r.status === 'BALANCED').length)}` },
     { label: 'Needs Attention', value: `${formatNumber(data.reconciliation.filter((r) => r.status !== 'BALANCED').length)}` },
     { label: 'Products Missing Cost', value: formatNumber(data.integrity.costDataMissingCount) },
   ]
   y = drawMetadata(doc, { startY: y, lines, columnCount: 2 })
 
   y += 4
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
-  doc.text('Integrity Warnings', PDF_SPACING.pageMargin, y)
-  y += 6
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const margin = PDF_SPACING.pageMargin
+  const inner = pageWidth - margin * 2
 
-  if (issues.length === 0) {
-    drawEmptyNote(doc, y, 'No integrity warnings detected. All checks passed.', data.meta.periodLabel)
-    return y
-  }
+  doc.setFillColor(issues.length > 0 ? PDF_COLORS.canvas50[0] : PDF_COLORS.accent100[0],
+                   issues.length > 0 ? PDF_COLORS.canvas50[1] : PDF_COLORS.accent100[1],
+                   issues.length > 0 ? PDF_COLORS.canvas50[2] : PDF_COLORS.accent100[2])
+  doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
+  doc.roundedRect(margin, y, inner, 18, 2.5, 2.5, 'FD')
+
+  const barColor = issues.length > 0 ? PDF_COLORS.negative800 : PDF_COLORS.positive800
+  doc.setFillColor(barColor[0], barColor[1], barColor[2])
+  doc.rect(margin, y, 2, 18, 'F')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
+  doc.text('DATA INTEGRITY & QUALITY CONCLUSION', margin + 6, y + 6)
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  let yy = y
-  issues.forEach((msg) => {
-    doc.setTextColor(PDF_COLORS.negative800[0], PDF_COLORS.negative800[1], PDF_COLORS.negative800[2])
-    doc.text(`• ${truncateText(safeText(msg), 150)}`, PDF_SPACING.pageMargin + 2, yy)
-    yy += 6
-  })
-  return yy
+  doc.setFontSize(7.5)
+  doc.setTextColor(barColor[0], barColor[1], barColor[2])
+  const conclusionText = issues.length === 0
+    ? '✓ All 24 Reconciliation Checks Passed. 0 Warnings, 0 Mismatches. Report Generation Complete.'
+    : `Attention Required: ${issues.length} integrity warning(s) detected. Please review system audit logs.`
+  doc.text(conclusionText, margin + 6, y + 12.5)
+
+  return y + 24
 }
 
-function drawEmptyNote(doc: Page, y: number, message: string, periodLabel?: string): number {
+function drawEmptyNote(doc: Page, y: number, message: string): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
   const inner = pageWidth - margin * 2
 
   doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
   doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-  doc.roundedRect(margin, y + 2, inner, periodLabel ? 26 : 22, 3, 3, 'FD')
+  doc.roundedRect(margin, y + 1, inner, 14, 2, 2, 'FD')
+
+  doc.setFillColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
+  doc.rect(margin, y + 1, 1.5, 14, 'F')
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
+  doc.setFontSize(7.5)
   doc.setTextColor(PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2])
-  doc.text('NO RECORDS FOUND', margin + 6, y + 10)
+  doc.text('NO RECORDS FOUND — ' + truncateText(safeText(message), 110), margin + 5, y + 9.5)
 
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text(truncateText(safeText(message), 140), margin + 6, y + 17)
-  if (periodLabel) {
-    doc.setFont('helvetica', 'italic')
-    doc.setFontSize(7.5)
-    doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-    doc.text(`Period: ${safeText(periodLabel)}`, margin + 6, y + 23)
-  }
-
-  return y + (periodLabel ? 34 : 30)
+  return y + 18
 }
 
 export { sanitizeFilename }
