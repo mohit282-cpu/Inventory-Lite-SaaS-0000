@@ -29,18 +29,48 @@ export class CustomerService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Customer> {
-    if (!data.name || data.name.trim() === '') {
+    const trimmedName = data.name ? data.name.trim() : ''
+    if (!trimmedName) {
       throw new Error('Customer name is required')
+    }
+
+    const trimmedPhone = data.phone ? data.phone.trim() : ''
+    const trimmedEmail = data.email ? data.email.trim() : ''
+    const trimmedPan = data.panNumber ? data.panNumber.trim() : ''
+
+    // Duplicate customer protection using strong identifiers (Phone, Email, PAN)
+    if (trimmedPhone) {
+      const existingPhone = await this.getCustomerByPhone(businessId, trimmedPhone)
+      if (existingPhone && existingPhone.phone === trimmedPhone) {
+        throw new Error(`A customer with phone number "${trimmedPhone}" already exists for this business.`)
+      }
+    }
+
+    if (trimmedEmail) {
+      const existingEmail = await this.getCustomerByEmail(businessId, trimmedEmail)
+      if (existingEmail && existingEmail.email === trimmedEmail) {
+        throw new Error(`A customer with email address "${trimmedEmail}" already exists for this business.`)
+      }
+    }
+
+    if (trimmedPan) {
+      const existingPanList = await this.list<Customer>(businessId, [
+        Query.equal('panNumber', trimmedPan),
+        Query.limit(1),
+      ])
+      if (existingPanList.length > 0 && existingPanList[0].panNumber === trimmedPan) {
+        throw new Error(`A customer with PAN/VAT number "${trimmedPan}" already exists for this business.`)
+      }
     }
 
     const due = data.totalDue ?? data.dueAmount ?? 0
 
     const customerData = {
-      name: data.name,
-      phone: data.phone || '',
-      email: data.email || '',
-      address: data.address || '',
-      panNumber: data.panNumber || '',
+      name: trimmedName,
+      phone: trimmedPhone,
+      email: trimmedEmail,
+      address: data.address ? data.address.trim() : '',
+      panNumber: trimmedPan,
       totalDue: due,
       dueAmount: due,
     }

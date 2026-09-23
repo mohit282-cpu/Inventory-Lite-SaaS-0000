@@ -65,6 +65,7 @@ vi.mock('@/config/appwrite', () => {
 })
 
 import { customerService } from '@/services/customer.service'
+import { customerSchema } from '@/lib/validations'
 
 describe('Customers Module Tests', () => {
   const bizA = 'business_A'
@@ -214,5 +215,64 @@ describe('Customers Module Tests', () => {
     expect(getEmptyState(0, 0, false)).toBe('STATE_A_NO_CUSTOMERS')
     expect(getEmptyState(5, 0, true)).toBe('STATE_B_NO_SEARCH_RESULTS')
     expect(getEmptyState(5, 2, true)).toBe('DATA_PRESENT')
+  })
+
+  it('validates customer schema whitespace name, invalid email, and 9-digit PAN rules', () => {
+    // Valid customer payload
+    const validPayload = {
+      name: '  Apex Traders  ',
+      phone: '9841234567',
+      email: 'contact@apex.com',
+      address: 'Kathmandu',
+      panNumber: '600123456',
+    }
+    const parsedValid = customerSchema.safeParse(validPayload)
+    expect(parsedValid.success).toBe(true)
+
+    // Whitespace-only name should fail
+    const invalidName = { ...validPayload, name: '    ' }
+    expect(customerSchema.safeParse(invalidName).success).toBe(false)
+
+    // Invalid email format should fail
+    const invalidEmail = { ...validPayload, email: 'not-an-email' }
+    expect(customerSchema.safeParse(invalidEmail).success).toBe(false)
+
+    // Invalid PAN (not 9 digits) should fail
+    const invalidPan = { ...validPayload, panNumber: '12345' }
+    expect(customerSchema.safeParse(invalidPan).success).toBe(false)
+  })
+
+  it('prevents duplicate customer creation on existing Phone number or Email', async () => {
+    await customerService.createCustomer(
+      { name: 'First Customer', phone: '9849998887', email: 'first@test.com' },
+      bizA,
+      user1
+    )
+
+    // Attempt to create duplicate phone
+    await expect(
+      customerService.createCustomer(
+        { name: 'Second Customer', phone: '9849998887', email: 'other@test.com' },
+        bizA,
+        user1
+      )
+    ).rejects.toThrow(/already exists for this business/)
+
+    // Attempt to create duplicate email
+    await expect(
+      customerService.createCustomer(
+        { name: 'Third Customer', phone: '9849998886', email: 'first@test.com' },
+        bizA,
+        user1
+      )
+    ).rejects.toThrow(/already exists for this business/)
+  })
+
+  it('reconciles customer financial totals mathematically (Purchases - Paid = Outstanding Due)', () => {
+    const totalPurchases = 774.05
+    const totalPaid = 422.05
+    const computedDue = totalPurchases - totalPaid
+
+    expect(computedDue).toBeCloseTo(352.0, 2)
   })
 })

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,7 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { Customer } from '@/types'
 import { formatBSDate } from '@/lib/date/bs-date'
 import { formatCurrency } from '@/lib/utils'
-import { User, Phone, Mail, MapPin, ShoppingBag, CreditCard, AlertCircle, Loader2 } from 'lucide-react'
+import { User, Phone, Mail, MapPin, ShoppingBag, CreditCard, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react'
 
 interface CustomerDetailsDialogProps {
   customer: Customer | null
@@ -91,7 +92,7 @@ export function CustomerDetailsDialog({
         aria-describedby="customer-details-description"
       >
         <DialogHeader>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pr-6">
             <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center font-bold text-xl shrink-0">
               <User className="h-6 w-6" />
             </div>
@@ -116,7 +117,7 @@ export function CustomerDetailsDialog({
           </div>
         ) : (
           <div className="space-y-5 py-2">
-            {/* KPI Summary Cards */}
+            {/* KPI Summary Cards with Reconciled Financial Totals */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-[10px] text-slate-500 uppercase font-extrabold tracking-wider flex items-center gap-1">
@@ -138,13 +139,26 @@ export function CustomerDetailsDialog({
 
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-[10px] text-slate-500 uppercase font-extrabold tracking-wider flex items-center gap-1">
-                  <AlertCircle className={`h-3 w-3 ${due > 0 ? 'text-amber-600' : due < 0 ? 'text-emerald-600' : 'text-slate-500'}`} />
-                  {due > 0 ? 'Outstanding Due' : due < 0 ? 'Customer Credit' : 'Balance Due'}
+                  {due > 0 ? (
+                    <AlertCircle className="h-3 w-3 text-amber-600" />
+                  ) : due < 0 ? (
+                    <CreditCard className="h-3 w-3 text-emerald-600" />
+                  ) : (
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                  )}
+                  {due > 0 ? 'Outstanding Due' : due < 0 ? 'Customer Credit' : 'Outstanding Due'}
                 </div>
-                <div className={`text-lg font-bold font-mono mt-1 ${
-                  due > 0 ? 'text-amber-800' : due < 0 ? 'text-emerald-700' : 'text-slate-800'
-                }`}>
-                  {due < 0 ? `-${formatCurrency(Math.abs(due), currency)}` : formatCurrency(due, currency)}
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`text-lg font-bold font-mono ${
+                    due > 0 ? 'text-amber-800' : due < 0 ? 'text-emerald-700' : 'text-slate-800'
+                  }`}>
+                    {due < 0 ? `-${formatCurrency(Math.abs(due), currency)}` : formatCurrency(due, currency)}
+                  </div>
+                  {due === 0 && (
+                    <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                      CLEARED
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -192,7 +206,15 @@ export function CustomerDetailsDialog({
                     <tbody className="divide-y divide-slate-100">
                       {summary.sales.map((s) => (
                         <tr key={s.$id} className="hover:bg-slate-50">
-                          <td className="px-3 py-2 font-mono font-bold text-indigo-700">{s.saleNumber}</td>
+                          <td className="px-3 py-2 font-mono font-bold text-indigo-700">
+                            <Link
+                              href={`/app/sales/${s.$id}`}
+                              className="hover:text-indigo-900 hover:underline transition-colors"
+                              title={`View sale transaction ${s.saleNumber || s.$id}`}
+                            >
+                              {s.saleNumber || s.invoiceNumber || s.$id}
+                            </Link>
+                          </td>
                           <td className="px-3 py-2 font-mono text-emerald-700 font-bold">{formatCurrency(s.total ?? s.totalAmount ?? 0, currency)}</td>
                           <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
                           <td className="px-3 py-2 text-slate-800 font-mono font-bold">{formatBSDate(s.createdAt)}</td>
