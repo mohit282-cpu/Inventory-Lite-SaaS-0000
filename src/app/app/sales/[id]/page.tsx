@@ -106,16 +106,20 @@ export default function SaleDetailPage() {
               {/* Format Switcher */}
               <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs">
                 <button
+                  type="button"
                   onClick={() => setFormat('A4')}
-                  className={`px-3 py-1.5 rounded-md font-bold transition-all ${
+                  aria-label="Switch to A4 print format"
+                  className={`px-3 py-1.5 rounded-md font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                     format === 'A4' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   A4 Print Format
                 </button>
                 <button
+                  type="button"
                   onClick={() => setFormat('THERMAL')}
-                  className={`px-3 py-1.5 rounded-md font-bold transition-all ${
+                  aria-label="Switch to 80mm thermal receipt format"
+                  className={`px-3 py-1.5 rounded-md font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                     format === 'THERMAL' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -126,13 +130,15 @@ export default function SaleDetailPage() {
               <Button
                 variant="outline"
                 onClick={() => router.push('/app/sales')}
-                className="border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold h-9"
+                aria-label="Back to Sales"
+                className="border-slate-300 bg-white text-slate-800 hover:bg-slate-50 font-semibold h-9 focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sales
               </Button>
               <Button
                 onClick={handlePrint}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 px-4"
+                aria-label="Print invoice"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 px-4 focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 <Printer className="mr-2 h-4 w-4" /> Print Invoice
               </Button>

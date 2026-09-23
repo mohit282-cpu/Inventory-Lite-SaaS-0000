@@ -106,22 +106,29 @@ export function CancelSaleDialog({
               id="cancellationReason"
               placeholder="e.g. Wrong items billed, Duplicate transaction, Payment failed"
               value={reason}
+              disabled={isLoading}
               onChange={(e) => setReason(e.target.value)}
-              className="bg-white text-xs"
+              className="bg-white text-xs focus-visible:ring-red-500"
             />
           </div>
 
           <DialogFooter className="pt-2 flex flex-col-reverse sm:flex-row gap-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
-              Cancel
+              Keep Sale
             </Button>
             <Button
               type="submit"
               disabled={isLoading || reason.trim().length < 3}
               className="bg-red-600 hover:bg-red-700 text-white font-bold"
             >
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Confirm Bill Void / Cancel
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                'Cancel Sale'
+              )}
             </Button>
           </DialogFooter>
         </form>

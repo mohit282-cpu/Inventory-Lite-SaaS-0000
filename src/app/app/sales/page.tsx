@@ -20,6 +20,7 @@ import { Plus, Eye, ShoppingCart, RotateCcw, XCircle, FileText, ReceiptText, Pri
 import { Sale, Customer, Invoice } from '@/types'
 import NextLink from 'next/link'
 import { formatBSDateTime, formatBSDate } from '@/lib/date/bs-date'
+import { formatMoney } from '@/lib/money'
 
 interface EnrichedInvoice extends Invoice {
   saleNumber: string
@@ -28,6 +29,16 @@ interface EnrichedInvoice extends Invoice {
   paidAmount: number
   dueAmount: number
   saleStatus?: string
+}
+
+function formatPaymentMethod(method?: string): string {
+  if (!method) return 'N/A'
+  const lower = method.toLowerCase().trim()
+  if (lower === 'cash') return 'Cash'
+  if (lower === 'full_udhar' || lower === 'credit' || lower === 'udhaar') return 'Full Udhaar'
+  if (lower === 'bank_transfer' || lower === 'bank') return 'Bank Transfer'
+  if (lower === 'digital_wallet' || lower === 'wallet' || lower === 'esewa' || lower === 'khalti') return 'Digital Wallet'
+  return method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 export default function SalesPage() {
@@ -132,16 +143,55 @@ export default function SalesPage() {
     }
   }, [activeTab, fetchInvoices])
 
+  const getCustomerName = useCallback((customerId?: string) => {
+    if (!customerId || customerId.trim() === '' || customerId === 'guest') return 'Walk-in Guest'
+    const cust = customers.find((c) => c.$id === customerId)
+    return cust ? cust.name : 'Registered Customer'
+  }, [customers])
+
+  // Multi-field search for sales
+  const filteredSales = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return sales
+    }
+    const q = debouncedSearchQuery.trim().toLowerCase()
+    return sales.filter((s) => {
+      const custName = getCustomerName(s.customerId).toLowerCase()
+      const rawNum = (s.saleNumber || `Sale-${s.$id.slice(-6)}`).toLowerCase()
+      const formattedNum = rawNum.replace(/^sale-/i, 'sale-')
+      const formattedPm = formatPaymentMethod(s.paymentMethod).toLowerCase()
+      const rawPm = (s.paymentMethod || '').toLowerCase()
+      const statusStr = (s.status || '').toLowerCase()
+
+      return (
+        rawNum.includes(q) ||
+        formattedNum.includes(q) ||
+        (s.$id && s.$id.toLowerCase().includes(q)) ||
+        custName.includes(q) ||
+        rawPm.includes(q) ||
+        formattedPm.includes(q) ||
+        statusStr.includes(q)
+      )
+    })
+  }, [debouncedSearchQuery, sales, getCustomerName])
+
+  // Multi-field search for tax invoices
   const filteredInvoices = useMemo(() => {
     if (!debouncedSearchQuery.trim()) {
       return invoices
     }
-    const q = debouncedSearchQuery.toLowerCase()
+    const q = debouncedSearchQuery.trim().toLowerCase()
     return invoices.filter((item) => {
+      const invNum = (item.invoiceNumber || '').toLowerCase()
+      const custName = (item.customerName || '').toLowerCase()
+      const saleRef = (item.saleNumber || '').toLowerCase()
+      const statusStr = (item.saleStatus || item.status || '').toLowerCase()
+
       return (
-        item.invoiceNumber.toLowerCase().includes(q) ||
-        item.customerName.toLowerCase().includes(q) ||
-        item.saleNumber.toLowerCase().includes(q)
+        invNum.includes(q) ||
+        custName.includes(q) ||
+        saleRef.includes(q) ||
+        statusStr.includes(q)
       )
     })
   }, [debouncedSearchQuery, invoices])
@@ -154,7 +204,7 @@ export default function SalesPage() {
       render: (item) => (
         <NextLink
           href={`/app/invoices/${item.$id}`}
-          className="font-mono font-bold text-indigo-700 hover:text-indigo-800 transition-colors flex items-center gap-1.5"
+          className="font-mono font-bold text-indigo-700 hover:text-indigo-900 transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
         >
           <FileText className="h-3.5 w-3.5" />
           {(item.invoiceNumber || '').replace(/^INV-/i, 'Inv-')}
@@ -165,9 +215,12 @@ export default function SalesPage() {
       key: 'saleNumber',
       header: 'Sale Ref',
       render: (item) => (
-        <span className="font-mono text-slate-500 text-xs font-medium">
+        <NextLink
+          href={`/app/sales/${item.saleId}`}
+          className="font-mono text-slate-600 hover:text-indigo-700 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
+        >
           {(item.saleNumber || '').replace(/^SALE-/i, 'Sale-')}
-        </span>
+        </NextLink>
       ),
     },
     {
@@ -180,14 +233,14 @@ export default function SalesPage() {
       header: 'Total (Rs.)',
       sortable: true,
       render: (item) => (
-        <span className="font-mono font-bold text-emerald-700">Rs. {item.totalAmount.toFixed(2)}</span>
+        <span className="font-mono font-bold text-emerald-700">Rs. {formatMoney(item.totalAmount)}</span>
       ),
     },
     {
       key: 'paidAmount',
       header: 'Paid (Rs.)',
       render: (item) => (
-        <span className="font-mono text-slate-700 font-medium">Rs. {item.paidAmount.toFixed(2)}</span>
+        <span className="font-mono text-slate-700 font-medium">Rs. {formatMoney(item.paidAmount)}</span>
       ),
     },
     {
@@ -195,7 +248,7 @@ export default function SalesPage() {
       header: 'Due (Rs.)',
       render: (item) => (
         <span className={`font-mono font-bold ${item.dueAmount > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
-          Rs. {item.dueAmount.toFixed(2)}
+          Rs. {formatMoney(item.dueAmount)}
         </span>
       ),
     },
@@ -224,6 +277,8 @@ export default function SalesPage() {
             size="sm"
             onClick={() => router.push(`/app/invoices/${item.$id}`)}
             title="View Invoice"
+            aria-label={`View tax invoice ${item.invoiceNumber}`}
+            className="h-8 px-2.5 text-xs text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50 font-semibold focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <Eye className="h-3.5 w-3.5 mr-1" /> View
           </Button>
@@ -232,6 +287,8 @@ export default function SalesPage() {
             size="sm"
             onClick={() => router.push(`/app/invoices/${item.$id}?print=true`)}
             title="Print Tax Invoice"
+            aria-label={`Print tax invoice ${item.invoiceNumber}`}
+            className="h-8 px-2.5 text-xs border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-50 font-semibold focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <Printer className="h-3.5 w-3.5 mr-1" /> Print
           </Button>
@@ -289,29 +346,6 @@ export default function SalesPage() {
     }
   }
 
-  // Memoized Search Filter
-  const filteredSales = useMemo(() => {
-    if (!debouncedSearchQuery.trim()) {
-      return sales
-    }
-    const q = debouncedSearchQuery.toLowerCase()
-    return sales.filter((s) => {
-      const cust = customers.find((c) => c.$id === s.customerId)
-      return (
-        (s.saleNumber && s.saleNumber.toLowerCase().includes(q)) ||
-        (s.$id && s.$id.toLowerCase().includes(q)) ||
-        (cust && cust.name.toLowerCase().includes(q)) ||
-        s.paymentMethod.toLowerCase().includes(q)
-      )
-    })
-  }, [debouncedSearchQuery, sales, customers])
-
-  const getCustomerName = (customerId?: string) => {
-    if (!customerId || customerId.trim() === '' || customerId === 'guest') return 'Walk-in Guest'
-    const cust = customers.find((c) => c.$id === customerId)
-    return cust ? cust.name : 'Registered Customer'
-  }
-
   const columns: Column<Sale>[] = [
     {
       key: 'saleNumber',
@@ -321,9 +355,12 @@ export default function SalesPage() {
         const rawNum = item.saleNumber || `Sale-${item.$id.slice(-6)}`
         const formattedNum = rawNum.replace(/^SALE-/i, 'Sale-')
         return (
-          <span className="font-mono font-bold text-indigo-700">
+          <NextLink
+            href={`/app/sales/${item.$id}`}
+            className="font-mono font-bold text-indigo-700 hover:text-indigo-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
+          >
             {formattedNum}
-          </span>
+          </NextLink>
         )
       },
     },
@@ -340,7 +377,7 @@ export default function SalesPage() {
       sortable: true,
       render: (item) => (
         <span className="font-mono font-bold text-emerald-700">
-          Rs. {item.total.toFixed(2)}
+          Rs. {formatMoney(item.total)}
         </span>
       ),
     },
@@ -348,7 +385,7 @@ export default function SalesPage() {
       key: 'paidAmount',
       header: 'Paid Amount',
       render: (item) => (
-        <span className="font-mono text-slate-700 font-medium">Rs. {item.paidAmount.toFixed(2)}</span>
+        <span className="font-mono text-slate-700 font-medium">Rs. {formatMoney(item.paidAmount)}</span>
       ),
     },
     {
@@ -356,7 +393,7 @@ export default function SalesPage() {
       header: 'Due Amount',
       render: (item) => (
         <span className={`font-mono font-bold ${item.dueAmount > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
-          Rs. {item.dueAmount.toFixed(2)}
+          Rs. {formatMoney(item.dueAmount)}
         </span>
       ),
     },
@@ -365,7 +402,7 @@ export default function SalesPage() {
       header: 'Payment Method',
       render: (item) => (
         <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-          {item.paymentMethod.replace('_', ' ')}
+          {formatPaymentMethod(item.paymentMethod)}
         </span>
       ),
     },
@@ -387,49 +424,55 @@ export default function SalesPage() {
     {
       key: 'actions',
       header: 'Actions',
-      render: (item) => (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push(`/app/sales/${item.$id}`)}
-            title="View Receipt / Invoice"
-            aria-label={`View receipt for ${item.saleNumber || item.$id}`}
-          >
-            <Eye className="h-4 w-4 text-slate-500" />
-          </Button>
-
-          {item.status !== 'cancelled' && (
+      render: (item) => {
+        const rawNum = item.saleNumber || item.$id
+        return (
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                setReturnSale(item)
-                setIsReturnOpen(true)
-              }}
-              title="Sales Return"
-              aria-label={`Process sales return for ${item.saleNumber || item.$id}`}
+              onClick={() => router.push(`/app/sales/${item.$id}`)}
+              title="View Sale"
+              aria-label={`View sale ${rawNum}`}
+              className="h-8 w-8 text-slate-500 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
-              <RotateCcw className="h-4 w-4 text-amber-600" />
+              <Eye className="h-4 w-4" />
             </Button>
-          )}
 
-          {isOwnerOrAdmin && item.status !== 'cancelled' && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setCancelTargetSale(item)
-                setIsCancelOpen(true)
-              }}
-              title="Cancel / Void Bill (Owner/Admin)"
-              aria-label={`Void bill for ${item.saleNumber || item.$id}`}
-            >
-              <XCircle className="h-4 w-4 text-red-500 hover:text-red-700" />
-            </Button>
-          )}
-        </div>
-      ),
+            {item.status !== 'cancelled' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setReturnSale(item)
+                  setIsReturnOpen(true)
+                }}
+                title="Return Sale"
+                aria-label={`Return sale ${rawNum}`}
+                className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50 focus-visible:ring-2 focus-visible:ring-amber-500"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
+
+            {isOwnerOrAdmin && item.status !== 'cancelled' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setCancelTargetSale(item)
+                  setIsCancelOpen(true)
+                }}
+                title="Cancel Sale"
+                aria-label={`Cancel sale ${rawNum}`}
+                className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-500"
+              >
+                <XCircle className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )
+      },
     },
   ]
 
@@ -450,7 +493,7 @@ export default function SalesPage() {
         <button
           type="button"
           onClick={() => setActiveTab('sales')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-t-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-t-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
             activeTab === 'sales'
               ? 'text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -461,7 +504,7 @@ export default function SalesPage() {
         <button
           type="button"
           onClick={() => setActiveTab('invoices')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-t-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-t-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
             activeTab === 'invoices'
               ? 'text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -480,7 +523,7 @@ export default function SalesPage() {
         <SearchInput
           placeholder={
             activeTab === 'invoices'
-              ? 'Search by invoice number, customer name, or sale ref...'
+              ? 'Search invoices by invoice #, customer, or sale ref...'
               : 'Search sales by receipt #, customer, or payment method...'
           }
           value={searchQuery}
@@ -489,35 +532,254 @@ export default function SalesPage() {
         />
       </div>
 
+      {/* Responsive Content Display */}
       {activeTab === 'invoices' ? (
-        <DataTable
-          data={filteredInvoices}
-          columns={invoiceColumns}
-          isLoading={invoicesLoading}
-          emptyTitle="No invoices yet"
-          emptyDescription="Invoices generated from completed POS sales will appear here."
-          emptyAction={
-            <Button onClick={() => router.push('/app/sales/new')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
-              <Plus className="mr-2 h-4 w-4" /> Open POS Terminal
-            </Button>
-          }
-        />
+        <>
+          {/* Desktop / Tablet Table (>= 768px) */}
+          <div className="hidden md:block">
+            <DataTable
+              data={filteredInvoices}
+              columns={invoiceColumns}
+              isLoading={invoicesLoading}
+              searchQuery={debouncedSearchQuery}
+              isFiltered={!!debouncedSearchQuery.trim()}
+              itemLabel="tax invoices"
+              emptyTitle={debouncedSearchQuery.trim() ? "No invoices match search" : "No invoices found"}
+              emptyDescription={
+                debouncedSearchQuery.trim()
+                  ? "Try adjusting your search criteria or clear the query filter."
+                  : "Invoices generated from completed POS sales will appear here."
+              }
+              emptyAction={
+                !debouncedSearchQuery.trim() ? (
+                  <Button onClick={() => router.push('/app/sales/new')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
+                    <Plus className="mr-2 h-4 w-4" /> Open POS Terminal
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+
+          {/* Mobile Card Layout (< 768px) */}
+          <div className="md:hidden space-y-3">
+            {invoicesLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="h-28 rounded-xl bg-slate-100 animate-pulse" />
+                ))}
+              </div>
+            ) : filteredInvoices.length === 0 ? (
+              <div className="text-center py-8 px-4 bg-white rounded-xl border border-slate-200 space-y-2">
+                <ReceiptText className="h-8 w-8 text-slate-400 mx-auto" />
+                <p className="text-sm font-bold text-slate-800">
+                  {debouncedSearchQuery.trim() ? "No invoices match search" : "No invoices found"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {debouncedSearchQuery.trim()
+                    ? "Try adjusting your search criteria."
+                    : "Invoices generated from POS sales will appear here."}
+                </p>
+              </div>
+            ) : (
+              filteredInvoices.map((item) => (
+                <div key={item.$id} className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2.5">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                    <NextLink
+                      href={`/app/invoices/${item.$id}`}
+                      className="font-mono font-bold text-indigo-700 text-sm hover:underline flex items-center gap-1"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      {(item.invoiceNumber || '').replace(/^INV-/i, 'Inv-')}
+                    </NextLink>
+                    <StatusBadge status={item.saleStatus || item.status} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Customer</span>
+                      <span className="font-bold text-slate-900">{item.customerName}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Sale Ref</span>
+                      <span className="font-mono font-semibold text-slate-700">
+                        {(item.saleNumber || '').replace(/^SALE-/i, 'Sale-')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Total Amount</span>
+                      <span className="font-mono font-bold text-emerald-700">Rs. {formatMoney(item.totalAmount)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px] uppercase font-bold">Due Amount</span>
+                      <span className={`font-mono font-bold ${item.dueAmount > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
+                        Rs. {formatMoney(item.dueAmount)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <span className="font-mono text-slate-500 text-[11px] font-medium">
+                      {formatBSDate(item.issueDate || item.createdAt)}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push(`/app/invoices/${item.$id}`)}
+                        aria-label={`View invoice ${item.invoiceNumber}`}
+                        className="h-8 px-2.5 text-xs text-indigo-700 font-semibold"
+                      >
+                        <Eye className="h-3.5 w-3.5 mr-1" /> View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/app/invoices/${item.$id}?print=true`)}
+                        aria-label={`Print invoice ${item.invoiceNumber}`}
+                        className="h-8 px-2.5 text-xs border-slate-300 font-semibold"
+                      >
+                        <Printer className="h-3.5 w-3.5 mr-1" /> Print
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
       ) : (
-        <DataTable
-          data={filteredSales}
-          columns={columns}
-          isLoading={isLoading}
-          emptyTitle="No sales recorded"
-          emptyDescription="Create your first sale from the POS terminal counter."
-          emptyAction={
-            <Button
-              onClick={() => router.push('/app/sales/new')}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-            >
-              <ShoppingCart className="mr-2 h-4 w-4" /> Open POS Terminal
-            </Button>
-          }
-        />
+        <>
+          {/* Desktop / Tablet Table (>= 768px) */}
+          <div className="hidden md:block">
+            <DataTable
+              data={filteredSales}
+              columns={columns}
+              isLoading={isLoading}
+              searchQuery={debouncedSearchQuery}
+              isFiltered={!!debouncedSearchQuery.trim()}
+              itemLabel="sales"
+              emptyTitle={debouncedSearchQuery.trim() ? "No sales match search" : "No sales found"}
+              emptyDescription={
+                debouncedSearchQuery.trim()
+                  ? "Try adjusting your search criteria or clear the query filter."
+                  : "Create your first sale from the POS terminal counter."
+              }
+              emptyAction={
+                !debouncedSearchQuery.trim() ? (
+                  <Button
+                    onClick={() => router.push('/app/sales/new')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                  >
+                    <ShoppingCart className="mr-2 h-4 w-4" /> Open POS Terminal
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+
+          {/* Mobile Card Layout (< 768px) */}
+          <div className="md:hidden space-y-3">
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="h-32 rounded-xl bg-slate-100 animate-pulse" />
+                ))}
+              </div>
+            ) : filteredSales.length === 0 ? (
+              <div className="text-center py-8 px-4 bg-white rounded-xl border border-slate-200 space-y-2">
+                <ShoppingCart className="h-8 w-8 text-slate-400 mx-auto" />
+                <p className="text-sm font-bold text-slate-800">
+                  {debouncedSearchQuery.trim() ? "No sales match search" : "No sales found"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {debouncedSearchQuery.trim()
+                    ? "Try adjusting your search criteria or clear the query filter."
+                    : "Create your first sale from the POS terminal counter."}
+                </p>
+              </div>
+            ) : (
+              filteredSales.map((item) => {
+                const rawNum = item.saleNumber || `Sale-${item.$id.slice(-6)}`
+                const formattedNum = rawNum.replace(/^SALE-/i, 'Sale-')
+                return (
+                  <div key={item.$id} className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                      <NextLink
+                        href={`/app/sales/${item.$id}`}
+                        className="font-mono font-bold text-indigo-700 text-sm hover:underline"
+                      >
+                        {formattedNum}
+                      </NextLink>
+                      <StatusBadge status={item.status} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-slate-500 block text-[10px] uppercase font-bold">Customer</span>
+                        <span className="font-bold text-slate-900">{getCustomerName(item.customerId)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px] uppercase font-bold">Payment Method</span>
+                        <span className="font-semibold text-slate-700">{formatPaymentMethod(item.paymentMethod)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px] uppercase font-bold">Total Amount</span>
+                        <span className="font-mono font-bold text-emerald-700">Rs. {formatMoney(item.total)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px] uppercase font-bold">Due Amount</span>
+                        <span className={`font-mono font-bold ${item.dueAmount > 0 ? 'text-amber-800' : 'text-slate-500'}`}>
+                          Rs. {formatMoney(item.dueAmount)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                      <span className="font-mono text-slate-500 text-[11px] font-medium">
+                        {formatBSDateTime(item.createdAt)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/app/sales/${item.$id}`)}
+                          aria-label={`View sale ${formattedNum}`}
+                          className="h-8 px-2 text-slate-600"
+                        >
+                          <Eye className="h-4 w-4 mr-1" /> View
+                        </Button>
+                        {item.status !== 'cancelled' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setReturnSale(item)
+                              setIsReturnOpen(true)
+                            }}
+                            aria-label={`Return sale ${formattedNum}`}
+                            className="h-8 px-2 text-amber-600"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-1" /> Return
+                          </Button>
+                        )}
+                        {isOwnerOrAdmin && item.status !== 'cancelled' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setCancelTargetSale(item)
+                              setIsCancelOpen(true)
+                            }}
+                            aria-label={`Cancel sale ${formattedNum}`}
+                            className="h-8 px-2 text-red-600"
+                          >
+                            <XCircle className="h-4 w-4 mr-1" /> Cancel
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </>
       )}
 
       {/* Modals */}

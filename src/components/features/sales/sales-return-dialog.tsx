@@ -221,7 +221,7 @@ export function SalesReturnDialog({
                         <td className="py-2 px-3 text-center">
                           <input
                             type="checkbox"
-                            disabled={item.allowableQty <= 0}
+                            disabled={isLoading || item.allowableQty <= 0}
                             checked={item.selected}
                             onChange={() => handleToggleSelect(item.saleItemId)}
                             className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-4 w-4"
@@ -239,7 +239,7 @@ export function SalesReturnDialog({
                             type="number"
                             min="1"
                             max={item.allowableQty}
-                            disabled={!item.selected || item.allowableQty <= 0}
+                            disabled={isLoading || !item.selected || item.allowableQty <= 0}
                             value={item.returnQty}
                             onChange={(e) => handleQtyChange(item.saleItemId, parseInt(e.target.value, 10) || 1)}
                             className="h-8 text-xs font-mono bg-white"
@@ -258,19 +258,21 @@ export function SalesReturnDialog({
             {/* Return Reason & Refund Method */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700">Return Reason *</Label>
+                <Label htmlFor="returnReasonInput" className="text-xs font-bold text-slate-700">Return Reason *</Label>
                 <Input
+                  id="returnReasonInput"
                   placeholder="e.g. Defective item, Customer changed mind"
                   value={reason}
+                  disabled={isLoading}
                   onChange={(e) => setReason(e.target.value)}
                   className="bg-white text-xs"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700">Refund / Adjustment Mode *</Label>
-                <Select value={refundMethod} onValueChange={(v: any) => setRefundMethod(v)}>
-                  <SelectTrigger className="bg-white text-xs">
+                <Label htmlFor="refundMethodSelect" className="text-xs font-bold text-slate-700">Refund / Adjustment Mode *</Label>
+                <Select value={refundMethod} onValueChange={(v: any) => setRefundMethod(v)} disabled={isLoading}>
+                  <SelectTrigger id="refundMethodSelect" className="bg-white text-xs">
                     <SelectValue placeholder="Select refund mode" />
                   </SelectTrigger>
                   <SelectContent>
@@ -304,8 +306,14 @@ export function SalesReturnDialog({
             disabled={isLoading || selectedReturnItems.length === 0}
             className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
           >
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Confirm Return & Restore Stock
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing Return...
+              </>
+            ) : (
+              'Process Return'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
