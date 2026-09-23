@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,7 @@ import { paymentService } from '@/services/payment.service'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
 import { Customer, Sale, PaymentMethod } from '@/types'
-import { DollarSign, Loader2, CheckCircle2 } from 'lucide-react'
+import { DollarSign, Loader2, CheckCircle2, AlertCircle, User, Receipt } from 'lucide-react'
 import { formatMoney } from '@/lib/money'
 
 interface RecordPaymentDialogProps {
@@ -42,7 +42,7 @@ export function RecordPaymentDialog({
   const [customers, setCustomers] = useState<Customer[]>([])
   const [sales, setSales] = useState<Sale[]>([])
 
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preselectedCustomerId || '')
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(preselectedCustomerId || 'all')
   const [selectedSaleId, setSelectedSaleId] = useState<string>(preselectedSaleId || '')
   const [paymentAmountInput, setPaymentAmountInput] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
@@ -51,67 +51,130 @@ export function RecordPaymentDialog({
   const [notes, setNotes] = useState<string>('')
 
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // 1. Fetch customers and sales when dialog opens
+  // Sync state whenever the dialog opens or preselected props change
   useEffect(() => {
+    if (!isOpen) return
+
+    setSelectedCustomerId(preselectedCustomerId || 'all')
+    setSelectedSaleId(preselectedSaleId || '')
+    setPaymentAmountInput('')
+    setPaymentMethod('cash')
+    setPaymentDate(new Date().toISOString().slice(0, 10))
+    setReferenceNumber('')
+    setNotes('')
+    setLoadError(null)
+  }, [isOpen, preselectedCustomerId, preselectedSaleId])
+
+  // Load active customers and open sales when dialog opens
+  const loadData = useCallback(async () => {
     if (!isOpen || !activeBusiness?.$id) return
 
-    async function loadData() {
-      try {
-        setIsLoadingCatalog(true)
-        const [custDocs, saleDocs] = await Promise.all([
-          customerService.listCustomers(activeBusiness!.$id),
-          saleService.listSales(activeBusiness!.$id),
-        ])
-        setCustomers(custDocs)
+    try {
+      setIsLoadingCatalog(true)
+      setLoadError(null)
+      const [custDocs, saleDocs] = await Promise.all([
+        customerService.listCustomers(activeBusiness.$id),
+        saleService.listSales(activeBusiness.$id),
+      ])
 
-        // Only keep sales that have remaining due balance
-        const openSales = saleDocs.filter((s) => s.dueAmount > 0)
-        setSales(openSales)
+      setCustomers(custDocs)
 
-        if (preselectedCustomerId) {
-          setSelectedCustomerId(preselectedCustomerId)
-        }
-        if (preselectedSaleId) {
+      // Keep only sales with positive remaining due
+      const openSales = saleDocs.filter((s) => s.dueAmount > 0)
+      setSales(openSales)
+
+      // Handle initial customer & sale selection
+      const targetCustId = preselectedCustomerId || 'all'
+      setSelectedCustomerId(targetCustId)
+
+      if (targetCustId !== 'all') {
+        const custOpenSales = openSales.filter((s) => s.customerId === targetCustId)
+        if (preselectedSaleId && custOpenSales.some((s) => s.$id === preselectedSaleId)) {
           setSelectedSaleId(preselectedSaleId)
+        } else if (custOpenSales.length === 1) {
+          setSelectedSaleId(custOpenSales[0].$id)
+        } else {
+          setSelectedSaleId('')
         }
-      } catch (err: any) {
-        toast({
-          title: 'Error loading payment form',
-          description: err.message || 'Failed to fetch customer sales.',
-          variant: 'destructive',
-        })
-      } finally {
-        setIsLoadingCatalog(false)
+      } else if (preselectedSaleId) {
+        setSelectedSaleId(preselectedSaleId)
       }
+    } catch (err: any) {
+      setLoadError('Unable to load outstanding credit transactions. Please try again.')
+      toast({
+        title: 'Error loading payment data',
+        description: err.message || 'Failed to fetch outstanding credit sales.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoadingCatalog(false)
     }
+  }, [isOpen, activeBusiness?.$id, preselectedCustomerId, preselectedSaleId, toast])
 
+  useEffect(() => {
     loadData()
-  }, [isOpen, activeBusiness, preselectedCustomerId, preselectedSaleId, toast])
+  }, [loadData])
 
   // Filter sales available for selected customer
-  const availableSales = React.useMemo(() => {
+  const availableSales = useMemo(() => {
     if (!selectedCustomerId || selectedCustomerId === 'all') return sales
     return sales.filter((s) => s.customerId === selectedCustomerId)
   }, [selectedCustomerId, sales])
 
-  // Get currently selected sale object
-  const currentSale = React.useMemo(() => {
+  const customerOpenSales = availableSales
+
+  // Currently selected sale object
+  const currentSale = useMemo(() => {
     return sales.find((s) => s.$id === selectedSaleId) || null
   }, [selectedSaleId, sales])
 
-  // Auto fill payment amount with full remaining due when a sale is picked
+  // Selected customer object & total outstanding calculation
+  const selectedCustomerObj = useMemo(() => {
+    if (!selectedCustomerId || selectedCustomerId === 'all') return null
+    return customers.find((c) => c.$id === selectedCustomerId) || null
+  }, [selectedCustomerId, customers])
+
+  const customerTotalDue = useMemo(() => {
+    if (selectedCustomerObj && typeof selectedCustomerObj.totalDue === 'number' && selectedCustomerObj.totalDue > 0) {
+      return selectedCustomerObj.totalDue
+    }
+    return availableSales.reduce((acc, s) => acc + s.dueAmount, 0)
+  }, [selectedCustomerObj, availableSales])
+
+  // Auto-fill payment amount when a sale is selected
   useEffect(() => {
     if (currentSale) {
       setPaymentAmountInput(currentSale.dueAmount.toString())
     }
   }, [currentSale])
 
-  // Calculate live remaining due balance math
+  // Handle Customer Selection Dropdown change
+  const handleCustomerChange = (val: string) => {
+    setSelectedCustomerId(val)
+    if (val === 'all') {
+      setSelectedSaleId('')
+    } else {
+      const custSales = sales.filter((s) => s.customerId === val)
+      if (custSales.length === 1) {
+        setSelectedSaleId(custSales[0].$id)
+      } else {
+        setSelectedSaleId('')
+      }
+    }
+  }
+
+  // Live financial calculations
   const enteredAmount = parseFloat(paymentAmountInput) || 0
   const remainingDue = currentSale ? Math.max(0, currentSale.dueAmount - enteredAmount) : 0
   const isSettled = currentSale && enteredAmount >= currentSale.dueAmount - 0.01
+
+  // Validation flags
+  const isAmountTooLow = enteredAmount <= 0 && paymentAmountInput.trim() !== ''
+  const isAmountTooHigh = currentSale ? enteredAmount > currentSale.dueAmount + 0.01 : false
+  const isInvalidAmount = isAmountTooLow || isAmountTooHigh || paymentAmountInput.trim() === '' || isNaN(enteredAmount)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -120,7 +183,7 @@ export function RecordPaymentDialog({
     if (!selectedSaleId) {
       toast({
         title: 'Validation Error',
-        description: 'Please select a sale transaction with an outstanding balance.',
+        description: 'Please select an outstanding transaction.',
         variant: 'destructive',
       })
       return
@@ -129,7 +192,7 @@ export function RecordPaymentDialog({
     if (enteredAmount <= 0) {
       toast({
         title: 'Invalid Payment Amount',
-        description: 'Payment amount must be greater than zero.',
+        description: 'Payment amount must be greater than Rs. 0.00.',
         variant: 'destructive',
       })
       return
@@ -138,7 +201,7 @@ export function RecordPaymentDialog({
     if (currentSale && enteredAmount > currentSale.dueAmount + 0.01) {
       toast({
         title: 'Overpayment Not Allowed',
-        description: `Payment amount (Rs. ${formatMoney(enteredAmount)}) cannot exceed remaining due (Rs. ${formatMoney(currentSale.dueAmount)}).`,
+        description: `Payment amount (Rs. ${formatMoney(enteredAmount)}) cannot exceed outstanding balance of Rs. ${formatMoney(currentSale.dueAmount)}.`,
         variant: 'destructive',
       })
       return
@@ -150,7 +213,7 @@ export function RecordPaymentDialog({
       await paymentService.createPayment(
         {
           saleId: selectedSaleId,
-          customerId: selectedCustomerId || currentSale?.customerId,
+          customerId: selectedCustomerId !== 'all' ? selectedCustomerId : currentSale?.customerId,
           invoiceId: currentSale?.invoiceId,
           amount: enteredAmount,
           paymentMethod,
@@ -173,8 +236,8 @@ export function RecordPaymentDialog({
       onClose()
     } catch (err: any) {
       toast({
-        title: 'Payment Failed',
-        description: err.message || 'Failed to record payment transaction.',
+        title: 'Unable to Record Payment',
+        description: err.message || 'No financial records were changed. Please try again.',
         variant: 'destructive',
       })
     } finally {
@@ -184,8 +247,12 @@ export function RecordPaymentDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isSubmitting) onClose() }}>
-      <DialogContent className="max-w-md w-[95vw] sm:w-full border-slate-200 bg-white text-slate-900 shadow-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="p-5 pb-3 border-b border-slate-100 shrink-0">
+      <DialogContent
+        aria-modal="true"
+        className="max-w-lg w-[95vw] sm:w-full border-slate-200 bg-white text-slate-900 shadow-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl z-[60]"
+      >
+        {/* Sticky Header */}
+        <DialogHeader className="p-5 pb-3 border-b border-slate-100 shrink-0 bg-white">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold shrink-0">
               <DollarSign className="h-5 w-5" />
@@ -199,82 +266,139 @@ export function RecordPaymentDialog({
           </div>
         </DialogHeader>
 
+        {/* Modal Scrollable Body */}
         {isLoadingCatalog ? (
-          <div className="flex items-center justify-center p-8 text-slate-500 gap-2 text-xs">
-            <Loader2 className="h-5 w-5 animate-spin text-emerald-600" /> Loading active credit accounts...
+          <div className="flex flex-col items-center justify-center p-10 text-slate-500 gap-3 text-xs flex-1">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+            <span>Loading outstanding transactions...</span>
+          </div>
+        ) : loadError ? (
+          <div className="p-6 text-center space-y-3 flex-1 flex flex-col justify-center items-center">
+            <AlertCircle className="h-8 w-8 text-red-500" />
+            <p className="text-xs font-semibold text-slate-800">{loadError}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadData}
+              className="text-xs font-bold border-slate-300"
+            >
+              Try Again
+            </Button>
           </div>
         ) : (
-          <form id="payment-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4">
-            {/* Customer Filter / Selector */}
+          <form id="payment-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4 scrollbar-thin scrollbar-thumb-slate-300">
+            {/* Customer Select / Display */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-extrabold text-slate-700">Customer</Label>
-              <Select
-                value={selectedCustomerId}
-                onValueChange={(val) => {
-                  setSelectedCustomerId(val)
-                  setSelectedSaleId('')
-                }}
-                disabled={isSubmitting}
-              >
-                <SelectTrigger className="h-10 text-xs font-medium bg-white border-slate-300">
-                  <SelectValue placeholder="All Customers with Credit" />
-                </SelectTrigger>
-                <SelectContent className="max-h-48">
-                  <SelectItem value="all">-- All Customers --</SelectItem>
-                  {customers.map((c) => (
-                    <SelectItem key={c.$id} value={c.$id}>
-                      {c.name} {c.phone ? `(${c.phone})` : ''} {c.totalDue > 0 ? `· Due: Rs. ${formatMoney(c.totalDue)}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs font-extrabold text-slate-700 flex items-center gap-1">
+                <User className="h-3.5 w-3.5 text-indigo-600" /> Customer {preselectedCustomerId ? '' : '*'}
+              </Label>
+              {preselectedCustomerId && selectedCustomerObj ? (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-bold text-slate-900">{selectedCustomerObj.name}</span>
+                    {selectedCustomerObj.phone && (
+                      <span className="text-slate-500 font-mono ml-2">({selectedCustomerObj.phone})</span>
+                    )}
+                  </div>
+                  {customerTotalDue > 0 && (
+                    <span className="font-mono font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[11px]">
+                      Total Due: Rs. {formatMoney(customerTotalDue)}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <Select value={selectedCustomerId} onValueChange={handleCustomerChange} disabled={isSubmitting}>
+                  <SelectTrigger aria-label="Select Customer" className="h-11 text-xs font-medium bg-white border-slate-300 text-slate-900 rounded-lg">
+                    <SelectValue placeholder="-- Select Customer --" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-56">
+                    <SelectItem value="all">-- Select Customer --</SelectItem>
+                    {customers.map((c) => (
+                      <SelectItem key={c.$id} value={c.$id}>
+                        {c.name} {c.phone ? `(${c.phone})` : ''} {c.totalDue > 0 ? `· Total Due: Rs. ${formatMoney(c.totalDue)}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
-            {/* Sale / Invoice Selector */}
+            {/* Sale / Invoice Select */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-extrabold text-slate-700">Select Sale / Invoice Transaction *</Label>
-              <Select value={selectedSaleId} onValueChange={setSelectedSaleId} disabled={isSubmitting}>
-                <SelectTrigger className="h-10 text-xs font-medium bg-white border-slate-300">
-                  <SelectValue placeholder={availableSales.length === 0 ? 'No outstanding credit sales found' : 'Select Invoice / Sale...'} />
+              <Label className="text-xs font-extrabold text-slate-700 flex items-center gap-1">
+                <Receipt className="h-3.5 w-3.5 text-indigo-600" /> Select Sale / Invoice Transaction *
+              </Label>
+              <Select value={selectedSaleId} onValueChange={setSelectedSaleId} disabled={isSubmitting || availableSales.length === 0}>
+                <SelectTrigger aria-label="Select Sale or Invoice Transaction" className="h-11 text-xs font-medium bg-white border-slate-300 text-slate-900 rounded-lg">
+                  <SelectValue
+                    placeholder={
+                      availableSales.length === 0
+                        ? selectedCustomerId && selectedCustomerId !== 'all'
+                          ? 'No outstanding credit transactions for this customer'
+                          : 'No outstanding credit transactions found'
+                        : 'Select Sale / Invoice Transaction...'
+                    }
+                  />
                 </SelectTrigger>
-                <SelectContent className="max-h-48">
+                <SelectContent className="max-h-56">
                   {availableSales.map((s) => (
                     <SelectItem key={s.$id} value={s.$id}>
-                      {s.saleNumber || `SALE-${s.$id.slice(-6)}`} · Total: Rs. {formatMoney(s.total)} · Due: Rs. {formatMoney(s.dueAmount)}
+                      {s.saleNumber || `SALE-${s.$id.slice(-6)}`} {s.invoiceNumber ? `(${s.invoiceNumber})` : ''} · Total Rs. {formatMoney(s.total)} · Due Rs. {formatMoney(s.dueAmount)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {availableSales.length === 0 && selectedCustomerId && selectedCustomerId !== 'all' && (
+                <p className="text-[11px] text-amber-700 font-medium mt-1">
+                  This customer has no active outstanding credit transactions.
+                </p>
+              )}
             </div>
 
-            {/* Selected Sale Outstanding Due Summary & Live Math Banner */}
+            {/* Financial Breakdown Summary & Live Math Card */}
             {currentSale && (
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                {selectedCustomerObj && customerOpenSales.length > 1 && (
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                    <span className="text-slate-600 font-medium">Customer Total Outstanding:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      Rs. {formatMoney(customerTotalDue)}{' '}
+                      <span className="text-[10px] text-slate-500 font-normal font-sans">
+                        ({customerOpenSales.length} open sales)
+                      </span>
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-slate-600">
                   <span>Total Sale Invoice:</span>
                   <span className="font-mono font-bold text-slate-900">Rs. {formatMoney(currentSale.total)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Already Paid:</span>
+                  <span>Already Paid on Invoice:</span>
                   <span className="font-mono font-bold text-emerald-700">Rs. {formatMoney(currentSale.paidAmount)}</span>
                 </div>
-                <div className="flex justify-between font-bold text-amber-900 pt-1 border-t border-slate-200">
-                  <span>Current Outstanding Due:</span>
+                <div className="flex justify-between font-bold text-amber-900 pt-1.5 border-t border-slate-200">
+                  <span>Selected Invoice Due:</span>
                   <span className="font-mono font-extrabold text-sm text-amber-800">Rs. {formatMoney(currentSale.dueAmount)}</span>
                 </div>
 
                 {/* Live Remaining Balance Calculation */}
-                <div className="flex justify-between font-bold pt-1 border-t border-slate-200">
+                <div className="flex justify-between font-bold pt-1.5 border-t border-slate-200">
                   <span className="text-slate-700">Remaining Balance After Payment:</span>
                   <span className={`font-mono font-extrabold text-sm ${isSettled ? 'text-emerald-700' : 'text-amber-800'}`}>
                     Rs. {formatMoney(remainingDue)}
-                    {isSettled && <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">Settled</span>}
+                    {isSettled && (
+                      <span className="ml-1.5 text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                        Settled
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
             )}
 
-            {/* Payment Amount & Payment Date */}
+            {/* Payment Amount & Payment Date Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-extrabold text-slate-700">Payment Amount (Rs.) *</Label>
@@ -286,10 +410,24 @@ export function RecordPaymentDialog({
                   placeholder="0.00"
                   value={paymentAmountInput}
                   onChange={(e) => setPaymentAmountInput(e.target.value)}
-                  disabled={isSubmitting}
-                  className="h-10 font-mono font-bold text-sm bg-white border-slate-300 text-emerald-700"
+                  disabled={isSubmitting || !currentSale}
+                  className={`h-11 font-mono font-bold text-sm bg-white rounded-lg ${
+                    isAmountTooHigh || isAmountTooLow
+                      ? 'border-red-500 text-red-600 focus:ring-red-500'
+                      : 'border-slate-300 text-emerald-700'
+                  }`}
                   required
                 />
+                {isAmountTooLow && (
+                  <p className="text-[11px] text-red-600 font-medium">
+                    Payment amount must be greater than Rs. 0.00.
+                  </p>
+                )}
+                {isAmountTooHigh && currentSale && (
+                  <p className="text-[11px] text-red-600 font-medium">
+                    Payment cannot exceed outstanding balance of Rs. {formatMoney(currentSale.dueAmount)}.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -299,18 +437,18 @@ export function RecordPaymentDialog({
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
                   disabled={isSubmitting}
-                  className="h-10 text-xs font-medium bg-white border-slate-300"
+                  className="h-11 text-xs font-medium bg-white border-slate-300 text-slate-900 rounded-lg"
                   required
                 />
               </div>
             </div>
 
-            {/* Payment Method & Reference */}
+            {/* Payment Method & Reference Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-extrabold text-slate-700">Payment Method *</Label>
                 <Select value={paymentMethod} onValueChange={(val) => setPaymentMethod(val as PaymentMethod)} disabled={isSubmitting}>
-                  <SelectTrigger className="h-10 text-xs font-medium bg-white border-slate-300">
+                  <SelectTrigger aria-label="Select Payment Method" className="h-11 text-xs font-medium bg-white border-slate-300 text-slate-900 rounded-lg">
                     <SelectValue placeholder="Payment Method" />
                   </SelectTrigger>
                   <SelectContent>
@@ -332,7 +470,7 @@ export function RecordPaymentDialog({
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
                   disabled={isSubmitting}
-                  className="h-10 text-xs font-mono bg-white border-slate-300"
+                  className="h-11 text-xs font-mono bg-white border-slate-300 text-slate-900 rounded-lg"
                 />
               </div>
             </div>
@@ -345,27 +483,28 @@ export function RecordPaymentDialog({
                 value={notes}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
                 disabled={isSubmitting}
-                className="w-full h-16 p-2 text-xs bg-white border border-slate-300 rounded-md focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 resize-none"
+                className="w-full h-16 p-2.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 resize-none text-slate-900"
               />
             </div>
           </form>
         )}
 
-        <DialogFooter className="p-4 border-t border-slate-100 shrink-0 bg-slate-50/50 flex flex-col-reverse sm:flex-row gap-2">
+        {/* Sticky Footer */}
+        <DialogFooter className="p-4 border-t border-slate-100 shrink-0 bg-slate-50/90 backdrop-blur-xs flex flex-col-reverse sm:flex-row gap-2 justify-end">
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
             disabled={isSubmitting}
-            className="border-slate-300 bg-white text-slate-700 font-semibold"
+            className="h-11 border-slate-300 bg-white text-slate-700 font-semibold rounded-lg text-xs"
           >
             Cancel
           </Button>
           <Button
             type="submit"
             form="payment-form"
-            disabled={isSubmitting || !selectedSaleId}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5 shadow-xs disabled:opacity-50 min-w-[160px]"
+            disabled={isSubmitting || !selectedSaleId || isInvalidAmount}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 px-5 shadow-xs disabled:opacity-50 min-w-[160px] rounded-lg text-xs"
           >
             {isSubmitting ? (
               <>
