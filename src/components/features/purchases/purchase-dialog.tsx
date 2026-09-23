@@ -134,7 +134,7 @@ export function PurchaseDialog({
     })
   }
 
-  // Client-side calculations
+  // Client-side calculations using minor units
   let subtotalP = 0
   items.forEach((item) => {
     const qtyP = toMinorUnits(item.quantity || 0)
@@ -150,6 +150,7 @@ export function PurchaseDialog({
   const grandTotalP = Math.max(0, subtotalP - discountP + taxP)
   const paidP = toMinorUnits(paidAmount || 0)
   const dueP = Math.max(0, grandTotalP - paidP)
+  const hasDueP = dueP > 0
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -199,15 +200,15 @@ export function PurchaseDialog({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl border-slate-200 bg-white text-slate-900 shadow-xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="shrink-0 pb-2 border-b border-slate-100">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isLoading) onClose() }}>
+      <DialogContent className="max-w-3xl w-[95vw] sm:w-full border-slate-200 bg-white text-slate-900 shadow-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="p-5 pb-3 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-bold shrink-0">
               <ShoppingBag className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold text-slate-900">New Stock Purchase Intake</DialogTitle>
+              <DialogTitle className="text-lg sm:text-xl font-bold text-slate-900">New Stock Purchase Intake</DialogTitle>
               <DialogDescription className="text-xs text-slate-500 mt-0.5">
                 Record purchase from vendor and increase product inventory stock.
               </DialogDescription>
@@ -215,18 +216,18 @@ export function PurchaseDialog({
           </div>
         </DialogHeader>
 
-        {serverError && (
-          <div className="p-3 text-xs rounded-lg bg-red-50 border border-red-200 text-red-700 font-semibold my-2 shrink-0">
-            {serverError}
-          </div>
-        )}
+        <form id="purchase-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4">
+          {serverError && (
+            <div className="p-3 text-xs rounded-lg bg-red-50 border border-red-200 text-red-700 font-semibold" role="alert">
+              {serverError}
+            </div>
+          )}
 
-        <form id="purchase-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4 py-3 px-1 scrollbar-thin">
           {/* Header Info: Supplier & Invoice details */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
             <div className="space-y-1.5 sm:col-span-1">
               <Label className="text-xs font-bold text-slate-700">Select Supplier *</Label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
+              <Select value={supplierId} onValueChange={setSupplierId} disabled={isLoading}>
                 <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Choose supplier" />
                 </SelectTrigger>
@@ -246,6 +247,7 @@ export function PurchaseDialog({
                 placeholder="e.g. INV-998811"
                 value={supplierInvoiceNumber}
                 onChange={(e) => setSupplierInvoiceNumber(e.target.value)}
+                disabled={isLoading}
                 className="bg-white font-mono"
               />
             </div>
@@ -256,27 +258,30 @@ export function PurchaseDialog({
                 type="date"
                 value={purchaseDate}
                 onChange={(e) => setPurchaseDate(e.target.value)}
+                disabled={isLoading}
                 className="bg-white font-mono"
               />
             </div>
           </div>
 
-          {/* Line Items Table */}
+          {/* Line Items Container */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold text-slate-800">Purchase Line Items</Label>
+              <Label className="text-xs font-bold text-slate-800">Purchase Line Items ({items.length})</Label>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleAddItem}
+                disabled={isLoading || products.length === 0}
                 className="h-8 text-xs font-bold text-indigo-600 border-indigo-200 hover:bg-indigo-50"
               >
                 <Plus className="mr-1 h-3.5 w-3.5" /> Add Product Line
               </Button>
             </div>
 
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
+            {/* Desktop / Tablet Line Items Table (>= 640px) */}
+            <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden bg-white">
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-700">
                   <tr>
@@ -301,6 +306,7 @@ export function PurchaseDialog({
                           <Select
                             value={item.productId}
                             onValueChange={(val) => handleItemChange(idx, 'productId', val)}
+                            disabled={isLoading}
                           >
                             <SelectTrigger className="h-8 text-xs bg-white">
                               <SelectValue placeholder="Select product" />
@@ -321,6 +327,7 @@ export function PurchaseDialog({
                             step="1"
                             value={item.quantity}
                             onChange={(e) => handleItemChange(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                            disabled={isLoading}
                             className="h-8 font-mono text-xs bg-white"
                           />
                         </td>
@@ -331,6 +338,7 @@ export function PurchaseDialog({
                             min="0"
                             value={item.purchasePrice}
                             onChange={(e) => handleItemChange(idx, 'purchasePrice', parseFloat(e.target.value) || 0)}
+                            disabled={isLoading}
                             className="h-8 font-mono text-xs bg-white"
                           />
                         </td>
@@ -341,6 +349,7 @@ export function PurchaseDialog({
                             min="0"
                             value={item.discount}
                             onChange={(e) => handleItemChange(idx, 'discount', parseFloat(e.target.value) || 0)}
+                            disabled={isLoading}
                             className="h-8 font-mono text-xs bg-white"
                           />
                         </td>
@@ -352,8 +361,10 @@ export function PurchaseDialog({
                             <button
                               type="button"
                               onClick={() => handleRemoveItem(idx)}
+                              disabled={isLoading}
                               className="text-slate-400 hover:text-red-600 p-1 rounded transition-colors"
                               title="Remove item"
+                              aria-label={`Remove product line ${idx + 1}`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -365,6 +376,98 @@ export function PurchaseDialog({
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Stacked Line Items View (< 640px) */}
+            <div className="block sm:hidden space-y-3">
+              {items.map((item, idx) => {
+                const lineSubtotal = Math.max(
+                  0,
+                  (item.quantity || 0) * (item.purchasePrice || 0) - (item.discount || 0) + (item.tax || 0)
+                )
+
+                return (
+                  <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-slate-50/50 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-700">Line Item #{idx + 1}</span>
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(idx)}
+                          disabled={isLoading}
+                          className="text-slate-400 hover:text-red-600 p-1"
+                          aria-label={`Remove product line ${idx + 1}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-medium text-slate-600">Product</Label>
+                      <Select
+                        value={item.productId}
+                        onValueChange={(val) => handleItemChange(idx, 'productId', val)}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectValue placeholder="Select product" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-56">
+                          {products.map((p) => (
+                            <SelectItem key={p.$id} value={p.$id}>
+                              {p.name} (Stock: {p.stockQuantity} {p.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-slate-500">Qty</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                          disabled={isLoading}
+                          className="h-8 font-mono text-xs bg-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-slate-500">Cost Price</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.purchasePrice}
+                          onChange={(e) => handleItemChange(idx, 'purchasePrice', parseFloat(e.target.value) || 0)}
+                          disabled={isLoading}
+                          className="h-8 font-mono text-xs bg-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-slate-500">Discount</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.discount}
+                          onChange={(e) => handleItemChange(idx, 'discount', parseFloat(e.target.value) || 0)}
+                          disabled={isLoading}
+                          className="h-8 font-mono text-xs bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-1 font-mono font-bold text-slate-900 border-t border-slate-100">
+                      <span>Line Subtotal:</span>
+                      <span>Rs. {formatMoney(lineSubtotal)}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           {/* Calculations & Payment Summary */}
@@ -372,7 +475,7 @@ export function PurchaseDialog({
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-slate-700">Payment Method *</Label>
-                <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+                <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)} disabled={isLoading}>
                   <SelectTrigger className="bg-white">
                     <SelectValue placeholder="Select payment method" />
                   </SelectTrigger>
@@ -394,6 +497,7 @@ export function PurchaseDialog({
                   min="0"
                   value={paidAmount}
                   onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                  disabled={isLoading}
                   className="font-mono font-bold bg-white"
                 />
               </div>
@@ -404,7 +508,8 @@ export function PurchaseDialog({
                   placeholder="Notes, PO reference..."
                   value={notes}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
-                  className="h-16 text-xs bg-white"
+                  disabled={isLoading}
+                  className="h-16 text-xs bg-white resize-none"
                 />
               </div>
             </div>
@@ -424,6 +529,7 @@ export function PurchaseDialog({
                   step="0.01"
                   value={overallDiscount}
                   onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)}
+                  disabled={isLoading}
                   className="w-28 h-7 text-right font-mono text-xs bg-white"
                 />
               </div>
@@ -436,6 +542,7 @@ export function PurchaseDialog({
                   step="0.01"
                   value={overallTax}
                   onChange={(e) => setOverallTax(parseFloat(e.target.value) || 0)}
+                  disabled={isLoading}
                   className="w-28 h-7 text-right font-mono text-xs bg-white"
                 />
               </div>
@@ -450,7 +557,7 @@ export function PurchaseDialog({
                 <span className="font-mono">Rs. {formatMoney(paidAmount)}</span>
               </div>
 
-              <div className="flex justify-between text-xs font-bold text-red-600">
+              <div className={`flex justify-between text-xs font-bold ${hasDueP ? 'text-red-600' : 'text-slate-700'}`}>
                 <span>Supplier Due Balance:</span>
                 <span className="font-mono">Rs. {formatMoney(fromMinorUnits(dueP))}</span>
               </div>
@@ -458,21 +565,28 @@ export function PurchaseDialog({
           </div>
         </form>
 
-        <DialogFooter className="pt-3 border-t border-slate-100 shrink-0 flex flex-col-reverse sm:flex-row gap-2">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+        <DialogFooter className="p-4 border-t border-slate-100 shrink-0 bg-slate-50/50 flex flex-col-reverse sm:flex-row gap-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading} className="font-semibold text-slate-700">
             Cancel
           </Button>
           <Button
             type="submit"
             form="purchase-form"
             disabled={isLoading || suppliers.length === 0}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold min-w-[200px]"
           >
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Complete Purchase & Receive Stock
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing Purchase...
+              </>
+            ) : (
+              'Complete Purchase & Receive Stock'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
+
