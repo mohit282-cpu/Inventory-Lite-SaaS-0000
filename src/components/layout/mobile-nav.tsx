@@ -47,7 +47,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
         {/* Business Context */}
         <div className="px-4 py-3 border-b border-slate-200">
           <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-            <div className="font-bold text-slate-900 text-xs">{activeBusiness?.name || 'Inventory Lite Store'}</div>
+            <div className="font-bold text-slate-900 text-xs">{activeBusiness?.name || 'My Store'}</div>
             <div className="text-[10px] text-slate-500 mt-0.5">
               Currency: {activeBusiness?.currency || 'NPR'}
             </div>

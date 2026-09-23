@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { formatNPR } from "./localization"
 
 /**
  * Utility function to merge Tailwind CSS classes
@@ -12,15 +11,60 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Format currency based on locale and currency code
+ * Standardizes output across dashboard and reports with thousands separators (e.g., NPR 11,000.00)
  */
-export function formatCurrency(amount: number, currency: string = 'NPR', locale: string = 'en-NP'): string {
-  if (currency === 'NPR' || currency === 'रु.') {
-    return formatNPR(amount, true)
+export function formatCurrency(amount: number | null | undefined, currency: string = 'NPR'): string {
+  const safeAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0
+  const formattedNumber = safeAmount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+
+  const code = (currency || 'NPR').trim()
+  if (code === 'NPR') {
+    return `NPR ${formattedNumber}`
   }
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-  }).format(amount)
+  if (code === 'रु.') {
+    return `रु. ${formattedNumber}`
+  }
+  if (code === 'Rs.' || code === 'Rs') {
+    return `Rs. ${formattedNumber}`
+  }
+  return `${code} ${formattedNumber}`
+}
+
+/**
+ * Format raw payment method enum strings into clean presentation labels.
+ * E.g., 'full_udhaar' -> 'Full Udhaar', 'cash' -> 'Cash', 'bank_transfer' -> 'Bank Transfer'
+ */
+export function formatPaymentMethodLabel(method: string | null | undefined): string {
+  if (!method) return 'Cash'
+  const raw = String(method).trim().toLowerCase()
+  switch (raw) {
+    case 'cash':
+      return 'Cash'
+    case 'full_udhaar':
+    case 'udhaar':
+      return 'Full Udhaar'
+    case 'partial_udhaar':
+      return 'Partial Udhaar'
+    case 'bank_transfer':
+    case 'bank':
+      return 'Bank Transfer'
+    case 'digital_wallet':
+    case 'wallet':
+    case 'mobile_payment':
+    case 'qr_code':
+    case 'esewa':
+    case 'khalti':
+    case 'fonepay':
+      return 'Mobile Payment'
+    case 'card':
+    case 'credit_card':
+      return 'Card'
+    default:
+      return method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  }
 }
 
 /**

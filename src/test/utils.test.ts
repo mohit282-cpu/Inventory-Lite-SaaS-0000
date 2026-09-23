@@ -17,12 +17,13 @@ describe('cn utility', () => {
 })
 
 describe('formatCurrency', () => {
-  it('formats currency correctly', () => {
-    expect(formatCurrency(1000, 'NPR')).toContain('रु.')
+  it('formats currency correctly with thousands separator', () => {
+    expect(formatCurrency(11000, 'NPR')).toBe('NPR 11,000.00')
+    expect(formatCurrency(333, 'NPR')).toBe('NPR 333.00')
   })
 
   it('handles zero values', () => {
-    expect(formatCurrency(0, 'NPR')).toContain('रु.')
+    expect(formatCurrency(0, 'NPR')).toBe('NPR 0.00')
   })
 })
 
