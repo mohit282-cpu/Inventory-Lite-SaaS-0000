@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { stockInSchema } from '@/lib/validations'
+import { mapStockError } from '@/lib/utils'
 import { z } from 'zod'
 import {
   Dialog,
@@ -30,6 +31,8 @@ interface StockInDialogProps {
   preselectedProductId?: string
   isLoading?: boolean
 }
+
+const REASON_SUGGESTIONS = ['Purchase Intake', 'Supplier Delivery', 'Customer Return', 'Opening Stock', 'Stock Correction']
 
 export function StockInDialog({
   isOpen,
@@ -59,7 +62,12 @@ export function StockInDialog({
   })
 
   const selectedProductId = watch('productId')
+  const rawQty = watch('quantity')
   const activeProduct = products.find((p) => p.$id === selectedProductId)
+
+  const parsedQty = typeof rawQty === 'number' ? rawQty : parseFloat(String(rawQty))
+  const isValidQty = !isNaN(parsedQty) && isFinite(parsedQty) && parsedQty > 0
+  const newStockPreview = activeProduct && isValidQty ? activeProduct.stockQuantity + parsedQty : null
 
   useEffect(() => {
     reset({
@@ -77,7 +85,7 @@ export function StockInDialog({
       await onSubmit(data)
       onClose()
     } catch (err: any) {
-      setServerError(err?.message || 'Failed to process stock intake')
+      setServerError(mapStockError(err))
     }
   }
 
@@ -107,12 +115,12 @@ export function StockInDialog({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
           {/* Select Product */}
           <div className="space-y-1.5">
-            <Label htmlFor="productId" className="text-xs font-bold text-slate-700">Select Product *</Label>
+            <Label htmlFor="stockIn-productId" className="text-xs font-bold text-slate-700">Select Product *</Label>
             <Select
               value={selectedProductId}
               onValueChange={(val) => setValue('productId', val)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="stockIn-productId" aria-label="Select product for stock in">
                 <SelectValue placeholder="Select product" />
               </SelectTrigger>
               <SelectContent className="max-h-56">
@@ -137,13 +145,13 @@ export function StockInDialog({
               <div>
                 <div className="text-slate-500 font-medium">Stock In</div>
                 <div className="font-mono font-bold text-emerald-700 mt-0.5">
-                  +{(watch('quantity') || 0)} {activeProduct.unit}
+                  {isValidQty ? `+${parsedQty}` : '—'} {activeProduct.unit}
                 </div>
               </div>
               <div>
                 <div className="text-slate-500 font-medium">New Stock</div>
                 <div className="font-mono font-bold text-slate-900 mt-0.5">
-                  {activeProduct.stockQuantity + (watch('quantity') || 0)} {activeProduct.unit}
+                  {newStockPreview !== null ? `${newStockPreview} ${activeProduct.unit}` : '—'}
                 </div>
               </div>
             </div>
@@ -151,13 +159,14 @@ export function StockInDialog({
 
           {/* Intake Quantity */}
           <div className="space-y-1.5">
-            <Label htmlFor="quantity" className="text-xs font-bold text-slate-700">Intake Quantity *</Label>
+            <Label htmlFor="stockIn-quantity" className="text-xs font-bold text-slate-700">Intake Quantity *</Label>
             <Input
-              id="quantity"
+              id="stockIn-quantity"
               type="number"
-              min="1"
-              step="1"
+              min="0.01"
+              step="any"
               {...register('quantity')}
+              aria-invalid={Boolean(errors.quantity)}
               className="font-mono"
             />
             {errors.quantity && <p className="text-xs text-red-600 font-medium">{errors.quantity.message}</p>}
@@ -165,19 +174,33 @@ export function StockInDialog({
 
           {/* Reason */}
           <div className="space-y-1.5">
-            <Label htmlFor="reason" className="text-xs font-bold text-slate-700">Reason / Note</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="stockIn-reason" className="text-xs font-bold text-slate-700">Reason / Note</Label>
+            </div>
             <Input
-              id="reason"
+              id="stockIn-reason"
               placeholder="e.g. Purchase order PO-882, Stock return"
               {...register('reason')}
             />
+            <div className="flex flex-wrap gap-1 pt-1">
+              {REASON_SUGGESTIONS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setValue('reason', tag)}
+                  className="px-2 py-0.5 text-[10px] rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors"
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Reference # */}
           <div className="space-y-1.5">
-            <Label htmlFor="referenceId" className="text-xs font-bold text-slate-700">Reference # (Optional)</Label>
+            <Label htmlFor="stockIn-referenceId" className="text-xs font-bold text-slate-700">Reference # (Optional)</Label>
             <Input
-              id="referenceId"
+              id="stockIn-referenceId"
               placeholder="e.g. Supplier Invoice # / PO #"
               {...register('referenceId')}
               className="font-mono"
@@ -195,11 +218,11 @@ export function StockInDialog({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !isValidQty}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
             >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Confirm Stock In
+              {isLoading ? 'Adding Stock...' : 'Confirm Stock In'}
             </Button>
           </DialogFooter>
         </form>

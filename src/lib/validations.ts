@@ -224,23 +224,35 @@ export const productFormSchema = z.object({
 // ==================== Stock Movement Validations ====================
 
 export const stockInSchema = z.object({
-  productId: z.string().min(1, 'Product is required'),
-  quantity: z.coerce.number().gt(0, 'Quantity must be greater than zero'),
-  reason: z.string().optional(),
-  referenceId: z.string().optional(),
+  productId: z.string().min(1, 'Product selection is required'),
+  quantity: z.coerce
+    .number({ invalid_type_error: 'Quantity must be a valid number' })
+    .gt(0, 'Quantity must be greater than zero')
+    .refine((val) => isFinite(val) && !isNaN(val), { message: 'Quantity must be a valid finite number' }),
+  reason: z.string().transform((val) => val.trim()).optional(),
+  referenceId: z.string().transform((val) => val.trim()).optional(),
 })
 
 export const stockOutSchema = z.object({
-  productId: z.string().min(1, 'Product is required'),
-  quantity: z.coerce.number().gt(0, 'Quantity must be greater than zero'),
-  reason: z.string().optional(),
-  referenceId: z.string().optional(),
+  productId: z.string().min(1, 'Product selection is required'),
+  quantity: z.coerce
+    .number({ invalid_type_error: 'Quantity must be a valid number' })
+    .gt(0, 'Quantity must be greater than zero')
+    .refine((val) => isFinite(val) && !isNaN(val), { message: 'Quantity must be a valid finite number' }),
+  reason: z.string().transform((val) => val.trim()).optional(),
+  referenceId: z.string().transform((val) => val.trim()).optional(),
 })
 
 export const stockAdjustmentSchema = z.object({
-  productId: z.string().min(1, 'Product is required'),
-  newQuantity: z.coerce.number().min(0, 'Stock quantity cannot be negative'),
-  reason: z.string().min(2, 'Adjustment reason is required'),
+  productId: z.string().min(1, 'Product selection is required'),
+  newQuantity: z.coerce
+    .number({ invalid_type_error: 'Target stock must be a valid number' })
+    .min(0, 'Target stock quantity cannot be negative')
+    .refine((val) => isFinite(val) && !isNaN(val), { message: 'Target stock must be a valid finite number' }),
+  reason: z
+    .string()
+    .transform((val) => val.trim())
+    .refine((val) => val.length >= 2, { message: 'Adjustment reason is required' }),
 })
 
 export const customerSchema = z.object({

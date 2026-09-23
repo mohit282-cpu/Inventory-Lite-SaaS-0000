@@ -103,6 +103,31 @@ export function formatMovementTypeLabel(type: string | null | undefined): string
 }
 
 /**
+ * Map API/Appwrite error instances to user-friendly messages.
+ * Prevents raw database or network exceptions from leaking to the UI.
+ */
+export function mapStockError(err: any): string {
+  if (!err) return 'Unable to update stock. Please try again.'
+  const msg = typeof err === 'string' ? err : err.message || ''
+
+  if (msg.includes('Insufficient stock')) return msg
+  if (msg.includes('CONCURRENCY_CONFLICT')) {
+    return 'Stock was modified by another transaction. Please review the latest stock and retry.'
+  }
+  if (msg.includes('Forbidden') || msg.includes('Unauthorized') || msg.includes('403')) {
+    return "You don't have permission to perform this stock operation."
+  }
+  if (msg.includes('404') || msg.includes('not found') || msg.includes('Document')) {
+    return 'The selected product is no longer available. Please refresh and try again.'
+  }
+  if (msg.includes('Network') || msg.includes('fetch') || msg.includes('offline')) {
+    return 'Unable to update stock due to a network connection error. Check your connection and retry.'
+  }
+
+  return msg || 'Unable to update stock. Please try again.'
+}
+
+/**
  * Format sales transaction into a standardized human-readable invoice number.
  * Example: INV-83/84-000001 (never displays raw internal database IDs)
  */

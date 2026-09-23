@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { stockOutSchema } from '@/lib/validations'
+import { mapStockError } from '@/lib/utils'
 import { z } from 'zod'
 import {
   Dialog,
@@ -30,6 +31,8 @@ interface StockOutDialogProps {
   preselectedProductId?: string
   isLoading?: boolean
 }
+
+const REASON_SUGGESTIONS = ['Dispatch / Sale', 'Damaged Goods', 'Sample Dispatch', 'Expired Item', 'Supplier Return']
 
 export function StockOutDialog({
   isOpen,
@@ -59,11 +62,14 @@ export function StockOutDialog({
   })
 
   const selectedProductId = watch('productId')
-  const enteredQuantity = watch('quantity') || 0
+  const rawQty = watch('quantity')
   const activeProduct = products.find((p) => p.$id === selectedProductId)
 
-  const isExceedingStock = activeProduct ? enteredQuantity > activeProduct.stockQuantity : false
-  const shortfall = activeProduct ? Math.max(0, enteredQuantity - activeProduct.stockQuantity) : 0
+  const parsedQty = typeof rawQty === 'number' ? rawQty : parseFloat(String(rawQty))
+  const isValidQty = !isNaN(parsedQty) && isFinite(parsedQty) && parsedQty > 0
+  const isExceedingStock = activeProduct && isValidQty ? parsedQty > activeProduct.stockQuantity : false
+  const shortfall = activeProduct && isExceedingStock ? parsedQty - activeProduct.stockQuantity : 0
+  const newStockPreview = activeProduct && isValidQty && !isExceedingStock ? activeProduct.stockQuantity - parsedQty : null
 
   useEffect(() => {
     reset({
@@ -85,7 +91,7 @@ export function StockOutDialog({
       await onSubmit(data)
       onClose()
     } catch (err: any) {
-      setServerError(err?.message || 'Failed to process stock output')
+      setServerError(mapStockError(err))
     }
   }
 
@@ -115,7 +121,7 @@ export function StockOutDialog({
             {isExceedingStock && activeProduct && (
               <div className="grid grid-cols-3 gap-2 font-mono text-[11px] pt-1.5 border-t border-red-200/60">
                 <div>Available: <span className="font-bold">{activeProduct.stockQuantity} {activeProduct.unit}</span></div>
-                <div>Requested: <span className="font-bold">{enteredQuantity} {activeProduct.unit}</span></div>
+                <div>Requested: <span className="font-bold">{isValidQty ? parsedQty : 0} {activeProduct.unit}</span></div>
                 <div>Shortfall: <span className="font-bold text-red-800">{shortfall} {activeProduct.unit}</span></div>
               </div>
             )}
@@ -125,12 +131,12 @@ export function StockOutDialog({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
           {/* Select Product */}
           <div className="space-y-1.5">
-            <Label htmlFor="productId" className="text-xs font-bold text-slate-700">Select Product *</Label>
+            <Label htmlFor="stockOut-productId" className="text-xs font-bold text-slate-700">Select Product *</Label>
             <Select
               value={selectedProductId}
               onValueChange={(val) => setValue('productId', val)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="stockOut-productId" aria-label="Select product for stock out">
                 <SelectValue placeholder="Select product" />
               </SelectTrigger>
               <SelectContent className="max-h-56">
@@ -155,13 +161,13 @@ export function StockOutDialog({
               <div>
                 <div className="text-slate-500 font-medium">Stock Out</div>
                 <div className="font-mono font-bold text-red-700 mt-0.5">
-                  −{enteredQuantity} {activeProduct.unit}
+                  −{isValidQty ? parsedQty : '—'} {activeProduct.unit}
                 </div>
               </div>
               <div>
                 <div className="text-slate-500 font-medium">New Stock</div>
                 <div className="font-mono font-bold text-slate-900 mt-0.5">
-                  {Math.max(0, activeProduct.stockQuantity - enteredQuantity)} {activeProduct.unit}
+                  {newStockPreview !== null ? `${newStockPreview} ${activeProduct.unit}` : '—'}
                 </div>
               </div>
             </div>
@@ -169,14 +175,14 @@ export function StockOutDialog({
 
           {/* Deduction Quantity */}
           <div className="space-y-1.5">
-            <Label htmlFor="quantity" className="text-xs font-bold text-slate-700">Deduction Quantity *</Label>
+            <Label htmlFor="stockOut-quantity" className="text-xs font-bold text-slate-700">Deduction Quantity *</Label>
             <Input
-              id="quantity"
+              id="stockOut-quantity"
               type="number"
-              min="1"
-              max={activeProduct?.stockQuantity || 999999}
-              step="1"
+              min="0.01"
+              step="any"
               {...register('quantity')}
+              aria-invalid={Boolean(errors.quantity || isExceedingStock)}
               className="font-mono"
             />
             {errors.quantity && <p className="text-xs text-red-600 font-medium">{errors.quantity.message}</p>}
@@ -184,19 +190,31 @@ export function StockOutDialog({
 
           {/* Reason */}
           <div className="space-y-1.5">
-            <Label htmlFor="reason" className="text-xs font-bold text-slate-700">Reason / Deduction Note</Label>
+            <Label htmlFor="stockOut-reason" className="text-xs font-bold text-slate-700">Reason / Deduction Note</Label>
             <Input
-              id="reason"
+              id="stockOut-reason"
               placeholder="e.g. Damaged goods, Sample dispatch, Expired item"
               {...register('reason')}
             />
+            <div className="flex flex-wrap gap-1 pt-1">
+              {REASON_SUGGESTIONS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setValue('reason', tag)}
+                  className="px-2 py-0.5 text-[10px] rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors"
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Reference # */}
           <div className="space-y-1.5">
-            <Label htmlFor="referenceId" className="text-xs font-bold text-slate-700">Reference # (Optional)</Label>
+            <Label htmlFor="stockOut-referenceId" className="text-xs font-bold text-slate-700">Reference # (Optional)</Label>
             <Input
-              id="referenceId"
+              id="stockOut-referenceId"
               placeholder="e.g. Sales Receipt # / Dispatch Note #"
               {...register('referenceId')}
               className="font-mono"
@@ -214,11 +232,11 @@ export function StockOutDialog({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || isExceedingStock}
+              disabled={isLoading || !isValidQty || isExceedingStock}
               variant="destructive"
             >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Confirm Stock Out
+              {isLoading ? 'Removing Stock...' : 'Confirm Stock Out'}
             </Button>
           </DialogFooter>
         </form>

@@ -66,7 +66,8 @@ vi.mock('@/config/appwrite', () => {
 
 import { productService } from '@/services/product.service'
 import { stockMovementService } from '@/services/stock-movement.service'
-import { formatMovementTypeLabel } from '@/lib/utils'
+import { formatMovementTypeLabel, mapStockError } from '@/lib/utils'
+import { stockInSchema, stockOutSchema, stockAdjustmentSchema } from '@/lib/validations'
 
 describe('Stock Management Module Tests', () => {
   const bizA = 'business_A'
@@ -275,5 +276,35 @@ describe('Stock Management Module Tests', () => {
     expect(formatMovementTypeLabel('purchase')).toBe('Purchase')
     expect(formatMovementTypeLabel('return')).toBe('Return')
     expect(formatMovementTypeLabel('damage')).toBe('Damage')
+  })
+
+  it('validates Stock In and Stock Out schemas correctly', () => {
+    // Valid Stock In
+    expect(stockInSchema.safeParse({ productId: 'p1', quantity: 5, reason: ' Restock ' }).success).toBe(true)
+    // Zero / Negative quantity rejected
+    expect(stockInSchema.safeParse({ productId: 'p1', quantity: 0 }).success).toBe(false)
+    expect(stockInSchema.safeParse({ productId: 'p1', quantity: -2 }).success).toBe(false)
+    // Non-numeric / NaN rejected
+    expect(stockInSchema.safeParse({ productId: 'p1', quantity: 'abc' }).success).toBe(false)
+
+    // Valid Stock Out
+    expect(stockOutSchema.safeParse({ productId: 'p1', quantity: 2.5 }).success).toBe(true)
+    expect(stockOutSchema.safeParse({ productId: 'p1', quantity: 0 }).success).toBe(false)
+    expect(stockOutSchema.safeParse({ productId: 'p1', quantity: -10 }).success).toBe(false)
+  })
+
+  it('validates Stock Adjustment schema and requires reason', () => {
+    expect(stockAdjustmentSchema.safeParse({ productId: 'p1', newQuantity: 10, reason: 'Physical audit' }).success).toBe(true)
+    // Empty / whitespace reason rejected
+    expect(stockAdjustmentSchema.safeParse({ productId: 'p1', newQuantity: 10, reason: '   ' }).success).toBe(false)
+    // Negative target stock rejected
+    expect(stockAdjustmentSchema.safeParse({ productId: 'p1', newQuantity: -5, reason: 'Audit' }).success).toBe(false)
+  })
+
+  it('maps Appwrite / API errors to clean user-friendly text', () => {
+    expect(mapStockError('CONCURRENCY_CONFLICT')).toContain('modified by another transaction')
+    expect(mapStockError(new Error('Insufficient stock for product "Teas". Available: 2, Requested: 5'))).toContain('Insufficient stock')
+    expect(mapStockError('Unauthorized 403')).toContain("don't have permission")
+    expect(mapStockError(null)).toContain('Unable to update stock')
   })
 })

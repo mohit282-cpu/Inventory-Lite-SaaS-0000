@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { stockAdjustmentSchema } from '@/lib/validations'
+import { mapStockError } from '@/lib/utils'
 import { z } from 'zod'
 import {
   Dialog,
@@ -30,6 +31,14 @@ interface StockAdjustmentDialogProps {
   preselectedProductId?: string
   isLoading?: boolean
 }
+
+const REASON_SUGGESTIONS = [
+  'Physical Count Audit',
+  'Damaged Goods Discrepancy',
+  'Expired Stock Audit',
+  'Data Entry Correction',
+  'Store Transfer',
+]
 
 export function StockAdjustmentDialog({
   isOpen,
@@ -58,11 +67,14 @@ export function StockAdjustmentDialog({
   })
 
   const selectedProductId = watch('productId')
-  const newQuantity = watch('newQuantity') ?? 0
+  const rawNewQty = watch('newQuantity')
   const activeProduct = products.find((p) => p.$id === selectedProductId)
 
   const currentStock = activeProduct?.stockQuantity ?? 0
-  const delta = newQuantity - currentStock
+  const parsedNewQty = typeof rawNewQty === 'number' ? rawNewQty : parseFloat(String(rawNewQty))
+  const isValidNewQty = !isNaN(parsedNewQty) && isFinite(parsedNewQty) && parsedNewQty >= 0
+  const delta = activeProduct && isValidNewQty ? parsedNewQty - currentStock : null
+  const isZeroDelta = delta === 0
 
   useEffect(() => {
     const prod = products.find((p) => p.$id === (preselectedProductId || products[0]?.$id))
@@ -75,12 +87,16 @@ export function StockAdjustmentDialog({
   }, [preselectedProductId, isOpen, products, reset])
 
   const handleFormSubmit = async (data: StockAdjustmentFormValues) => {
+    if (isZeroDelta) {
+      setServerError(`No adjustment required. The target stock is already ${currentStock} ${activeProduct?.unit || 'units'}.`)
+      return
+    }
     try {
       setServerError(null)
       await onSubmit(data)
       onClose()
     } catch (err: any) {
-      setServerError(err?.message || 'Failed to record stock adjustment')
+      setServerError(mapStockError(err))
     }
   }
 
@@ -107,10 +123,16 @@ export function StockAdjustmentDialog({
           </div>
         )}
 
+        {isZeroDelta && activeProduct && !serverError && (
+          <div className="p-3 text-xs rounded-xl bg-slate-100 border border-slate-200 text-slate-700 font-medium">
+            No adjustment required. The target stock is already <span className="font-bold text-slate-900">{currentStock} {activeProduct.unit}</span>.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
           {/* Select Product */}
           <div className="space-y-1.5">
-            <Label htmlFor="productId" className="text-xs font-bold text-slate-700">Select Product *</Label>
+            <Label htmlFor="adjustment-productId" className="text-xs font-bold text-slate-700">Select Product *</Label>
             <Select
               value={selectedProductId}
               onValueChange={(val) => {
@@ -119,7 +141,7 @@ export function StockAdjustmentDialog({
                 if (p) setValue('newQuantity', p.stockQuantity)
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger id="adjustment-productId" aria-label="Select product for stock adjustment">
                 <SelectValue placeholder="Select product" />
               </SelectTrigger>
               <SelectContent className="max-h-56">
@@ -146,27 +168,35 @@ export function StockAdjustmentDialog({
               <div className="text-slate-500 font-medium">Computed Delta</div>
               <div
                 className={`font-mono font-bold text-base mt-0.5 ${
-                  delta > 0
+                  delta !== null && delta > 0
                     ? 'text-emerald-700'
-                    : delta < 0
+                    : delta !== null && delta < 0
                     ? 'text-red-700'
                     : 'text-slate-500'
                 }`}
               >
-                {delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : '0'} {activeProduct?.unit}
+                {delta === null
+                  ? '—'
+                  : delta > 0
+                  ? `+${delta}`
+                  : delta < 0
+                  ? `−${Math.abs(delta)}`
+                  : '0'}{' '}
+                {activeProduct?.unit}
               </div>
             </div>
           </div>
 
           {/* Target New Quantity */}
           <div className="space-y-1.5">
-            <Label htmlFor="newQuantity" className="text-xs font-bold text-slate-700">New Target Stock Quantity *</Label>
+            <Label htmlFor="adjustment-newQuantity" className="text-xs font-bold text-slate-700">New Target Stock Quantity *</Label>
             <Input
-              id="newQuantity"
+              id="adjustment-newQuantity"
               type="number"
               min="0"
-              step="1"
+              step="any"
               {...register('newQuantity')}
+              aria-invalid={Boolean(errors.newQuantity || isZeroDelta)}
               className="font-mono"
             />
             {errors.newQuantity && (
@@ -176,12 +206,25 @@ export function StockAdjustmentDialog({
 
           {/* Reason */}
           <div className="space-y-1.5">
-            <Label htmlFor="reason" className="text-xs font-bold text-slate-700">Adjustment Reason *</Label>
+            <Label htmlFor="adjustment-reason" className="text-xs font-bold text-slate-700">Adjustment Reason *</Label>
             <Input
-              id="reason"
+              id="adjustment-reason"
               placeholder="e.g. Physical stock count discrepancy, Spoilage"
               {...register('reason')}
+              aria-invalid={Boolean(errors.reason)}
             />
+            <div className="flex flex-wrap gap-1 pt-1">
+              {REASON_SUGGESTIONS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setValue('reason', tag)}
+                  className="px-2 py-0.5 text-[10px] rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium transition-colors"
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
             {errors.reason && <p className="text-xs text-red-600 font-medium">{errors.reason.message}</p>}
           </div>
 
@@ -196,11 +239,11 @@ export function StockAdjustmentDialog({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !isValidNewQty || isZeroDelta}
               className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
             >
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Confirm Adjustment
+              {isLoading ? 'Saving Adjustment...' : 'Confirm Adjustment'}
             </Button>
           </DialogFooter>
         </form>
