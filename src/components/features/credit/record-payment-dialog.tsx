@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
 import { Customer, Sale, PaymentMethod } from '@/types'
 import { DollarSign, Loader2, CheckCircle2 } from 'lucide-react'
+import { formatMoney } from '@/lib/money'
 
 interface RecordPaymentDialogProps {
   isOpen: boolean
@@ -91,7 +92,7 @@ export function RecordPaymentDialog({
 
   // Filter sales available for selected customer
   const availableSales = React.useMemo(() => {
-    if (!selectedCustomerId) return sales
+    if (!selectedCustomerId || selectedCustomerId === 'all') return sales
     return sales.filter((s) => s.customerId === selectedCustomerId)
   }, [selectedCustomerId, sales])
 
@@ -107,6 +108,11 @@ export function RecordPaymentDialog({
     }
   }, [currentSale])
 
+  // Calculate live remaining due balance math
+  const enteredAmount = parseFloat(paymentAmountInput) || 0
+  const remainingDue = currentSale ? Math.max(0, currentSale.dueAmount - enteredAmount) : 0
+  const isSettled = currentSale && enteredAmount >= currentSale.dueAmount - 0.01
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeBusiness?.$id || !user?.$id) return
@@ -120,8 +126,7 @@ export function RecordPaymentDialog({
       return
     }
 
-    const amount = parseFloat(paymentAmountInput) || 0
-    if (amount <= 0) {
+    if (enteredAmount <= 0) {
       toast({
         title: 'Invalid Payment Amount',
         description: 'Payment amount must be greater than zero.',
@@ -130,10 +135,10 @@ export function RecordPaymentDialog({
       return
     }
 
-    if (currentSale && amount > currentSale.dueAmount + 0.01) {
+    if (currentSale && enteredAmount > currentSale.dueAmount + 0.01) {
       toast({
         title: 'Overpayment Not Allowed',
-        description: `Payment amount (Rs. ${amount.toFixed(2)}) cannot exceed remaining due (Rs. ${currentSale.dueAmount.toFixed(2)}).`,
+        description: `Payment amount (Rs. ${formatMoney(enteredAmount)}) cannot exceed remaining due (Rs. ${formatMoney(currentSale.dueAmount)}).`,
         variant: 'destructive',
       })
       return
@@ -147,7 +152,7 @@ export function RecordPaymentDialog({
           saleId: selectedSaleId,
           customerId: selectedCustomerId || currentSale?.customerId,
           invoiceId: currentSale?.invoiceId,
-          amount,
+          amount: enteredAmount,
           paymentMethod,
           paymentDate: new Date(paymentDate).toISOString(),
           referenceNumber,
@@ -159,7 +164,7 @@ export function RecordPaymentDialog({
 
       toast({
         title: 'Payment Recorded Successfully!',
-        description: `Recorded payment of Rs. ${amount.toFixed(2)} for ${
+        description: `Recorded payment of Rs. ${formatMoney(enteredAmount)} for ${
           currentSale?.saleNumber || 'Sale'
         }.`,
       })
@@ -178,16 +183,16 @@ export function RecordPaymentDialog({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md border-slate-200 bg-white text-slate-900 shadow-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isSubmitting) onClose() }}>
+      <DialogContent className="max-w-md w-[95vw] sm:w-full border-slate-200 bg-white text-slate-900 shadow-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="p-5 pb-3 border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold shrink-0">
               <DollarSign className="h-5 w-5" />
             </div>
             <div>
               <DialogTitle className="text-lg font-bold text-slate-900">Record Customer Payment</DialogTitle>
-              <p className="text-xs text-slate-500 font-normal">
+              <p className="text-xs text-slate-500 font-normal mt-0.5">
                 Settle or collect partial payments for outstanding credit transactions.
               </p>
             </div>
@@ -195,11 +200,11 @@ export function RecordPaymentDialog({
         </DialogHeader>
 
         {isLoadingCatalog ? (
-          <div className="flex items-center justify-center p-8 text-slate-500">
-            <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" /> Loading active credit accounts...
+          <div className="flex items-center justify-center p-8 text-slate-500 gap-2 text-xs">
+            <Loader2 className="h-5 w-5 animate-spin text-emerald-600" /> Loading active credit accounts...
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <form id="payment-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4">
             {/* Customer Filter / Selector */}
             <div className="space-y-1.5">
               <Label className="text-xs font-extrabold text-slate-700">Customer</Label>
@@ -209,6 +214,7 @@ export function RecordPaymentDialog({
                   setSelectedCustomerId(val)
                   setSelectedSaleId('')
                 }}
+                disabled={isSubmitting}
               >
                 <SelectTrigger className="h-10 text-xs font-medium bg-white border-slate-300">
                   <SelectValue placeholder="All Customers with Credit" />
@@ -217,7 +223,7 @@ export function RecordPaymentDialog({
                   <SelectItem value="all">-- All Customers --</SelectItem>
                   {customers.map((c) => (
                     <SelectItem key={c.$id} value={c.$id}>
-                      {c.name} {c.phone ? `(${c.phone})` : ''} {c.totalDue > 0 ? `· Due: Rs. ${c.totalDue.toFixed(2)}` : ''}
+                      {c.name} {c.phone ? `(${c.phone})` : ''} {c.totalDue > 0 ? `· Due: Rs. ${formatMoney(c.totalDue)}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -227,34 +233,43 @@ export function RecordPaymentDialog({
             {/* Sale / Invoice Selector */}
             <div className="space-y-1.5">
               <Label className="text-xs font-extrabold text-slate-700">Select Sale / Invoice Transaction *</Label>
-              <Select value={selectedSaleId} onValueChange={setSelectedSaleId}>
+              <Select value={selectedSaleId} onValueChange={setSelectedSaleId} disabled={isSubmitting}>
                 <SelectTrigger className="h-10 text-xs font-medium bg-white border-slate-300">
                   <SelectValue placeholder={availableSales.length === 0 ? 'No outstanding credit sales found' : 'Select Invoice / Sale...'} />
                 </SelectTrigger>
                 <SelectContent className="max-h-48">
                   {availableSales.map((s) => (
                     <SelectItem key={s.$id} value={s.$id}>
-                      {s.saleNumber || `SALE-${s.$id.slice(-6)}`} · Total: Rs. {s.total.toFixed(2)} · Due: Rs. {s.dueAmount.toFixed(2)}
+                      {s.saleNumber || `SALE-${s.$id.slice(-6)}`} · Total: Rs. {formatMoney(s.total)} · Due: Rs. {formatMoney(s.dueAmount)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Selected Sale Outstanding Due Summary Banner */}
+            {/* Selected Sale Outstanding Due Summary & Live Math Banner */}
             {currentSale && (
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
                 <div className="flex justify-between text-slate-600">
                   <span>Total Sale Invoice:</span>
-                  <span className="font-mono font-bold text-slate-900">Rs. {currentSale.total.toFixed(2)}</span>
+                  <span className="font-mono font-bold text-slate-900">Rs. {formatMoney(currentSale.total)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Already Paid:</span>
-                  <span className="font-mono font-bold text-emerald-700">Rs. {currentSale.paidAmount.toFixed(2)}</span>
+                  <span className="font-mono font-bold text-emerald-700">Rs. {formatMoney(currentSale.paidAmount)}</span>
                 </div>
-                <div className="flex justify-between font-bold text-amber-800 pt-1 border-t border-slate-200">
-                  <span>Remaining Credit Due:</span>
-                  <span className="font-mono font-extrabold text-sm">Rs. {currentSale.dueAmount.toFixed(2)}</span>
+                <div className="flex justify-between font-bold text-amber-900 pt-1 border-t border-slate-200">
+                  <span>Current Outstanding Due:</span>
+                  <span className="font-mono font-extrabold text-sm text-amber-800">Rs. {formatMoney(currentSale.dueAmount)}</span>
+                </div>
+
+                {/* Live Remaining Balance Calculation */}
+                <div className="flex justify-between font-bold pt-1 border-t border-slate-200">
+                  <span className="text-slate-700">Remaining Balance After Payment:</span>
+                  <span className={`font-mono font-extrabold text-sm ${isSettled ? 'text-emerald-700' : 'text-amber-800'}`}>
+                    Rs. {formatMoney(remainingDue)}
+                    {isSettled && <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">Settled</span>}
+                  </span>
                 </div>
               </div>
             )}
@@ -271,6 +286,7 @@ export function RecordPaymentDialog({
                   placeholder="0.00"
                   value={paymentAmountInput}
                   onChange={(e) => setPaymentAmountInput(e.target.value)}
+                  disabled={isSubmitting}
                   className="h-10 font-mono font-bold text-sm bg-white border-slate-300 text-emerald-700"
                   required
                 />
@@ -282,6 +298,7 @@ export function RecordPaymentDialog({
                   type="date"
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
+                  disabled={isSubmitting}
                   className="h-10 text-xs font-medium bg-white border-slate-300"
                   required
                 />
@@ -292,7 +309,7 @@ export function RecordPaymentDialog({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-extrabold text-slate-700">Payment Method *</Label>
-                <Select value={paymentMethod} onValueChange={(val) => setPaymentMethod(val as PaymentMethod)}>
+                <Select value={paymentMethod} onValueChange={(val) => setPaymentMethod(val as PaymentMethod)} disabled={isSubmitting}>
                   <SelectTrigger className="h-10 text-xs font-medium bg-white border-slate-300">
                     <SelectValue placeholder="Payment Method" />
                   </SelectTrigger>
@@ -314,6 +331,7 @@ export function RecordPaymentDialog({
                   placeholder="e.g. TXN-99812"
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
+                  disabled={isSubmitting}
                   className="h-10 text-xs font-mono bg-white border-slate-300"
                 />
               </div>
@@ -326,39 +344,42 @@ export function RecordPaymentDialog({
                 placeholder="Add receipt details or notes..."
                 value={notes}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
-                className="w-full h-16 p-2 text-xs bg-white border border-slate-300 rounded-md focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                disabled={isSubmitting}
+                className="w-full h-16 p-2 text-xs bg-white border border-slate-300 rounded-md focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 resize-none"
               />
             </div>
-
-            <DialogFooter className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isSubmitting}
-                className="border-slate-300 bg-white text-slate-700 font-semibold"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting || !selectedSaleId}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5 shadow-xs disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Recording...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="mr-2 h-4 w-4" /> Record Payment
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
           </form>
         )}
+
+        <DialogFooter className="p-4 border-t border-slate-100 shrink-0 bg-slate-50/50 flex flex-col-reverse sm:flex-row gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="border-slate-300 bg-white text-slate-700 font-semibold"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="payment-form"
+            disabled={isSubmitting || !selectedSaleId}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5 shadow-xs disabled:opacity-50 min-w-[160px]"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Recording Payment...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Record Payment
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
+

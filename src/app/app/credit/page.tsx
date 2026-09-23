@@ -22,9 +22,11 @@ import {
   Plus,
   Eye,
   FilterX,
+  CheckCircle2,
 } from 'lucide-react'
 import { Customer } from '@/types'
 import { formatBSDate } from '@/lib/date/bs-date'
+import { formatMoney } from '@/lib/money'
 
 // Dynamic Dialog Imports for Bundle Optimization
 const RecordPaymentDialog = nextDynamic(
@@ -101,6 +103,10 @@ export default function CreditPage() {
     setSelectedCustomerId('all')
   }
 
+  const isFilterActive = searchQuery.trim() !== '' || statusFilter !== 'UNPAID' || selectedCustomerId !== 'all'
+  const hasTotalDue = summary.totalCreditDue > 0
+  const hasOverdue = summary.overdueAmount > 0
+
   const columns: Column<CreditLedgerItem>[] = [
     {
       key: 'customerName',
@@ -149,7 +155,7 @@ export default function CreditPage() {
       align: 'right',
       render: (item) => (
         <span className="font-mono font-semibold text-slate-800 text-xs sm:text-sm">
-          Rs. {item.totalAmount.toFixed(2)}
+          Rs. {formatMoney(item.totalAmount)}
         </span>
       ),
     },
@@ -161,7 +167,7 @@ export default function CreditPage() {
       align: 'right',
       render: (item) => (
         <span className="font-mono font-bold text-emerald-700 text-xs sm:text-sm">
-          Rs. {item.paidAmount.toFixed(2)}
+          Rs. {formatMoney(item.paidAmount)}
         </span>
       ),
     },
@@ -176,10 +182,10 @@ export default function CreditPage() {
           className={`font-mono font-bold px-2 py-0.5 rounded-md border text-xs sm:text-sm inline-block ${
             item.dueAmount > 0
               ? 'text-amber-800 bg-amber-50 border-amber-200'
-              : 'text-slate-500 bg-slate-50 border-slate-200'
+              : 'text-emerald-700 bg-emerald-50 border-emerald-200'
           }`}
         >
-          Rs. {item.dueAmount.toFixed(2)}
+          Rs. {formatMoney(item.dueAmount)}
         </span>
       ),
     },
@@ -197,7 +203,7 @@ export default function CreditPage() {
               ? 'bg-amber-50 text-amber-800 border-amber-200'
               : item.status === 'OVERDUE'
               ? 'bg-red-50 text-red-800 border-red-200'
-              : 'bg-red-50 text-red-700 border-red-200'
+              : 'bg-amber-50 text-amber-800 border-amber-200'
           }`}
         >
           {item.status}
@@ -218,8 +224,10 @@ export default function CreditPage() {
               setSelectedDrawerItem(item)
               setIsDrawerOpen(true)
             }}
+            aria-label={`View credit details for ${item.customerName}`}
+            className="text-xs font-semibold text-indigo-700 border-indigo-200 hover:bg-indigo-50 gap-1"
           >
-            <Eye className="mr-1 h-3.5 w-3.5" /> View / Pay
+            <Eye className="h-3.5 w-3.5" /> View / Pay
           </Button>
         </div>
       ),
@@ -234,9 +242,9 @@ export default function CreditPage() {
         actions={
           <Button
             onClick={() => setIsRecordPaymentOpen(true)}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm"
           >
-            <Plus className="mr-2 h-4 w-4" /> Record Payment
+            <Plus className="mr-1.5 h-4 w-4" /> Record Payment
           </Button>
         }
       />
@@ -244,20 +252,24 @@ export default function CreditPage() {
       {/* Top 4 Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Credit Due */}
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1">
+        <div className={`p-4 rounded-xl border shadow-2xs space-y-1 transition-colors ${
+          hasTotalDue ? 'bg-amber-50/40 border-amber-200' : 'bg-white border-slate-200'
+        }`}>
           <div className="flex items-center justify-between text-xs font-bold text-slate-500">
             <span>Total Credit Due</span>
-            <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 flex items-center justify-center">
+            <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+              hasTotalDue ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-slate-50 text-slate-500 border border-slate-200'
+            }`}>
               <Wallet className="h-4 w-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold font-mono text-slate-900 mt-1">
-            Rs. {summary.totalCreditDue.toFixed(2)}
+          <div className={`text-2xl font-extrabold font-mono mt-1 ${hasTotalDue ? 'text-amber-900' : 'text-slate-900'}`}>
+            Rs. {formatMoney(summary.totalCreditDue)}
           </div>
         </div>
 
         {/* Card 2: Customers With Credit */}
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1">
+        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
           <div className="flex items-center justify-between text-xs font-bold text-slate-500">
             <span>Customers With Credit</span>
             <div className="h-8 w-8 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center">
@@ -270,38 +282,47 @@ export default function CreditPage() {
         </div>
 
         {/* Card 3: Overdue Amount */}
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>Overdue Amount</span>
-            <div className="h-8 w-8 rounded-lg bg-red-50 text-red-700 border border-red-100 flex items-center justify-center">
-              <AlertCircle className="h-4 w-4" />
-            </div>
+        <div className={`p-4 rounded-xl border shadow-2xs space-y-1 transition-colors ${
+          hasOverdue ? 'bg-red-50/70 border-red-200 text-red-900' : 'bg-slate-50/50 border-slate-200 text-slate-900'
+        }`}>
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className={hasOverdue ? 'text-red-700' : 'text-slate-500'}>Overdue Amount</span>
+            {hasOverdue ? (
+              <div className="h-8 w-8 rounded-lg bg-red-100 text-red-700 border border-red-200 flex items-center justify-center">
+                <AlertCircle className="h-4 w-4" />
+              </div>
+            ) : (
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Settled
+              </span>
+            )}
           </div>
-          <div className="text-2xl font-extrabold font-mono text-red-700 mt-1">
-            Rs. {summary.overdueAmount.toFixed(2)}
+          <div className={`text-2xl font-extrabold font-mono mt-1 ${hasOverdue ? 'text-red-700' : 'text-slate-800'}`}>
+            Rs. {formatMoney(summary.overdueAmount)}
           </div>
         </div>
 
         {/* Card 4: Payments Received This Month */}
-        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+        <div className="p-4 rounded-xl bg-emerald-50/40 border border-emerald-200 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-emerald-700">
             <span>Payments This Month</span>
-            <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center">
               <TrendingUp className="h-4 w-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold font-mono text-emerald-700 mt-1">
-            Rs. {summary.paymentsThisMonth.toFixed(2)}
+          <div className="text-2xl font-extrabold font-mono text-emerald-800 mt-1">
+            Rs. {formatMoney(summary.paymentsThisMonth)}
           </div>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3">
+      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
           {/* Search Input */}
           <div className="sm:col-span-6">
             <SearchInput
+              aria-label="Search customer, phone, sale, or invoice number"
               placeholder="Search customer, phone, sale #, or invoice #..."
               value={searchQuery}
               onChange={setSearchQuery}
@@ -344,18 +365,26 @@ export default function CreditPage() {
               </SelectContent>
             </Select>
 
-            {(searchQuery || statusFilter !== 'UNPAID' || selectedCustomerId !== 'all') && (
+            {isFilterActive && (
               <Button
                 variant="outline"
                 onClick={handleClearFilters}
                 className="h-11 px-3 border-slate-300 text-slate-600 hover:text-slate-900 rounded-lg shrink-0"
                 title="Clear filters"
+                aria-label="Clear active filters"
               >
                 <FilterX className="h-4 w-4" />
               </Button>
             )}
           </div>
         </div>
+
+        {statusFilter === 'UNPAID' && (
+          <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-500"></span>
+            Currently showing <strong className="text-slate-700">Outstanding Dues</strong>. Select &quot;All Transactions&quot; to view fully settled credit history.
+          </div>
+        )}
       </div>
 
       {/* Main Credit Ledger Table */}
@@ -363,19 +392,32 @@ export default function CreditPage() {
         data={ledgerItems}
         columns={columns}
         isLoading={isLoading}
-        emptyTitle="No outstanding credit records"
+        emptyTitle={
+          isFilterActive && statusFilter !== 'UNPAID'
+            ? 'No matching credit records'
+            : 'No outstanding credit records'
+        }
         emptyDescription={
           statusFilter === 'UNPAID'
             ? 'All customer payments are up to date! Select "All Transactions" to view past payment history.'
-            : 'No credit transactions found matching your filter criteria.'
+            : 'No credit transactions found matching your search or filter criteria.'
         }
         emptyAction={
-          <Button
-            onClick={() => setStatusFilter('ALL')}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4"
-          >
-            View Payment History
-          </Button>
+          isFilterActive ? (
+            <Button
+              onClick={handleClearFilters}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4 text-xs"
+            >
+              Clear Filters
+            </Button>
+          ) : (
+            <Button
+              onClick={() => setStatusFilter('ALL')}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4 text-xs"
+            >
+              View Payment History
+            </Button>
+          )
         }
       />
 
@@ -399,3 +441,4 @@ export default function CreditPage() {
     </div>
   )
 }
+
