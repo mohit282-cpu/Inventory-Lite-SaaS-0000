@@ -56,7 +56,11 @@ describe('Mega Report — PDF & XLSX Data Parity & Integrity', () => {
   it('handles empty datasets cleanly without throwing NaN or crashing PDF/Excel generators', async () => {
     const emptyData: MegaReportData = {
       ...data,
-      salesRegister: { summary: { totalInvoices: 0, totalSales: 0, totalDiscount: 0, totalTaxableAmount: 0, totalVat: 0, totalCancelled: 0 }, rows: [] },
+      salesRegister: {
+        reconciliation: { registeredCustomerSales: 0, walkInSales: 0, totalSales: 0, difference: 0 },
+        summary: { totalInvoices: 0, totalSales: 0, totalDiscount: 0, totalTaxableAmount: 0, totalVat: 0, totalCancelled: 0 },
+        rows: []
+      },
       purchaseRegister: { summary: { totalPurchases: 0, taxablePurchases: 0, inputVat: 0 }, rows: [] },
       returnsAdjustments: [],
       creditNotes: [],

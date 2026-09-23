@@ -26,6 +26,9 @@ import type { AuditLogEntry } from '@/services/audit-log.service'
 import type { IrdReconciliationItem } from './index'
 
 
+/** Version of the Mega Report schema / layout generator. */
+export const REPORT_TEMPLATE_VERSION = '1.0.0'
+
 /** Business identity block shown on the cover / metadata. */
 export interface MegaReportBusinessInfo {
   id: string
@@ -43,12 +46,17 @@ export interface MegaReportBusinessInfo {
 
 /** Report scope / period context. */
 export interface MegaReportMeta {
+  reportId: string
+  reportVersion: string
   business: MegaReportBusinessInfo
   fiscalYear: string
   dateFrom?: string
   dateTo?: string
   periodLabel: string
+  periodStatus: 'Full Fiscal Year' | 'Year to Date' | 'Custom Period' | 'Active Period'
   generatedAt: string
+  dataThrough: string
+  timezone: string
   generatedBy?: string
   generatedByEmail?: string
 }
@@ -146,6 +154,14 @@ export interface MegaInvoiceRow {
   invoiceStatus: string
 }
 
+export interface SalesReconciliation {
+  registeredCustomerSales: number
+  walkInSales: number
+  totalSales: number
+  difference: number
+  explanation?: string
+}
+
 /**
  * The complete Mega Business Report dataset. Every field is a plain value
  * (never NaN / Infinity / undefined / null) and derived from the same
@@ -158,6 +174,7 @@ export interface MegaReportData {
   kpis: AuditOverviewKPIs
   salesRegister: {
     rows: MegaInvoiceRow[]
+    reconciliation: SalesReconciliation
     summary: {
       totalInvoices: number
       totalSales: number
@@ -199,7 +216,9 @@ export interface MegaReportData {
     inputVat: number
     netVatPosition: number
     vatRate: number
-    status: 'PAYABLE' | 'REFUNDABLE_CREDIT' | 'NIL'
+    isVatRegistered: boolean
+    vatRegistrationStatus: string
+    status: 'PAYABLE' | 'REFUNDABLE_CREDIT' | 'NIL' | 'NOT_APPLICABLE'
   }
   customerLedgers: CustomerLedgerEntry[]
   supplierLedgers: SupplierLedgerEntry[]

@@ -485,17 +485,21 @@ function coverPage(doc: Page, data: MegaReportData): void {
   doc.setLineWidth(0.5)
   doc.line(margin + 20, divY, pageWidth - margin - 20, divY)
 
-  // 3. Business Information Box
-  const metaY = divY + 8
+  // 3. Business Information & Data Snapshot Box
+  const metaY = divY + 4
+  const isVatReg = data.vatSummary?.isVatRegistered ?? Boolean(biz.vatNumber && String(biz.vatNumber).trim() !== '')
+
   const infoLines: { label: string; value: string }[] = [
     { label: 'Business Name', value: displayBizName },
-    { label: 'Address', value: safeText(biz.address || '—') },
+    { label: 'Report ID', value: safeText(meta.reportId || '—') },
     { label: 'PAN', value: safeText(biz.panNumber || '—') },
-    { label: 'Currency', value: safeText(biz.currency || 'NPR') },
-    { label: 'Report Period', value: safeText(meta.periodLabel) },
-    { label: 'Phone', value: safeText(biz.phone || '—') },
-    { label: 'Email', value: safeText(biz.email || '—') },
-    { label: 'VAT Registration', value: safeText(biz.vatNumber || 'Not Registered') },
+    { label: 'Report Version', value: safeText(meta.reportVersion || '1.0.0') },
+    { label: 'VAT Registration', value: isVatReg ? `Registered (${safeText(biz.vatNumber)})` : 'Not Registered' },
+    { label: 'Period Status', value: safeText(meta.periodStatus || 'Active Period') },
+    { label: 'Reporting Period', value: safeText(meta.periodLabel) },
+    { label: 'Timezone', value: safeText(meta.timezone || 'Asia/Kathmandu') },
+    { label: 'Generated At', value: formatBsDateTime(meta.generatedAt) },
+    { label: 'Data Through', value: formatBsDateTime(meta.dataThrough || meta.generatedAt) },
   ].filter((l) => l.value !== '—')
 
   const rowsCount = Math.max(1, Math.ceil(infoLines.length / 2))
@@ -511,7 +515,7 @@ function coverPage(doc: Page, data: MegaReportData): void {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(255, 255, 255)
-  doc.text('BUSINESS INFORMATION', margin + 6, metaY + 4.2)
+  doc.text('BUSINESS IDENTITY & REPORT DATA SNAPSHOT', margin + 6, metaY + 4.2)
 
   drawMetadata(doc, {
     startY: metaY + 11,
@@ -969,6 +973,19 @@ function drawSalesRegister(doc: Page, y: number, data: MegaReportData, hook: any
       { label: 'Total VAT', value: formatNpr(s.summary.totalVat) },
     ],
   })
+
+  if (s.reconciliation) {
+    y = drawSummaryCard(doc, {
+      startY: y,
+      columns: [
+        { label: 'Registered Customer Sales', value: formatNpr(s.reconciliation.registeredCustomerSales) },
+        { label: 'Walk-in Sales', value: formatNpr(s.reconciliation.walkInSales) },
+        { label: 'Total Sales', value: formatNpr(s.reconciliation.totalSales) },
+        { label: 'Reconciliation Difference', value: formatNpr(s.reconciliation.difference) },
+      ],
+    })
+  }
+
   y = drawTotalsBar(doc, {
     startY: y,
     text:
@@ -1320,7 +1337,7 @@ function drawPayments(doc: Page, y: number, data: MegaReportData, hook: any): nu
 
   const body = payments.map((p) => [
     safeDate(p.date),
-    p.entityType,
+    p.entityType === 'customer' ? 'Customer Payment' : 'Supplier Payment',
     safeText(p.entityName),
     safeText(p.reference),
     formatNpr(p.amount),
@@ -1333,13 +1350,13 @@ function drawPayments(doc: Page, y: number, data: MegaReportData, hook: any): nu
     pageHook: hook,
     columns: [
       { head: 'Date', width: 22 },
-      { head: 'Type', width: 22 },
-      { head: 'Entity', width: 42 },
-      { head: 'Reference', width: 42 },
+      { head: 'Payment Type', width: 30 },
+      { head: 'Customer / Supplier', width: 42 },
+      { head: 'Reference', width: 34 },
       { head: 'Amount', align: 'right', width: 28 },
-      { head: 'Method', width: 30 },
-      { head: 'Status', width: 26 },
-      { head: 'By', width: 34 },
+      { head: 'Method', width: 26 },
+      { head: 'Status', width: 22 },
+      { head: 'Recorded By', width: 30 },
     ],
     body,
     totals: [
@@ -1436,12 +1453,12 @@ function drawStockValuation(doc: Page, y: number, data: MegaReportData, hook: an
       { label: 'Closing Stock Value', value: formatNpr(inv.summary.closingStockValue) },
       { label: 'Retail Value', value: formatNpr(inv.summary.totalRetailValue) },
       { label: 'COGS', value: formatNpr(inv.summary.totalCogs) },
-      { label: 'Potential Margin', value: formatPercent(inv.summary.potentialGrossMarginPercent) },
+      { label: 'Potential Gross Margin', value: formatPercent(inv.summary.potentialGrossMarginPercent) },
     ],
   })
   y = drawTotalsBar(doc, {
     startY: y,
-    text: `Opening: ${formatNpr(inv.summary.openingStockValue)} | In: ${formatNpr(inv.summary.stockInValue)} | Out: ${formatNpr(inv.summary.stockOutValue)} | Damage: ${formatNpr(inv.summary.damagedValue)} | Missing Cost Data: ${formatNumber(inv.summary.costDataMissingCount)}`,
+    text: `Opening: ${formatNpr(inv.summary.openingStockValue)} | In: ${formatNpr(inv.summary.stockInValue)} | Out: ${formatNpr(inv.summary.stockOutValue)} | Note: Potential Gross Margin is based on current inventory cost and current selling prices (distinguish from realized sales margin).`,
   })
 
   if (inv.products.length === 0) return drawEmptyNote(doc, y, 'No stock valuation data available.')
@@ -1553,6 +1570,7 @@ function drawProfitLoss(doc: Page, y: number, data: MegaReportData): number {
     striped: true,
   })
 
+  let nextY = finalY
   if (k.costDataMissingCount > 0) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
@@ -1560,24 +1578,61 @@ function drawProfitLoss(doc: Page, y: number, data: MegaReportData): number {
     doc.text(
       `Note: ${formatNumber(k.costDataMissingCount)} product(s) are missing cost data, so COGS/gross profit may be understated.`,
       PDF_SPACING.pageMargin,
-      finalY + 2,
+      nextY + 2,
     )
-    return finalY + 8
+    nextY += 6
   }
-  return finalY
+
+  if (p.netProfit < 0 || p.netMarginPercent < 0) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(PDF_COLORS.negative800[0], PDF_COLORS.negative800[1], PDF_COLORS.negative800[2])
+    doc.text(
+      `Note: Operating expenses exceed current-period revenue (negative net margin).`,
+      PDF_SPACING.pageMargin,
+      nextY + 2,
+    )
+    nextY += 6
+  }
+
+  return nextY
 }
 
 function drawVatSummary(doc: Page, y: number, data: MegaReportData): number {
   const v = data.vatSummary
+  const biz = data.meta.business
+  const isRegistered = v.isVatRegistered ?? Boolean(biz.vatNumber && String(biz.vatNumber).trim() !== '')
+
+  if (!isRegistered || v.status === 'NOT_APPLICABLE') {
+    const body = [
+      ['VAT Registration Status', 'Not Registered'],
+      ['Standard VAT Rate', `${v.vatRate}%`],
+      ['Applied VAT Status', 'N/A — Not VAT Registered'],
+      ['Output VAT Charged', 'Rs. 0.00'],
+      ['Input VAT Paid', 'Rs. 0.00'],
+      ['NET VAT POSITION', 'N/A'],
+      ['Status', 'NOT APPLICABLE — BUSINESS NOT VAT REGISTERED'],
+    ]
+    return drawTable(doc, {
+      startY: y,
+      columns: [
+        { head: 'VAT / Tax Summary Item', width: 110 },
+        { head: 'Value', align: 'right' },
+      ],
+      body,
+      striped: true,
+    })
+  }
 
   const body = [
+    ['VAT Registration Status', 'Registered'],
     ['Taxable Sales', formatNpr(v.taxableSales)],
     ['Output VAT Charged', formatNpr(v.outputVat)],
     ['Taxable Purchases', formatNpr(v.taxablePurchases)],
     ['Input VAT Paid', formatNpr(v.inputVat)],
-    ['VAT Rate (Default)', formatPercent(v.vatRate)],
+    ['Standard VAT Rate', formatPercent(v.vatRate)],
     ['NET VAT POSITION', formatNpr(v.netVatPosition)],
-    ['Status', v.status === 'PAYABLE' ? 'VAT Payable' : 'Refundable Credit'],
+    ['Status', v.status === 'PAYABLE' ? 'VAT Payable' : v.status === 'REFUNDABLE_CREDIT' ? 'Refundable Credit' : 'NIL / Zero'],
   ]
 
   return drawTable(doc, {

@@ -11,6 +11,8 @@ import type { MegaReportData, MegaInvoiceRow } from '@/types/mega-report'
  */
 export function buildFinancialData(): MegaReportData {
   const meta: MegaReportData['meta'] = {
+    reportId: 'RPT-2081-82-20260828-0001',
+    reportVersion: '1.0.0',
     business: {
       id: 'biz_1',
       name: 'Acme Trading House',
@@ -27,7 +29,10 @@ export function buildFinancialData(): MegaReportData {
     dateFrom: '2025-07-16',
     dateTo: '2026-07-15',
     periodLabel: 'FY 2081/82',
+    periodStatus: 'Full Fiscal Year',
     generatedAt: '2026-08-28T10:00:00.000Z',
+    dataThrough: '2026-08-28T10:00:00.000Z',
+    timezone: 'Asia/Kathmandu',
     generatedBy: 'Owner',
     generatedByEmail: 'owner@example.com',
   }
@@ -75,6 +80,12 @@ export function buildFinancialData(): MegaReportData {
     },
     salesRegister: {
       rows: [invoice],
+      reconciliation: {
+        registeredCustomerSales: 0,
+        walkInSales: 10800,
+        totalSales: 10800,
+        difference: 0,
+      },
       summary: {
         totalInvoices: 1,
         totalSales: 10000,
@@ -114,6 +125,8 @@ export function buildFinancialData(): MegaReportData {
       inputVat: 0,
       netVatPosition: 1300,
       vatRate: 13,
+      isVatRegistered: true,
+      vatRegistrationStatus: 'Registered',
       status: 'PAYABLE',
     },
     customerLedgers: [

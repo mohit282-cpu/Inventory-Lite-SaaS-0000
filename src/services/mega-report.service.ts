@@ -36,6 +36,8 @@ import { paymentService } from '@/services/payment.service'
 import { supplierPaymentService } from '@/services/supplier-payment.service'
 import { stockMovementService } from '@/services/stock-movement.service'
 import { businessService } from '@/services/business.service'
+import { customerService } from '@/services/customer.service'
+import { supplierService } from '@/services/supplier.service'
 import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { authorizeBusinessAccess } from '@/lib/authorization'
@@ -46,25 +48,29 @@ import type {
   AuditFilterParams,
   Category,
   CreditNote,
+  Customer,
   DebitNote,
   Expense,
   Payment,
   Product,
   Sale,
   StockMovement,
+  Supplier,
   SupplierPayment,
   UserRole,
 } from '@/types'
-import type {
-  MegaReportData,
-  MegaProductRow,
-  MegaCategoryRow,
-  MegaExpenseRow,
-  MegaStockMovementRow,
-  MegaCreditNoteRow,
-  MegaDebitNoteRow,
-  MegaPaymentRow,
-  MegaInvoiceRow,
+import {
+  REPORT_TEMPLATE_VERSION,
+  type MegaReportData,
+  type MegaProductRow,
+  type MegaCategoryRow,
+  type MegaExpenseRow,
+  type MegaStockMovementRow,
+  type MegaCreditNoteRow,
+  type MegaDebitNoteRow,
+  type MegaPaymentRow,
+  type MegaInvoiceRow,
+  type SalesReconciliation,
 } from '@/types/mega-report'
 
 /** Deterministic helper: keep only finite numbers (never NaN/Infinity). */
@@ -143,8 +149,9 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
   // Tenant + RBAC boundary: never trust businessId from the browser as access.
   await authorizeBusinessAccess({ userId, businessId, requiredRole })
 
+  const currentFY = getCurrentFiscalYear()
   const resolvedFilters: AuditFilterParams = {
-    fiscalYear: filters.fiscalYear || getCurrentFiscalYear(),
+    fiscalYear: filters.fiscalYear || currentFY,
     ...filters,
   }
 
@@ -160,7 +167,7 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
   const [
     salesRegister,
     purchaseRegister,
-    vatSummary,
+    vatSummaryRaw,
     customerLedgers,
     supplierLedgers,
     payments,
@@ -181,6 +188,8 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
     customerPayments,
     supplierPayments,
     stockMovements,
+    allCustomers,
+    allSuppliers,
   ] = await Promise.all([
     auditCenterService.getSalesRegister(businessId, resolvedFilters),
     auditCenterService.getPurchaseRegister(businessId, resolvedFilters),
@@ -211,6 +220,8 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
     }),
     supplierPaymentService.listSupplierPayments(businessId).catch(() => []),
     stockMovementService.getMovementHistory(businessId),
+    customerService.listAllCustomers(businessId).catch(() => []),
+    supplierService.listAllSuppliers(businessId).catch(() => []),
   ])
 
   const productRows = buildProductRows(products, categories)
@@ -219,9 +230,51 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
   const movementRows = buildMovementRows(stockMovements, products)
   const creditNoteRows = buildCreditNoteRows(creditNotes)
   const debitNoteRows = buildDebitNoteRows(debitNotes)
-  const paymentRows = buildPaymentRows(customerPayments, supplierPayments, products)
+  const paymentRows = buildPaymentRows(customerPayments, supplierPayments, products, allCustomers, allSuppliers)
   const invoiceRows = buildInvoiceRows(salesRegister.rows)
 
+  // ------------------------------------------------ SALES RECONCILIATION
+  let registeredCustomerSales = 0
+  let walkInSales = 0
+  for (const inv of salesRegister.rows) {
+    const totalVal = fin(inv.total)
+    const isWalkIn = !inv.customerName || inv.customerName.trim() === '' || inv.customerName.toLowerCase() === 'walk-in customer'
+    if (isWalkIn) {
+      walkInSales += totalVal
+    } else {
+      registeredCustomerSales += totalVal
+    }
+  }
+  const calcTotalSales = registeredCustomerSales + walkInSales
+  const salesDiff = fin(salesRegister.summary.totalSales - calcTotalSales)
+
+  const salesReconciliation: SalesReconciliation = {
+    registeredCustomerSales,
+    walkInSales,
+    totalSales: salesRegister.summary.totalSales,
+    difference: Math.abs(salesDiff) < 0.01 ? 0 : salesDiff,
+    explanation: 'Registered Customer Invoices vs Walk-in Customer Sales',
+  }
+
+  // ------------------------------------------------ VAT REGISTRATION AWARENESS
+  const isVatRegistered = Boolean(
+    (business?.vatNumber && String(business.vatNumber).trim() !== '') ||
+    (business?.taxRegistrationType && String(business.taxRegistrationType).toUpperCase() === 'VAT')
+  )
+
+  const vatSummary = {
+    ...vatSummaryRaw,
+    isVatRegistered,
+    vatRegistrationStatus: isVatRegistered ? 'Registered' : 'Not Registered',
+    outputVat: isVatRegistered ? vatSummaryRaw.outputVat : 0,
+    inputVat: isVatRegistered ? vatSummaryRaw.inputVat : 0,
+    netVatPosition: isVatRegistered ? vatSummaryRaw.netVatPosition : 0,
+    status: isVatRegistered
+      ? vatSummaryRaw.status
+      : ('NOT_APPLICABLE' as const),
+  }
+
+  // ------------------------------------------------ INTEGRITY ISSUES
   const integrityIssues: string[] = []
   if (kpis.costDataMissingCount > 0) {
     integrityIssues.push(
@@ -233,10 +286,17 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
     integrityIssues.push(`${mismatchCount} reconciliation check(s) did not fully balance — review the Reconciliation section.`)
   }
 
-  const periodLabel = buildPeriodLabel(resolvedFilters)
+  // ------------------------------------------------ PERIOD & METADATA
+  const { periodLabel, periodStatus } = buildPeriodLabelAndStatus(resolvedFilters, currentFY)
+  const nowIso = new Date().toISOString()
+  const dateStr = nowIso.slice(0, 10).replace(/-/g, '')
+  const fyClean = safeStr(resolvedFilters.fiscalYear || currentFY).replace('/', '-')
+  const reportId = `RPT-${fyClean}-${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`
 
   return {
     meta: {
+      reportId,
+      reportVersion: REPORT_TEMPLATE_VERSION,
       business: {
         id: business?.$id || businessId,
         name: safeStr(business.name, 'Inventory Lite Store'),
@@ -250,16 +310,20 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
         logoUrl: business.logoUrl,
         currency: safeStr(business.currency, 'NPR'),
       },
-      fiscalYear: resolvedFilters.fiscalYear || getCurrentFiscalYear(),
+      fiscalYear: resolvedFilters.fiscalYear || currentFY,
       dateFrom: resolvedFilters.dateFrom,
       dateTo: resolvedFilters.dateTo,
       periodLabel,
-      generatedAt: new Date().toISOString(),
+      periodStatus,
+      generatedAt: nowIso,
+      dataThrough: nowIso,
+      timezone: 'Asia/Kathmandu',
     },
     filters: resolvedFilters,
     kpis,
     salesRegister: {
       rows: invoiceRows,
+      reconciliation: salesReconciliation,
       summary: salesRegister.summary,
     },
     purchaseRegister,
@@ -295,18 +359,45 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
   }
 }
 
-function buildPeriodLabel(filters: AuditFilterParams): string {
+function buildPeriodLabelAndStatus(
+  filters: AuditFilterParams,
+  currentFY: string
+): { periodLabel: string; periodStatus: 'Full Fiscal Year' | 'Year to Date' | 'Custom Period' | 'Active Period' } {
   if (filters.dateFrom && filters.dateTo) {
-    return `Custom Period (${filters.dateFrom} to ${filters.dateTo})`
+    return {
+      periodLabel: `${filters.dateFrom} – ${filters.dateTo}`,
+      periodStatus: 'Custom Period',
+    }
   }
   if (filters.dateFrom) {
-    return `From ${filters.dateFrom} to Present`
+    return {
+      periodLabel: `From ${filters.dateFrom} to Present`,
+      periodStatus: 'Active Period',
+    }
   }
   if (filters.dateTo) {
-    return `Up to ${filters.dateTo}`
+    return {
+      periodLabel: `Up to ${filters.dateTo}`,
+      periodStatus: 'Active Period',
+    }
   }
-  if (filters.fiscalYear) return `Full Fiscal Year ${filters.fiscalYear}`
-  return 'All History'
+  const fy = filters.fiscalYear || currentFY
+  if (fy < currentFY) {
+    return {
+      periodLabel: `Full Fiscal Year ${fy}`,
+      periodStatus: 'Full Fiscal Year',
+    }
+  }
+  if (fy === currentFY) {
+    return {
+      periodLabel: `Fiscal Year ${fy} (YTD)`,
+      periodStatus: 'Year to Date',
+    }
+  }
+  return {
+    periodLabel: `Fiscal Year ${fy}`,
+    periodStatus: 'Active Period',
+  }
 }
 
 function buildCategoryRows(categories: Category[], products: Product[]): MegaCategoryRow[] {
@@ -397,32 +488,45 @@ function buildDebitNoteRows(debitNotes: DebitNote[]): MegaDebitNoteRow[] {
 function buildPaymentRows(
   customerPayments: Payment[],
   supplierPayments: SupplierPayment[],
-  products: Product[]
+  products: Product[],
+  allCustomers: Customer[] = [],
+  allSuppliers: Supplier[] = []
 ): MegaPaymentRow[] {
+  const custMap = new Map<string, string>()
+  for (const c of allCustomers) {
+    if (c.$id && c.name) custMap.set(c.$id, c.name)
+  }
+  const suppMap = new Map<string, string>()
+  for (const s of allSuppliers) {
+    if (s.$id && s.name) suppMap.set(s.$id, s.name)
+  }
+
   const rows: MegaPaymentRow[] = []
   for (const p of customerPayments) {
+    const resolvedName = (p.customerId ? custMap.get(p.customerId) : undefined) || (p as any).customerName || 'Walk-in Customer'
     rows.push({
       date: isoDate(p.paymentDate) || isoDate(p.createdAt),
       entityType: 'customer',
-      entityName: 'Customer',
+      entityName: safeStr(resolvedName, 'Walk-in Customer'),
       reference: safeStr(p.referenceNumber, '—'),
       amount: fin(p.amount),
       method: safeStr(p.paymentMethod),
       referenceNo: safeStr(p.referenceNumber, '—'),
-      createdBy: safeStr(p.createdBy),
-      status: safeStr(p.status).toUpperCase(),
+      createdBy: safeStr(p.createdBy || 'System'),
+      status: safeStr(p.status || 'POSTED').toUpperCase(),
     })
   }
   for (const sp of supplierPayments) {
+    const resolvedName = (sp.supplierId ? suppMap.get(sp.supplierId) : undefined) || (sp as any).supplierName || 'Supplier'
     rows.push({
       date: isoDate(sp.paymentDate) || isoDate(sp.createdAt),
       entityType: 'supplier',
-      entityName: 'Supplier',
+      entityName: safeStr(resolvedName, 'Supplier'),
       reference: safeStr(sp.referenceNumber, '—'),
       amount: fin(sp.amount),
       method: safeStr(sp.paymentMethod),
       referenceNo: safeStr(sp.referenceNumber, '—'),
-      createdBy: safeStr(sp.createdBy),
+      createdBy: safeStr(sp.createdBy || 'System'),
       status: 'COMPLETED',
     })
   }
