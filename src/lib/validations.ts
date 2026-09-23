@@ -347,11 +347,36 @@ export const expenseSchema = z.object({
 // ==================== Supplier Validations ====================
 
 export const supplierSchema = z.object({
-  name: z.string().min(2, 'Supplier name must be at least 2 characters'),
-  phone: z.string().optional(),
+  name: z
+    .string()
+    .min(2, 'Supplier name must be at least 2 characters')
+    .refine((val) => val.trim().length >= 2, {
+      message: 'Supplier name cannot be empty or whitespace only',
+    }),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val.trim() === '') return true
+        const digits = val.replace(/\D/g, '')
+        return digits.length >= 7 && digits.length <= 15
+      },
+      { message: 'Please enter a valid phone number (7 to 15 digits)' }
+    ),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   address: z.string().optional(),
-  panVatNumber: z.string().optional(),
+  panVatNumber: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val.trim() === '') return true
+        const digits = val.replace(/\D/g, '')
+        return digits.length === 9
+      },
+      { message: 'PAN/VAT number must be a valid 9-digit number' }
+    ),
   notes: z.string().optional(),
   status: z.enum(['active', 'archived']).default('active'),
 })
