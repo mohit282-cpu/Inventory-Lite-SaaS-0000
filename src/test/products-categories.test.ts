@@ -67,6 +67,7 @@ vi.mock('@/config/appwrite', () => {
 import { categoryService } from '@/services/category.service'
 import { productService } from '@/services/product.service'
 import { stockMovementService } from '@/services/stock-movement.service'
+import { categorySchema } from '@/lib/validations'
 
 describe('Products & Categories Module Tests', () => {
   const bizA = 'business_A'
@@ -208,5 +209,41 @@ describe('Products & Categories Module Tests', () => {
     const fetched = await categoryService.getCategory(cat.$id, bizA)
     expect(fetched.name).toBe('New Name')
   })
+
+  it('enforces case-insensitive duplicate category detection scoped to active business tenant', async () => {
+    await categoryService.createCategory({ name: 'Stationery', description: 'Office supplies' }, bizA, user1)
+
+    // Attempting to create "stationery" or "STATIONERY" in Business A should throw duplicate error
+    await expect(
+      categoryService.createCategory({ name: 'stationery', description: 'Lower case test' }, bizA, user1)
+    ).rejects.toThrow(/already exists/)
+
+    await expect(
+      categoryService.createCategory({ name: 'STATIONERY', description: 'Upper case test' }, bizA, user1)
+    ).rejects.toThrow(/already exists/)
+
+    // Business B should be allowed to create "Stationery"
+    const catB = await categoryService.createCategory({ name: 'Stationery', description: 'Biz B supplies' }, bizB, user1)
+    expect(catB.name).toBe('Stationery')
+    expect(catB.businessId).toBe(bizB)
+  })
+
+  it('validates Category Schema whitespace and character length constraints', () => {
+    const valid = categorySchema.safeParse({ name: '  Beverages  ', description: '  Soft drinks  ' })
+    expect(valid.success).toBe(true)
+
+    // Whitespace only name fails
+    const invalidName = categorySchema.safeParse({ name: '     ' })
+    expect(invalidName.success).toBe(false)
+
+    // Name exceeding 50 chars fails
+    const longName = categorySchema.safeParse({ name: 'A'.repeat(51) })
+    expect(longName.success).toBe(false)
+
+    // Description exceeding 200 chars fails
+    const longDesc = categorySchema.safeParse({ name: 'Valid Name', description: 'D'.repeat(201) })
+    expect(longDesc.success).toBe(false)
+  })
 })
+
 

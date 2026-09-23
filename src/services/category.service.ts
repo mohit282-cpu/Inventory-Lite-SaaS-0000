@@ -24,20 +24,36 @@ export class CategoryService extends BaseService {
     businessId: string,
     userId: string
   ): Promise<Category> {
-    if (!data.name || data.name.trim() === '') {
-      throw new Error('Category name is required')
+    if (!businessId) {
+      throw new Error('Business ID is required to create a category')
     }
 
-    // Check for duplicate category name within business
-    const existing = await this.list<Category>(businessId, [
-      Query.equal('name', data.name.trim()),
-      Query.limit(1)
-    ])
-    if (existing.length > 0) {
-      throw new Error(`Category "${data.name}" already exists for this business`)
+    const trimmedName = data.name ? data.name.trim() : ''
+    if (!trimmedName || trimmedName.length < 2) {
+      throw new Error('Category name must be at least 2 characters')
     }
 
-    return await this.create<Category>(data, businessId, userId)
+    const trimmedDescription = data.description ? data.description.trim() : undefined
+
+    // Case-insensitive duplicate check within active business
+    const existingCategories = await this.listCategories(businessId)
+    const normalizedNewName = trimmedName.toLowerCase()
+    const duplicate = existingCategories.find(
+      (c) => c.name.trim().toLowerCase() === normalizedNewName
+    )
+
+    if (duplicate) {
+      throw new Error(`Category "${trimmedName}" already exists for this business`)
+    }
+
+    return await this.create<Category>(
+      {
+        name: trimmedName,
+        description: trimmedDescription,
+      },
+      businessId,
+      userId
+    )
   }
 
   /**
@@ -65,18 +81,37 @@ export class CategoryService extends BaseService {
     }>,
     businessId: string
   ): Promise<Category> {
-    if (data.name) {
-      const existing = await this.list<Category>(businessId, [
-        Query.equal('name', data.name.trim()),
-        Query.limit(2)
-      ])
-      const duplicate = existing.find((c: Category) => c.$id !== categoryId)
-      if (duplicate) {
-        throw new Error(`Category "${data.name}" already exists for this business`)
-      }
+    if (!businessId) {
+      throw new Error('Business ID is required to update a category')
     }
 
-    return await this.update<Category>(categoryId, data, businessId)
+    const payload: Partial<{ name: string; description: string }> = {}
+
+    if (data.name !== undefined) {
+      const trimmedName = data.name.trim()
+      if (!trimmedName || trimmedName.length < 2) {
+        throw new Error('Category name must be at least 2 characters')
+      }
+
+      // Case-insensitive duplicate check
+      const existingCategories = await this.listCategories(businessId)
+      const normalizedNewName = trimmedName.toLowerCase()
+      const duplicate = existingCategories.find(
+        (c) => c.$id !== categoryId && c.name.trim().toLowerCase() === normalizedNewName
+      )
+
+      if (duplicate) {
+        throw new Error(`Category "${trimmedName}" already exists for this business`)
+      }
+
+      payload.name = trimmedName
+    }
+
+    if (data.description !== undefined) {
+      payload.description = data.description.trim() || undefined
+    }
+
+    return await this.update<Category>(categoryId, payload, businessId)
   }
 
   /**

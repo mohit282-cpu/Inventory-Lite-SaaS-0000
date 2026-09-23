@@ -162,8 +162,17 @@ export const businessSettingsSchema = z
 // ==================== Product Validations ====================
 
 export const categorySchema = z.object({
-  name: z.string().min(2, 'Category name must be at least 2 characters'),
-  description: z.string().optional(),
+  name: z
+    .string()
+    .min(2, 'Category name must be at least 2 characters')
+    .max(50, 'Category name cannot exceed 50 characters')
+    .refine((val) => val.trim().length >= 2, {
+      message: 'Category name cannot be empty or whitespace only',
+    }),
+  description: z
+    .string()
+    .max(200, 'Description cannot exceed 200 characters')
+    .optional(),
 })
 
 export const productSchema = z.object({
