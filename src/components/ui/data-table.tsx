@@ -34,10 +34,15 @@ export function DataTable<T extends Record<string, any>>({
   emptyDescription = 'There are no records matching your criteria yet.',
   emptyAction,
   pageSize = 10,
+  searchQuery,
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1)
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [data?.length, searchQuery])
 
   if (isLoading) {
     return <LoadingState type="table" rows={pageSize} />

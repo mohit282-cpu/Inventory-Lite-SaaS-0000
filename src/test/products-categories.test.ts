@@ -190,4 +190,23 @@ describe('Products & Categories Module Tests', () => {
     expect(listB.some((p) => p.sku === 'SKU-BIZB')).toBe(true)
     expect(listB.some((p) => p.sku === 'SKU-BIZA')).toBe(false)
   })
+
+  it('rejects duplicate category name for the same business tenant', async () => {
+    await categoryService.createCategory({ name: 'Snacks', description: 'Chips and crackers' }, bizA, user1)
+
+    await expect(
+      categoryService.createCategory({ name: 'Snacks', description: 'Duplicate name' }, bizA, user1)
+    ).rejects.toThrow(/already exists/)
+  })
+
+  it('updates category details successfully and maintains tenant isolation', async () => {
+    const cat = await categoryService.createCategory({ name: 'Old Name', description: 'Old desc' }, bizA, user1)
+    const updated = await categoryService.updateCategory(cat.$id, { name: 'New Name', description: 'New desc' }, bizA)
+    expect(updated.name).toBe('New Name')
+    expect(updated.description).toBe('New desc')
+
+    const fetched = await categoryService.getCategory(cat.$id, bizA)
+    expect(fetched.name).toBe('New Name')
+  })
 })
+
