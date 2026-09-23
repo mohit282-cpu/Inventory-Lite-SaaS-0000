@@ -46,10 +46,13 @@ const ProductDetailsDialog = dynamic(
   { ssr: false }
 )
 
+import { useRouter } from 'next/navigation'
+
 type SortColumn = 'name' | 'sellingPrice' | 'stockQuantity'
 type SortDirection = 'asc' | 'desc'
 
 export default function ProductsPage() {
+  const router = useRouter()
   const { activeBusiness, user, isAuthLoading, isWorkspaceLoading } = useAuth()
   const { toast } = useToast()
 
@@ -878,7 +881,12 @@ export default function ProductsPage() {
         onSubmit={handleCreateOrUpdate}
         initialData={selectedProduct}
         categories={categories}
+        currencyCode={activeBusiness?.currency || 'NPR'}
         isLoading={isSubmitting}
+        onCreateCategory={() => {
+          setIsFormOpen(false)
+          router.push('/app/categories')
+        }}
       />
 
       <ProductDetailsDialog

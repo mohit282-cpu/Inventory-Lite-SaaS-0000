@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { formatCurrency } from '@/lib/utils'
+import { productFormSchema } from '@/lib/validations'
 
 describe('Products Page Inventory Modernization & Quality Tests', () => {
   const mockProducts = [
@@ -214,4 +215,44 @@ describe('Products Page Inventory Modernization & Quality Tests', () => {
     expect(currentBusinessId).toBe('biz_002')
     expect(loadedProducts.length).toBe(0)
   })
+
+  it('10. Validates Product Form Schema whitespace and integer stock rules', () => {
+    // Valid data
+    const validData = {
+      name: '  Valid Product Name  ',
+      unit: 'pcs',
+      purchasePrice: 100,
+      sellingPrice: 150,
+      openingStock: 10,
+      minStockAlert: 5,
+      isActive: true,
+    }
+    const parsedValid = productFormSchema.safeParse(validData)
+    expect(parsedValid.success).toBe(true)
+
+    // Whitespace-only name should fail
+    const invalidName = { ...validData, name: '     ' }
+    const parsedInvalidName = productFormSchema.safeParse(invalidName)
+    expect(parsedInvalidName.success).toBe(false)
+
+    // Decimal stock quantity should fail integer refinement
+    const decimalStock = { ...validData, openingStock: 10.5 }
+    const parsedDecimalStock = productFormSchema.safeParse(decimalStock)
+    expect(parsedDecimalStock.success).toBe(false)
+
+    // Negative purchase price should fail
+    const negativePrice = { ...validData, purchasePrice: -5 }
+    const parsedNegativePrice = productFormSchema.safeParse(negativePrice)
+    expect(parsedNegativePrice.success).toBe(false)
+  })
+
+  it('11. Detects selling price below cost price margin warning', () => {
+    const isBelowCost = (cost: number, price: number) => cost > 0 && price > 0 && price < cost
+
+    expect(isBelowCost(100, 80)).toBe(true)
+    expect(isBelowCost(100, 120)).toBe(false)
+    expect(isBelowCost(100, 100)).toBe(false)
+    expect(isBelowCost(0, 50)).toBe(false)
+  })
 })
+

@@ -182,15 +182,32 @@ export const productSchema = z.object({
 })
 
 export const productFormSchema = z.object({
-  name: z.string().min(2, 'Product name must be at least 2 characters'),
+  name: z
+    .string()
+    .min(2, 'Product name must be at least 2 characters')
+    .refine((val) => val.trim().length >= 2, {
+      message: 'Product name cannot be empty or whitespace only',
+    }),
   sku: z.string().optional(),
   barcode: z.string().optional(),
   categoryId: z.string().optional(),
-  unit: z.string().min(1, 'Unit is required'),
+  unit: z.string().min(1, 'Unit of measure is required'),
   purchasePrice: z.coerce.number().min(0, 'Purchase price cannot be negative'),
   sellingPrice: z.coerce.number().min(0, 'Selling price cannot be negative'),
-  openingStock: z.coerce.number().min(0, 'Opening stock cannot be negative'),
-  minStockAlert: z.coerce.number().min(0, 'Low-stock threshold cannot be negative'),
+  openingStock: z
+    .coerce
+    .number()
+    .min(0, 'Opening stock cannot be negative')
+    .refine((val) => Number.isInteger(val), {
+      message: 'Opening stock must be a whole number',
+    }),
+  minStockAlert: z
+    .coerce
+    .number()
+    .min(0, 'Low-stock threshold cannot be negative')
+    .refine((val) => Number.isInteger(val), {
+      message: 'Low-stock threshold must be a whole number',
+    }),
   imageUrl: safeImageUrlSchema,
   isActive: z.boolean(),
 })
