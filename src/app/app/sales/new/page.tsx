@@ -14,6 +14,7 @@ import { saleService } from '@/services/sale.service'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/components/ui/use-toast'
 import { getDefaultVatState, DEFAULT_VAT_RATE } from '@/lib/localization'
+import { logger } from '@/lib/logger'
 import {
   Search,
   Plus,
@@ -27,6 +28,7 @@ import {
   AlertCircle,
   UserPlus,
   CreditCard,
+  RefreshCw,
 } from 'lucide-react'
 import {
   Dialog,
@@ -47,7 +49,7 @@ interface CartItem {
 
 export default function CreateSalePage() {
   const router = useRouter()
-  const { activeBusiness, user } = useAuth()
+  const { activeBusiness, user, isAuthLoading, isWorkspaceLoading } = useAuth()
   const { toast } = useToast()
 
   const [products, setProducts] = useState<Product[]>([])
@@ -55,6 +57,7 @@ export default function CreateSalePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [barcodeInput, setBarcodeInput] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [catalogError, setCatalogError] = useState<string | null>(null)
 
   // Cart & Checkout State
   const [cart, setCart] = useState<CartItem[]>([])
@@ -120,26 +123,38 @@ export default function CreateSalePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fetchData = useCallback(async () => {
-    if (!activeBusiness?.$id) return
+    if (!activeBusiness?.$id) {
+      if (!isAuthLoading && !isWorkspaceLoading) {
+        setIsLoading(false)
+      }
+      return
+    }
     const bId = activeBusiness.$id
     try {
       setIsLoading(true)
+      setCatalogError(null)
       const [prods, custs] = await Promise.all([
         productService.listProducts(bId, { isActive: true, limit: 200 }),
         customerService.listCustomers(bId),
       ])
-      setProducts(prods)
-      setCustomers(custs)
+      setProducts(prods || [])
+      setCustomers(custs || [])
     } catch (err: any) {
+      const errRef = logger.error('POS catalog loading failed', err, {
+        category: 'APPWRITE',
+        path: '/app/sales/new',
+        businessId: bId,
+      })
+      setCatalogError(err.message || 'Failed to fetch catalog from Appwrite.')
       toast({
         title: 'Error loading POS catalog',
-        description: err.message || 'Failed to fetch catalog.',
+        description: `${err.message || 'Failed to fetch catalog.'} (Ref: ${errRef})`,
         variant: 'destructive',
       })
     } finally {
       setIsLoading(false)
     }
-  }, [activeBusiness?.$id, toast])
+  }, [activeBusiness?.$id, isAuthLoading, isWorkspaceLoading, toast])
 
   useEffect(() => {
     fetchData()
@@ -456,9 +471,26 @@ export default function CreateSalePage() {
                 </div>
               ))}
             </div>
+          ) : catalogError ? (
+            <div className="p-6 text-center border border-amber-200 rounded-xl bg-amber-50/60 text-slate-800 space-y-3">
+              <AlertCircle className="h-8 w-8 mx-auto text-amber-600" />
+              <h3 className="text-sm font-bold">Unable to load catalog</h3>
+              <p className="text-xs text-slate-600">{catalogError}</p>
+              <Button onClick={fetchData} size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs">
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Retry Loading Catalog
+              </Button>
+            </div>
+          ) : !activeBusiness?.$id ? (
+            <div className="p-6 text-center border border-slate-200 rounded-xl bg-white text-slate-600 space-y-2">
+              <AlertCircle className="h-8 w-8 mx-auto text-indigo-600" />
+              <h3 className="text-sm font-bold text-slate-900">No Active Business Selected</h3>
+              <p className="text-xs text-slate-500">
+                Please select or onboard your business to start recording sales at the POS terminal.
+              </p>
+            </div>
           ) : filteredProducts.length === 0 ? (
             <div className="p-8 text-center border border-slate-200 rounded-xl bg-white text-slate-500 text-sm">
-              No products found matching &quot;{searchQuery}&quot;
+              {searchQuery ? `No products found matching "${searchQuery}"` : 'No products cataloged yet. Add products in Products menu to start POS billing.'}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[560px] overflow-y-auto pr-1">
