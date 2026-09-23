@@ -66,6 +66,7 @@ vi.mock('@/config/appwrite', () => {
 
 import { productService } from '@/services/product.service'
 import { stockMovementService } from '@/services/stock-movement.service'
+import { formatMovementTypeLabel } from '@/lib/utils'
 
 describe('Stock Management Module Tests', () => {
   const bizA = 'business_A'
@@ -261,5 +262,18 @@ describe('Stock Management Module Tests', () => {
         user1
       )
     ).rejects.toThrow(/Product creation failed: Unable to record opening stock audit trail/)
+  })
+
+  it('formats raw stock movement type enums into human-readable labels', () => {
+    expect(formatMovementTypeLabel('stock_in')).toBe('Stock In')
+    expect(formatMovementTypeLabel('STOCK_IN')).toBe('Stock In')
+    expect(formatMovementTypeLabel('stock_out')).toBe('Stock Out')
+    expect(formatMovementTypeLabel('STOCK_OUT')).toBe('Stock Out')
+    expect(formatMovementTypeLabel('adjustment')).toBe('Adjustment')
+    expect(formatMovementTypeLabel('opening_stock')).toBe('Opening Stock')
+    expect(formatMovementTypeLabel('sale')).toBe('Sale')
+    expect(formatMovementTypeLabel('purchase')).toBe('Purchase')
+    expect(formatMovementTypeLabel('return')).toBe('Return')
+    expect(formatMovementTypeLabel('damage')).toBe('Damage')
   })
 })

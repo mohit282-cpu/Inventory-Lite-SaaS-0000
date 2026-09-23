@@ -63,6 +63,7 @@ export function StockOutDialog({
   const activeProduct = products.find((p) => p.$id === selectedProductId)
 
   const isExceedingStock = activeProduct ? enteredQuantity > activeProduct.stockQuantity : false
+  const shortfall = activeProduct ? Math.max(0, enteredQuantity - activeProduct.stockQuantity) : 0
 
   useEffect(() => {
     reset({
@@ -106,12 +107,18 @@ export function StockOutDialog({
         </DialogHeader>
 
         {(serverError || isExceedingStock) && (
-          <div className="p-3 text-xs rounded-lg bg-red-50 border border-red-200 text-red-700 font-semibold flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
-            <span>
-              {serverError ||
-                `Requested ${enteredQuantity} ${activeProduct?.unit} exceeds available stock (${activeProduct?.stockQuantity} ${activeProduct?.unit})`}
-            </span>
+          <div className="p-3 text-xs rounded-xl bg-red-50 border border-red-200 text-red-700 space-y-1.5">
+            <div className="font-bold flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+              <span>{serverError || 'Insufficient stock.'}</span>
+            </div>
+            {isExceedingStock && activeProduct && (
+              <div className="grid grid-cols-3 gap-2 font-mono text-[11px] pt-1.5 border-t border-red-200/60">
+                <div>Available: <span className="font-bold">{activeProduct.stockQuantity} {activeProduct.unit}</span></div>
+                <div>Requested: <span className="font-bold">{enteredQuantity} {activeProduct.unit}</span></div>
+                <div>Shortfall: <span className="font-bold text-red-800">{shortfall} {activeProduct.unit}</span></div>
+              </div>
+            )}
           </div>
         )}
 
@@ -138,11 +145,25 @@ export function StockOutDialog({
           </div>
 
           {activeProduct && (
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex justify-between">
-              <span className="text-slate-500 font-medium">Available Stock:</span>
-              <span className="font-mono font-bold text-slate-900">
-                {activeProduct.stockQuantity} {activeProduct.unit}
-              </span>
+            <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+              <div>
+                <div className="text-slate-500 font-medium">Available Stock</div>
+                <div className="font-mono font-bold text-slate-900 mt-0.5">
+                  {activeProduct.stockQuantity} {activeProduct.unit}
+                </div>
+              </div>
+              <div>
+                <div className="text-slate-500 font-medium">Stock Out</div>
+                <div className="font-mono font-bold text-red-700 mt-0.5">
+                  −{enteredQuantity} {activeProduct.unit}
+                </div>
+              </div>
+              <div>
+                <div className="text-slate-500 font-medium">New Stock</div>
+                <div className="font-mono font-bold text-slate-900 mt-0.5">
+                  {Math.max(0, activeProduct.stockQuantity - enteredQuantity)} {activeProduct.unit}
+                </div>
+              </div>
             </div>
           )}
 

@@ -153,7 +153,7 @@ export function StockAdjustmentDialog({
                     : 'text-slate-500'
                 }`}
               >
-                {delta > 0 ? `+${delta}` : delta} {activeProduct?.unit}
+                {delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : '0'} {activeProduct?.unit}
               </div>
             </div>
           </div>

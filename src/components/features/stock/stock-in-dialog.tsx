@@ -127,11 +127,25 @@ export function StockInDialog({
           </div>
 
           {activeProduct && (
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex justify-between">
-              <span className="text-slate-500 font-medium">Current Stock:</span>
-              <span className="font-mono font-bold text-slate-900">
-                {activeProduct.stockQuantity} {activeProduct.unit}
-              </span>
+            <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+              <div>
+                <div className="text-slate-500 font-medium">Current Stock</div>
+                <div className="font-mono font-bold text-slate-900 mt-0.5">
+                  {activeProduct.stockQuantity} {activeProduct.unit}
+                </div>
+              </div>
+              <div>
+                <div className="text-slate-500 font-medium">Stock In</div>
+                <div className="font-mono font-bold text-emerald-700 mt-0.5">
+                  +{(watch('quantity') || 0)} {activeProduct.unit}
+                </div>
+              </div>
+              <div>
+                <div className="text-slate-500 font-medium">New Stock</div>
+                <div className="font-mono font-bold text-slate-900 mt-0.5">
+                  {activeProduct.stockQuantity + (watch('quantity') || 0)} {activeProduct.unit}
+                </div>
+              </div>
             </div>
           )}
 

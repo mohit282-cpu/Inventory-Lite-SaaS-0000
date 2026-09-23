@@ -375,6 +375,9 @@ export default function StockMovementsPage() {
     return p ? p.unit : 'pcs'
   }
 
+  const outOfStockCount = useMemo(() => lowStockProducts.filter((p) => p.stockQuantity === 0).length, [lowStockProducts])
+  const lowStockCount = useMemo(() => lowStockProducts.filter((p) => p.stockQuantity > 0).length, [lowStockProducts])
+
   const columns: Column<StockMovement>[] = [
     {
       key: 'productId',
@@ -402,26 +405,36 @@ export default function StockMovementsPage() {
           return <span className="font-mono font-bold text-emerald-700">+{item.quantity} {unit}</span>
         }
         if (item.type === 'stock_out') {
-          return <span className="font-mono font-bold text-red-700">-{item.quantity} {unit}</span>
+          return <span className="font-mono font-bold text-red-700">−{item.quantity} {unit}</span>
         }
-        return <span className="font-mono font-bold text-amber-800">Adj ({item.quantity} {unit})</span>
+        const delta = item.newQuantity - item.previousQuantity
+        if (delta > 0) {
+          return <span className="font-mono font-bold text-emerald-700">+{delta} {unit}</span>
+        }
+        if (delta < 0) {
+          return <span className="font-mono font-bold text-red-700">−{Math.abs(delta)} {unit}</span>
+        }
+        return <span className="font-mono font-medium text-slate-600">0 {unit}</span>
       },
     },
     {
       key: 'stockTransition',
       header: 'Stock Transition',
-      render: (item) => (
-        <span className="font-mono text-xs text-slate-600">
-          {item.previousQuantity} → <span className="font-bold text-slate-900">{item.newQuantity}</span>
-        </span>
-      ),
+      render: (item) => {
+        const unit = getProductUnit(item.productId)
+        return (
+          <span className="font-mono text-xs text-slate-600">
+            {item.previousQuantity} {unit} → <span className="font-bold text-slate-900">{item.newQuantity} {unit}</span>
+          </span>
+        )
+      },
     },
     {
       key: 'reason',
       header: 'Reason / Reference',
       render: (item) => (
         <div>
-          <div className="text-slate-700 text-xs font-medium">{item.reason || 'Routine update'}</div>
+          <div className="text-slate-800 text-xs font-medium">{item.reason || 'Routine update'}</div>
           {item.referenceId && (
             <div className="text-[10px] text-slate-500 font-mono">Ref: {item.referenceId}</div>
           )}
@@ -459,6 +472,7 @@ export default function StockMovementsPage() {
               onClick={handleExportPdf}
               disabled={isExporting}
               variant="outline"
+              aria-label="Export stock movements as PDF"
             >
               {isExporting ? (
                 <>
@@ -477,6 +491,7 @@ export default function StockMovementsPage() {
                 setPreselectedProductId(undefined)
                 setIsStockInOpen(true)
               }}
+              aria-label="Add stock"
             >
               <ArrowDownRight className="mr-1.5 h-4 w-4" /> Stock In
             </Button>
@@ -486,6 +501,7 @@ export default function StockMovementsPage() {
                 setIsStockOutOpen(true)
               }}
               variant="destructive"
+              aria-label="Remove stock"
             >
               <ArrowUpRight className="mr-1.5 h-4 w-4" /> Stock Out
             </Button>
@@ -495,6 +511,7 @@ export default function StockMovementsPage() {
                 setIsAdjustmentOpen(true)
               }}
               variant="outline"
+              aria-label="Adjust stock"
             >
               <RefreshCw className="mr-1.5 h-4 w-4" /> Adjust Stock
             </Button>
@@ -509,10 +526,10 @@ export default function StockMovementsPage() {
             <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
             <div>
               <div className="font-bold text-amber-950 text-sm">
-                Attention Required: {lowStockProducts.length} Items Low or Out of Stock
+                Attention Required: {lowStockProducts.length} {lowStockProducts.length === 1 ? 'item low or out of stock' : 'items low or out of stock'}
               </div>
-              <div className="mt-0.5 text-amber-800">
-                Replenish inventory to avoid stockouts at the POS checkout counter.
+              <div className="mt-0.5 text-amber-800 font-medium">
+                Low Stock: <span className="font-bold">{lowStockCount}</span> &nbsp;·&nbsp; Out of Stock: <span className="font-bold">{outOfStockCount}</span> — Replenish inventory to avoid stockouts at the checkout counter.
               </div>
             </div>
           </div>
@@ -522,6 +539,7 @@ export default function StockMovementsPage() {
                 key={p.$id}
                 size="sm"
                 variant="outline"
+                aria-label={`Restock ${p.name}`}
                 onClick={() => {
                   setPreselectedProductId(p.$id)
                   setIsStockInOpen(true)
@@ -541,7 +559,7 @@ export default function StockMovementsPage() {
           <div className="space-y-1 md:col-span-1">
             <Label className="text-xs font-bold text-slate-700">Search</Label>
             <SearchInput
-              placeholder="Search product, SKU, ref #..."
+              placeholder="Search product, SKU, or reference..."
               value={searchQuery}
               onChange={setSearchQuery}
               className="w-full h-9 text-xs"
@@ -635,10 +653,6 @@ export default function StockMovementsPage() {
                 </div>
               </>
             )}
-
-            <div className="text-xs text-slate-500 font-medium">
-              Showing <span className="font-bold text-slate-900">{filteredMovements.length}</span> of {movements.length} records
-            </div>
           </div>
 
           {isFiltered && (
@@ -646,6 +660,7 @@ export default function StockMovementsPage() {
               variant="ghost"
               size="sm"
               onClick={handleClearFilters}
+              aria-label="Reset stock filters"
               className="h-8 text-xs text-slate-600 hover:text-slate-900 font-semibold"
             >
               <FilterX className="h-3.5 w-3.5 mr-1" /> Reset Filters
@@ -659,6 +674,9 @@ export default function StockMovementsPage() {
         data={filteredMovements}
         columns={columns}
         isLoading={isLoading}
+        itemLabel="movements"
+        isFiltered={isFiltered}
+        totalRecords={movements.length}
         emptyTitle="No stock movements found"
         emptyDescription="No inventory records match your selected search query or date range filters."
         emptyAction={

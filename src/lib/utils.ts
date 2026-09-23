@@ -68,6 +68,41 @@ export function formatPaymentMethodLabel(method: string | null | undefined): str
 }
 
 /**
+ * Format raw movement type enum strings into human-readable presentation labels.
+ * E.g., 'stock_in' -> 'Stock In', 'STOCK_OUT' -> 'Stock Out', 'adjustment' -> 'Adjustment'
+ */
+export function formatMovementTypeLabel(type: string | null | undefined): string {
+  if (!type) return 'Movement'
+  const raw = String(type).trim().toLowerCase()
+  switch (raw) {
+    case 'stock_in':
+    case 'in':
+      return 'Stock In'
+    case 'stock_out':
+    case 'out':
+      return 'Stock Out'
+    case 'adjustment':
+    case 'stock_adjustment':
+      return 'Adjustment'
+    case 'sale':
+      return 'Sale'
+    case 'purchase':
+      return 'Purchase'
+    case 'return':
+    case 'sales_return':
+      return 'Return'
+    case 'damage':
+    case 'spoilage':
+      return 'Damage'
+    case 'opening_stock':
+    case 'opening':
+      return 'Opening Stock'
+    default:
+      return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  }
+}
+
+/**
  * Format sales transaction into a standardized human-readable invoice number.
  * Example: INV-83/84-000001 (never displays raw internal database IDs)
  */

@@ -9,6 +9,7 @@
 import jsPDF from 'jspdf'
 import { StockMovement, Product, Business } from '@/types'
 import { getSellerTaxLabel } from '@/lib/localization'
+import { formatMovementTypeLabel } from '@/lib/utils'
 import { safeText } from '@/lib/pdf/fonts'
 import {
   formatBsDate,
@@ -157,8 +158,8 @@ export function generateStockLedgerPdf(options: StockLedgerPdfOptions): jsPDF {
     const prod = productMap.get(m.productId)
     const prodName = prod ? prod.name : m.productId
     const prodSku = prod ? prod.sku : ''
-    const typeLabel =
-      m.type === 'stock_in' ? 'Stock In' : m.type === 'stock_out' ? 'Stock Out' : 'Adjustment'
+    const unit = prod ? prod.unit : ''
+    const typeLabel = formatMovementTypeLabel(m.type)
     return [
       formatBsDateTime(m.createdAt),
       safeText(m.referenceId || `SM-${m.$id.slice(-6)}`),
@@ -166,7 +167,7 @@ export function generateStockLedgerPdf(options: StockLedgerPdfOptions): jsPDF {
       typeLabel,
       m.type === 'stock_in' ? `+${formatNumber(m.quantity)}` : '-',
       m.type === 'stock_out' ? `-${formatNumber(m.quantity)}` : '-',
-      `${formatNumber(m.previousQuantity)} → ${formatNumber(m.newQuantity)}`,
+      `${formatNumber(m.previousQuantity)}${unit ? ' ' + unit : ''} → ${formatNumber(m.newQuantity)}${unit ? ' ' + unit : ''}`,
       m.reason || 'Routine update',
       m.createdBy ? `User: ${m.createdBy.slice(-6)}` : 'System',
     ]

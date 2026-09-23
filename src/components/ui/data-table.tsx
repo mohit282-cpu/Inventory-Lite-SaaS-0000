@@ -24,6 +24,9 @@ interface DataTableProps<T> {
   emptyAction?: React.ReactNode
   pageSize?: number
   searchQuery?: string
+  itemLabel?: string
+  isFiltered?: boolean
+  totalRecords?: number
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -35,6 +38,9 @@ export function DataTable<T extends Record<string, any>>({
   emptyAction,
   pageSize = 10,
   searchQuery,
+  itemLabel = 'entries',
+  isFiltered = false,
+  totalRecords,
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1)
   const [sortKey, setSortKey] = useState<string | null>(null)
@@ -156,43 +162,46 @@ export function DataTable<T extends Record<string, any>>({
       </div>
 
       {/* Pagination Bar */}
-      {totalPages > 1 && (
+      {data.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-1 text-xs text-slate-500">
           <div>
-            Showing <span className="font-semibold text-slate-800">{startIndex + 1}</span> to{' '}
+            Showing{' '}
             <span className="font-semibold text-slate-800">
-              {Math.min(startIndex + pageSize, data.length)}
+              {startIndex + 1}–{Math.min(startIndex + pageSize, data.length)}
             </span>{' '}
-            of <span className="font-semibold text-slate-800">{data.length}</span> entries
+            of <span className="font-semibold text-slate-800">{totalRecords ?? data.length}</span>{' '}
+            {isFiltered ? `matching ${itemLabel}` : itemLabel}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              aria-label="Go to previous page"
-              className="h-8 px-3 border-slate-300 bg-white text-slate-700 disabled:opacity-40 font-medium"
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-            </Button>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                aria-label="Go to previous page"
+                className="h-8 px-3 border-slate-300 bg-white text-slate-700 disabled:opacity-40 font-medium"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+              </Button>
 
-            <span className="px-2 text-slate-700 font-semibold">
-              Page {currentPage} of {totalPages}
-            </span>
+              <span className="px-2 text-slate-700 font-semibold">
+                Page {currentPage} of {totalPages}
+              </span>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              aria-label="Go to next page"
-              className="h-8 px-3 border-slate-300 bg-white text-slate-700 disabled:opacity-40 font-medium"
-            >
-              Next <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                aria-label="Go to next page"
+                className="h-8 px-3 border-slate-300 bg-white text-slate-700 disabled:opacity-40 font-medium"
+              >
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
