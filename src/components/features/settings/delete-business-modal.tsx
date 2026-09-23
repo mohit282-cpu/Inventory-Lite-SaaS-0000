@@ -88,7 +88,7 @@ export function DeleteBusinessModal({
                 <li>Product Categories</li>
                 <li>Stock movement history & audit logs</li>
                 <li>Customers directory</li>
-                <li>Customer credit / Udha balances</li>
+                <li>Customer credit / Udhar balances</li>
                 <li>Sales transaction records</li>
                 <li>Invoices & line items</li>
                 <li>Expense logs</li>

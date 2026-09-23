@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock Appwrite Account & Databases for unit testing Credit / Udha module
+// Mock Appwrite Account & Databases for unit testing Credit / Udhar module
 vi.mock('@/config/appwrite', () => {
   const store = new Map<string, any>()
 
@@ -81,7 +81,7 @@ import { customerService } from '@/services/customer.service'
 import { saleService } from '@/services/sale.service'
 import { paymentService } from '@/services/payment.service'
 
-describe('Credit / Udha Management Module Tests', () => {
+describe('Credit / Udhar Management Module Tests', () => {
   const bizA = 'business_A'
   const bizB = 'business_B'
   const user1 = 'user_123'

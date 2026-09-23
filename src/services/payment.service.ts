@@ -441,7 +441,7 @@ export class PaymentService extends BaseService {
   }
 
   /**
-   * Calculate KPI summary cards for the Credit/Udha Dashboard
+   * Calculate KPI summary cards for the Credit/Udhar Dashboard
    */
   async getCreditSummary(businessId: string): Promise<{
     totalCreditDue: number

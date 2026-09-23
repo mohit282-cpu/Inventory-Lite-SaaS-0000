@@ -229,7 +229,7 @@ export default function CreditPage() {
   return (
     <div className="space-y-6 text-slate-900">
       <PageHeader
-        title="Credit / Udha"
+        title="Credit / Udhar"
         description="Manage customer credits, outstanding payments, partial payments, and payment history."
         actions={
           <Button

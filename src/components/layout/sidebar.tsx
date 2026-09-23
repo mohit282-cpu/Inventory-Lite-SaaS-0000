@@ -46,7 +46,7 @@ const NAVIGATION_GROUPS: NavGroup[] = [
       { name: 'Sales', href: '/app/sales', icon: ShoppingCart },
       { name: 'Suppliers', href: '/app/suppliers', icon: Truck },
       { name: 'Purchases', href: '/app/purchases', icon: ShoppingBag },
-      { name: 'Credit / Udha', href: '/app/credit', icon: Wallet },
+      { name: 'Credit / Udhar', href: '/app/credit', icon: Wallet },
       { name: 'Expenses', href: '/app/expenses', icon: Receipt },
     ],
   },
