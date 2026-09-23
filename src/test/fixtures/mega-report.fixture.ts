@@ -54,6 +54,7 @@ export function buildFinancialData(): MegaReportData {
       totalSales: 10000,
       totalSalesCount: 1,
       totalBills: 1,
+      totalDiscounts: 500,
       totalPurchases: 30400,
       totalPurchaseCount: 1,
       purchaseReturns: 0,

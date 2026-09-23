@@ -13,6 +13,16 @@ interface ReconciliationTabProps {
   onDrillDown: (title: string, refId: string, details: Record<string, any>) => void
 }
 
+function formatCheckValue(val: number, unitType?: string): string {
+  if (unitType === 'quantity') {
+    return `${val.toLocaleString('en-US')} units`
+  }
+  if (unitType === 'count') {
+    return `${val.toLocaleString('en-US')}`
+  }
+  return formatCurrency(val)
+}
+
 export function ReconciliationTab({ items, checks = [], loading, onDrillDown }: ReconciliationTabProps) {
   if (loading) {
     return (
@@ -63,11 +73,11 @@ export function ReconciliationTab({ items, checks = [], loading, onDrillDown }: 
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div>
                   <span className="text-slate-500 font-medium">Expected:</span>
-                  <div className="font-bold">{formatCurrency(chk.expected)}</div>
+                  <div className="font-bold">{formatCheckValue(chk.expected, chk.unitType)}</div>
                 </div>
                 <div>
                   <span className="text-slate-500 font-medium">Actual:</span>
-                  <div className="font-bold">{formatCurrency(chk.actual)}</div>
+                  <div className="font-bold">{formatCheckValue(chk.actual, chk.unitType)}</div>
                 </div>
               </div>
 

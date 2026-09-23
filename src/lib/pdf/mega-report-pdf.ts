@@ -877,9 +877,14 @@ function drawReconciliationSummary(doc: Page, y: number, data: MegaReportData): 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7.5)
     doc.setTextColor(PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2])
+    const fmtVal = (val: number) => {
+      if (r.unitType === 'quantity') return `${formatNumber(val)} units`
+      if (r.unitType === 'count') return `${formatNumber(val)}`
+      return formatNpr(val)
+    }
     const metricLine =
-      `Expected: ${formatNpr(r.expected)}   |   Actual: ${formatNpr(r.actual)}   |   ` +
-      `Difference: ${formatNpr(r.difference)}`
+      `Expected: ${fmtVal(r.expected)}   |   Actual: ${fmtVal(r.actual)}   |   ` +
+      `Difference: ${fmtVal(r.difference)}`
     doc.text(metricLine, margin + 7, topY + 17)
 
     // Divider

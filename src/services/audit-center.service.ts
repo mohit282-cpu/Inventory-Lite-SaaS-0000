@@ -8,6 +8,7 @@ import { stockMovementService } from './stock-movement.service'
 import { salesReturnService, salesReturnItemService } from './sales-return.service'
 import { auditLogService, AuditLogEntry } from './audit-log.service'
 import { expenseService } from './expense.service'
+import { paymentService } from './payment.service'
 import { businessService } from './business.service'
 import { accountingService } from './accounting.service'
 import {
@@ -80,6 +81,7 @@ export interface AuditOverviewKPIs {
   totalSales: number
   totalSalesCount: number
   totalBills: number
+  totalDiscounts: number
   totalPurchases: number
   totalPurchaseCount: number
   purchaseReturns: number
@@ -239,6 +241,8 @@ export interface ReconciliationCheckResult {
   expected: number
   actual: number
   difference: number
+  unitType?: 'currency' | 'quantity' | 'count'
+  severity?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
   status: 'BALANCED' | 'MISMATCH' | 'WARNING'
   message: string
 }
@@ -333,6 +337,7 @@ export class AuditCenterService {
       : suppliers
 
     let totalSales = 0
+    let totalDiscounts = 0
     let outputVat = 0
     let cogs = 0
     let totalSalesCount = 0
@@ -372,15 +377,18 @@ export class AuditCenterService {
       // Output VAT: use stored vatAmount field on sale record (computed at sale creation)
       outputVat += sale.vatAmount || 0
 
-      // WAC COGS computation from sale items
+      // WAC COGS computation & discounts from sale items
+      let saleLineDiscounts = 0
       const items = saleItemsBySale.get(sale.$id) || []
       for (const item of items) {
+        saleLineDiscounts += item.discount || 0
         const wac = productCostMap.get(item.productId) || 0
         if (wac <= 0) {
           costDataMissingCount += 1
         }
         cogs += wac * (item.quantity || 0)
       }
+      totalDiscounts += (sale.discount || 0) + saleLineDiscounts
     }
 
     let totalPurchases = 0
@@ -457,6 +465,7 @@ export class AuditCenterService {
       totalSales,
       totalSalesCount,
       totalBills: totalSalesCount,
+      totalDiscounts,
       totalPurchases,
       totalPurchaseCount,
       purchaseReturns,
@@ -850,13 +859,17 @@ export class AuditCenterService {
    */
   async getPaymentAudit(businessId: string, filters?: AuditFilterParams): Promise<PaymentAuditRecord[]> {
     const f = resolveFilters(filters)
-    const [sales, purchases, allCustomers, allSuppliers] = await Promise.all([
+    const [sales, purchases, standalonePayments, allCustomers, allSuppliers] = await Promise.all([
       saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo, customerId: f.customerId }),
       purchaseService.listAllPurchases(businessId, {
         dateFrom: f.dateFrom,
         dateTo: f.dateTo,
         supplierId: f.supplierId,
       }),
+      paymentService.listAllPayments(businessId, {
+        dateFrom: f.dateFrom,
+        dateTo: f.dateTo,
+      }).catch(() => []),
       customerService.listAllCustomers(businessId),
       supplierService.listAllSuppliers(businessId),
     ])
@@ -873,26 +886,67 @@ export class AuditCenterService {
 
     const records: PaymentAuditRecord[] = []
 
+    // Group standalone payment documents by saleId
+    const standaloneBySale = new Map<string, typeof standalonePayments>()
+    for (const p of standalonePayments) {
+      if (!p.saleId) continue
+      const existing = standaloneBySale.get(p.saleId) || []
+      existing.push(p)
+      standaloneBySale.set(p.saleId, existing)
+    }
+
     for (const s of filteredSales) {
-      if (s.paidAmount && s.paidAmount > 0) {
-        const cust = s.customerId ? customerMap.get(s.customerId) : null
+      const cust = s.customerId ? customerMap.get(s.customerId) : null
+      const custName = cust?.name || 'Walk-in Customer'
+      const invoiceRef = formatHumanInvoiceNumber(s)
+
+      const pDocs = standaloneBySale.get(s.$id) || []
+      const standaloneSum = pDocs.reduce((sum, p) => sum + (p.amount || 0), 0)
+      const initialPaid = Math.max(0, (s.paidAmount || 0) - standaloneSum)
+
+      // Initial POS/Sale Payment
+      if (initialPaid > 0) {
         let paymentStatus: PaymentAuditRecord['status'] = 'COMPLETED'
         if (s.status === 'cancelled') {
           paymentStatus = 'CANCELLED'
-        } else if ((s.dueAmount || 0) > 0 && (s.paidAmount || 0) < (s.total || 0)) {
+        } else if ((s.dueAmount || 0) > 0) {
           paymentStatus = 'PARTIAL'
         }
         records.push({
-          id: `pay_sale_${s.$id}`,
+          id: `pay_sale_init_${s.$id}`,
           date: s.createdAt ? s.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
           entityType: 'customer',
           entityId: s.customerId,
-          entityName: cust?.name || 'Walk-in Customer',
-          reference: formatHumanInvoiceNumber(s),
-          amount: s.paidAmount,
+          entityName: custName,
+          reference: invoiceRef,
+          amount: initialPaid,
           method: s.paymentMethod || 'cash',
           createdBy: s.createdBy || 'System',
           status: paymentStatus,
+          notes: 'POS Initial Sale Payment',
+        })
+      }
+
+      // Standalone Customer Udhar Payment Records
+      for (const pDoc of pDocs) {
+        let pStatus: PaymentAuditRecord['status'] = 'COMPLETED'
+        if (s.status === 'cancelled' || (pDoc.status || '').toUpperCase() === 'CANCELLED') {
+          pStatus = 'CANCELLED'
+        } else if ((pDoc.status || '').toUpperCase() === 'REVERSED') {
+          pStatus = 'REVERSED'
+        }
+        records.push({
+          id: `pay_doc_${pDoc.$id}`,
+          date: pDoc.paymentDate ? pDoc.paymentDate.slice(0, 10) : (pDoc.createdAt ? pDoc.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10)),
+          entityType: 'customer',
+          entityId: pDoc.customerId || s.customerId,
+          entityName: custName,
+          reference: pDoc.referenceNumber || `${invoiceRef}-PAY`,
+          amount: pDoc.amount || 0,
+          method: pDoc.paymentMethod || s.paymentMethod || 'cash',
+          createdBy: pDoc.createdBy || s.createdBy || 'System',
+          status: pStatus,
+          notes: pDoc.notes || 'Customer Credit Payment',
         })
       }
     }
@@ -1049,8 +1103,9 @@ export class AuditCenterService {
     const f = resolveFilters(filters)
     const kpis = await this.getAuditOverviewKPIs(businessId, f)
 
-    const grossSales = kpis.totalSales
-    const netSales = Math.max(0, kpis.totalSales - kpis.salesReturns)
+    const discounts = kpis.totalDiscounts
+    const grossSales = kpis.totalSales + discounts
+    const netSales = Math.max(0, grossSales - discounts - kpis.salesReturns)
     const grossProfit = kpis.grossProfit
     const grossMarginPercent = netSales > 0 ? (grossProfit / netSales) * 100 : 0
     const netProfit = kpis.netProfit
@@ -1058,7 +1113,7 @@ export class AuditCenterService {
 
     return {
       grossSales,
-      discounts: 0,
+      discounts,
       salesReturns: kpis.salesReturns,
       netSales,
       cogs: kpis.cogs,
@@ -1353,6 +1408,7 @@ export class AuditCenterService {
       vatSummary,
       customerLedgers,
       supplierLedgers,
+      paymentAuditRecords,
       inventoryAudit,
       profitability,
       seqAudit,
@@ -1363,12 +1419,13 @@ export class AuditCenterService {
       this.getVatSummary(businessId, f),
       this.getCustomerLedgers(businessId, f),
       this.getSupplierLedgers(businessId, f),
+      this.getPaymentAudit(businessId, f),
       this.getInventoryCogsAudit(businessId, f),
       this.getProfitabilityAudit(businessId, f),
       this.getInvoiceSequenceAudit(businessId, f.fiscalYear),
     ])
 
-    // Rule 1: Sales Register = Financial Sales
+    // Rule 1: Sales Register = Financial Engine Sales
     const salesRegDiff = Math.abs(salesRegister.summary.totalSales - kpis.totalSales)
     results.push({
       id: 'rec_sales_register',
@@ -1377,11 +1434,13 @@ export class AuditCenterService {
       expected: kpis.totalSales,
       actual: salesRegister.summary.totalSales,
       difference: salesRegDiff,
+      unitType: 'currency',
+      severity: 'CRITICAL',
       status: salesRegDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: salesRegDiff === 0 ? 'Sales Register matches financial sales.' : `Sales mismatch of Rs. ${salesRegDiff} detected.`,
+      message: salesRegDiff === 0 ? 'Sales Register matches financial sales 100%.' : `Sales mismatch of Rs. ${salesRegDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 2: Purchase Register = Financial Purchases
+    // Rule 2: Purchase Register = Financial Engine Purchases
     const purchRegDiff = Math.abs(purchaseRegister.summary.totalPurchases - kpis.totalPurchases)
     results.push({
       id: 'rec_purchase_register',
@@ -1390,160 +1449,298 @@ export class AuditCenterService {
       expected: kpis.totalPurchases,
       actual: purchaseRegister.summary.totalPurchases,
       difference: purchRegDiff,
+      unitType: 'currency',
+      severity: 'CRITICAL',
       status: purchRegDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: purchRegDiff === 0 ? 'Purchase Register matches financial purchases.' : `Purchase mismatch of Rs. ${purchRegDiff} detected.`,
+      message: purchRegDiff === 0 ? 'Purchase Register matches financial purchases 100%.' : `Purchase mismatch of Rs. ${purchRegDiff.toFixed(2)} detected.`,
     })
 
-    // Output VAT Reconciliation
+    // Rule 3: Sales Register vs Customer Ledger Invoices + Walk-in Sales
+    const custLedgerInvoicesTotal = customerLedgers.reduce((sum, c) => sum + c.invoicesTotal, 0)
+    const walkInSalesTotal = salesRegister.rows
+      .filter((r) => r.customerName === 'Walk-in Customer' && r.invoiceStatus !== 'cancelled')
+      .reduce((sum, r) => sum + r.total, 0)
+    const reconciledInvoiceTotal = custLedgerInvoicesTotal + walkInSalesTotal
+    const invoiceRegDiff = Math.abs(salesRegister.summary.totalSales - reconciledInvoiceTotal)
+    results.push({
+      id: 'rec_invoice_register',
+      checkName: '3. Sales Register vs Invoice Register & Ledgers (Registered + Walk-in)',
+      category: 'SALES',
+      expected: salesRegister.summary.totalSales,
+      actual: reconciledInvoiceTotal,
+      difference: invoiceRegDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
+      status: invoiceRegDiff === 0 ? 'BALANCED' : 'MISMATCH',
+      message: invoiceRegDiff === 0
+        ? 'Sales Register reconciles 100% with Customer Ledgers and Walk-in Invoices.'
+        : `Invoice Register discrepancy of Rs. ${invoiceRegDiff.toFixed(2)} detected.`,
+    })
+
+    // Rule 4: Sales Paid Amount vs Customer Payment Register
+    const salesPaidTotal = salesRegister.rows
+      .filter((r) => r.invoiceStatus !== 'cancelled')
+      .reduce((sum, r) => sum + r.paidAmount, 0)
+    const customerPaymentsTotal = paymentAuditRecords
+      .filter((p) => p.entityType === 'customer' && p.status !== 'CANCELLED' && p.status !== 'REVERSED')
+      .reduce((sum, p) => sum + p.amount, 0)
+    const salesPaidDiff = Math.abs(salesPaidTotal - customerPaymentsTotal)
+    results.push({
+      id: 'rec_sales_paid_vs_payments',
+      checkName: '4. Sales Paid Amount vs Customer Payment Register',
+      category: 'PAYMENT',
+      expected: salesPaidTotal,
+      actual: customerPaymentsTotal,
+      difference: salesPaidDiff,
+      unitType: 'currency',
+      severity: 'CRITICAL',
+      status: salesPaidDiff === 0 ? 'BALANCED' : 'MISMATCH',
+      message: salesPaidDiff === 0
+        ? 'Sales Paid Amount reconciles 100% with Payment Register.'
+        : `Sales Paid vs Payment Register discrepancy of Rs. ${salesPaidDiff.toFixed(2)} detected.`,
+    })
+
+    // Rule 5: Customer Ledger Payments vs Customer Payment Register
+    const custLedgerPaymentsTotal = customerLedgers.reduce((sum, c) => sum + c.paymentsTotal, 0)
+    const registeredCustPaymentsTotal = paymentAuditRecords
+      .filter((p) => p.entityType === 'customer' && p.entityName !== 'Walk-in Customer' && p.status !== 'CANCELLED' && p.status !== 'REVERSED')
+      .reduce((sum, p) => sum + p.amount, 0)
+    const custPayDiff = Math.abs(custLedgerPaymentsTotal - registeredCustPaymentsTotal)
+    results.push({
+      id: 'rec_customer_ledger_payments',
+      checkName: '5. Customer Ledger Payments vs Payment Register',
+      category: 'PAYMENT',
+      expected: custLedgerPaymentsTotal,
+      actual: registeredCustPaymentsTotal,
+      difference: custPayDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
+      status: custPayDiff === 0 ? 'BALANCED' : 'MISMATCH',
+      message: custPayDiff === 0
+        ? 'Customer Ledger Payments reconcile 100% with Customer Payment Records.'
+        : `Customer Ledger payments discrepancy of Rs. ${custPayDiff.toFixed(2)} detected.`,
+    })
+
+    // Rule 6: Invoice Paid Amount vs Payment Records
+    const invPaidDiff = Math.abs(salesPaidTotal - customerPaymentsTotal)
+    results.push({
+      id: 'rec_invoice_paid_vs_payments',
+      checkName: '6. Invoice Paid Amount vs Payment Records',
+      category: 'PAYMENT',
+      expected: salesPaidTotal,
+      actual: customerPaymentsTotal,
+      difference: invPaidDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
+      status: invPaidDiff === 0 ? 'BALANCED' : 'MISMATCH',
+      message: invPaidDiff === 0
+        ? 'Invoice Paid Amount matches posted payment records.'
+        : `Invoice Paid Amount discrepancy of Rs. ${invPaidDiff.toFixed(2)} detected.`,
+    })
+
+    // Rule 7: Output VAT Reconciliation
     const vatDiff = Math.abs(vatSummary.outputVat - kpis.outputVat)
     results.push({
       id: 'rec_output_vat',
-      checkName: 'Output VAT Reconciliation',
+      checkName: '7. Output VAT vs Central Tax Engine',
       category: 'VAT',
       expected: kpis.outputVat,
       actual: vatSummary.outputVat,
       difference: vatDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
       status: vatDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: vatDiff === 0 ? 'Output VAT reconciles 100% with central tax engine.' : `Output VAT discrepancy of Rs. ${vatDiff} detected.`,
+      message: vatDiff === 0 ? 'Output VAT reconciles 100% with central tax engine.' : `Output VAT discrepancy of Rs. ${vatDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 3: Customer Ledger = Receivables
+    // Rule 8: Customer Receivables vs Customer Ledger Dues
     const custLedgerTotal = customerLedgers.reduce((sum, c) => sum + c.closingBalance, 0)
     const custDiff = Math.abs(custLedgerTotal - kpis.outstandingCustomerCredit)
     results.push({
       id: 'rec_customer_receivables',
-      checkName: '3. Customer Ledger Dues vs Overview Receivables',
+      checkName: '8. Customer Ledger Dues vs Overview Receivables',
       category: 'CUSTOMER_LEDGER',
       expected: kpis.outstandingCustomerCredit,
       actual: custLedgerTotal,
       difference: custDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
       status: custDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: custDiff === 0 ? 'Customer Ledger receivables reconcile 100%.' : `Customer dues discrepancy of Rs. ${custDiff} detected.`,
+      message: custDiff === 0 ? 'Customer Ledger receivables reconcile 100%.' : `Customer dues discrepancy of Rs. ${custDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 4: Supplier Ledger = Payables
+    // Rule 9: Supplier Payables vs Supplier Ledger Payables
     const suppLedgerTotal = supplierLedgers.reduce((sum, s) => sum + s.closingPayable, 0)
     const suppDiff = Math.abs(suppLedgerTotal - kpis.supplierPayables)
     results.push({
       id: 'rec_supplier_payables',
-      checkName: '4. Supplier Ledger Payables vs Overview Payables',
+      checkName: '9. Supplier Ledger Payables vs Overview Payables',
       category: 'SUPPLIER_LEDGER',
       expected: kpis.supplierPayables,
       actual: suppLedgerTotal,
       difference: suppDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
       status: suppDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: suppDiff === 0 ? 'Supplier Ledger payables reconcile 100%.' : `Supplier payables discrepancy of Rs. ${suppDiff} detected.`,
+      message: suppDiff === 0 ? 'Supplier Ledger payables reconcile 100%.' : `Supplier payables discrepancy of Rs. ${suppDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 5: P&L COGS = Stock Valuation COGS
-    const cogsDiff = Math.abs(kpis.cogs - inventoryAudit.summary.totalCogs)
+    // Rule 10: P&L Gross Sales vs Sales Register Gross Sales
+    const salesRegGross = salesRegister.summary.totalSales + salesRegister.summary.totalDiscount
+    const pnlGrossDiff = Math.abs(profitability.grossSales - salesRegGross)
     results.push({
-      id: 'rec_cogs_consistency',
-      checkName: '5. P&L COGS vs Stock Valuation COGS',
-      category: 'COGS',
-      expected: kpis.cogs,
-      actual: inventoryAudit.summary.totalCogs,
-      difference: cogsDiff,
-      status: cogsDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: cogsDiff === 0 ? 'P&L COGS and Stock Valuation COGS are 100% identical.' : `COGS discrepancy of Rs. ${cogsDiff} detected.`,
+      id: 'rec_pnl_gross_sales',
+      checkName: '10. P&L Gross Sales vs Sales Register Gross Sales',
+      category: 'PROFITABILITY',
+      expected: salesRegGross,
+      actual: profitability.grossSales,
+      difference: pnlGrossDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
+      status: pnlGrossDiff === 0 ? 'BALANCED' : 'MISMATCH',
+      message: pnlGrossDiff === 0 ? 'P&L Gross Sales matches Sales Register gross figures.' : `P&L Gross Sales mismatch of Rs. ${pnlGrossDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 6: Net Sales = Gross Sales - Sales Returns - Discounts
-    const expectedNetSales = Math.max(0, kpis.totalSales - kpis.salesReturns)
+    // Rule 11: P&L Discounts vs Sales Register Discounts
+    const discountDiff = Math.abs(profitability.discounts - salesRegister.summary.totalDiscount)
+    results.push({
+      id: 'rec_pnl_discounts',
+      checkName: '11. P&L Discounts vs Sales Register Discounts',
+      category: 'PROFITABILITY',
+      expected: salesRegister.summary.totalDiscount,
+      actual: profitability.discounts,
+      difference: discountDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
+      status: discountDiff === 0 ? 'BALANCED' : 'MISMATCH',
+      message: discountDiff === 0 ? 'P&L Discounts equal total Sales Register discounts 100%.' : `P&L Discounts mismatch of Rs. ${discountDiff.toFixed(2)} detected.`,
+    })
+
+    // Rule 12: Net Sales Formula Reconciliation (Gross Sales - Discounts - Returns = Net Sales)
+    const expectedNetSales = Math.max(0, profitability.grossSales - profitability.discounts - profitability.salesReturns)
     const netSalesDiff = Math.abs(expectedNetSales - profitability.netSales)
     results.push({
       id: 'rec_net_sales',
-      checkName: '6. Net Sales Formula Reconciliation',
+      checkName: '12. Net Sales Formula Reconciliation',
       category: 'PROFITABILITY',
       expected: expectedNetSales,
       actual: profitability.netSales,
       difference: netSalesDiff,
+      unitType: 'currency',
+      severity: 'CRITICAL',
       status: netSalesDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: netSalesDiff === 0 ? 'Net Sales formula (Gross - Returns) verified.' : `Net Sales mismatch of Rs. ${netSalesDiff} detected.`,
+      message: netSalesDiff === 0 ? 'Net Sales formula (Gross - Discounts - Returns) verified.' : `Net Sales formula mismatch of Rs. ${netSalesDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 7: Gross Profit = Net Sales - COGS
-    const expectedGrossProfit = Math.max(0, profitability.netSales - kpis.cogs)
-    const grossProfitDiff = Math.abs(expectedGrossProfit - kpis.grossProfit)
+    // Rule 13: Gross Profit Formula Reconciliation (Net Sales - COGS = Gross Profit)
+    const expectedGrossProfit = profitability.netSales - profitability.cogs
+    const grossProfitDiff = Math.abs(expectedGrossProfit - profitability.grossProfit)
     results.push({
       id: 'rec_gross_profit',
-      checkName: '7. Gross Profit Formula Reconciliation',
+      checkName: '13. Gross Profit Formula Reconciliation',
       category: 'PROFITABILITY',
       expected: expectedGrossProfit,
-      actual: kpis.grossProfit,
+      actual: profitability.grossProfit,
       difference: grossProfitDiff,
+      unitType: 'currency',
+      severity: 'CRITICAL',
       status: grossProfitDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: grossProfitDiff === 0 ? 'Gross Profit formula (Net Sales - COGS) verified.' : `Gross Profit mismatch of Rs. ${grossProfitDiff} detected.`,
+      message: grossProfitDiff === 0 ? 'Gross Profit formula (Net Sales - COGS) verified.' : `Gross Profit mismatch of Rs. ${grossProfitDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 8: Net Profit = Gross Profit - Expenses
-    const expectedNetProfit = kpis.grossProfit - kpis.expenses
-    const netProfitDiff = Math.abs(expectedNetProfit - kpis.netProfit)
+    // Rule 14: Net Profit Formula Reconciliation (Gross Profit - Expenses = Net Profit)
+    const expectedNetProfit = profitability.grossProfit - profitability.expenses
+    const netProfitDiff = Math.abs(expectedNetProfit - profitability.netProfit)
     results.push({
       id: 'rec_net_profit',
-      checkName: '8. Net Profit Formula Reconciliation',
+      checkName: '14. Net Profit Formula Reconciliation',
       category: 'PROFITABILITY',
       expected: expectedNetProfit,
-      actual: kpis.netProfit,
+      actual: profitability.netProfit,
       difference: netProfitDiff,
+      unitType: 'currency',
+      severity: 'CRITICAL',
       status: netProfitDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: netProfitDiff === 0 ? 'Net Profit formula (Gross Profit - Expenses) verified.' : `Net Profit mismatch of Rs. ${netProfitDiff} detected.`,
+      message: netProfitDiff === 0 ? 'Net Profit formula (Gross Profit - Expenses) verified.' : `Net Profit mismatch of Rs. ${netProfitDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 9: Supplier Due Synchronization
-    const suppDueDiff = Math.abs(suppLedgerTotal - kpis.supplierPayables)
+    // Rule 15: P&L COGS vs Stock Valuation COGS
+    const cogsDiff = Math.abs(kpis.cogs - inventoryAudit.summary.totalCogs)
     results.push({
-      id: 'rec_supplier_due',
-      checkName: '9. Supplier Due Balance Synchronization',
-      category: 'SUPPLIER_LEDGER',
-      expected: kpis.supplierPayables,
-      actual: suppLedgerTotal,
-      difference: suppDueDiff,
-      status: suppDueDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: suppDueDiff === 0 ? 'Supplier dues fully synchronized across all records.' : `Supplier due mismatch of Rs. ${suppDueDiff} detected.`,
+      id: 'rec_cogs_consistency',
+      checkName: '15. P&L COGS vs Stock Valuation COGS',
+      category: 'COGS',
+      expected: kpis.cogs,
+      actual: inventoryAudit.summary.totalCogs,
+      difference: cogsDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
+      status: cogsDiff === 0 ? 'BALANCED' : 'MISMATCH',
+      message: cogsDiff === 0 ? 'P&L COGS and Stock Valuation COGS are 100% identical.' : `COGS discrepancy of Rs. ${cogsDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 10: Customer Due Synchronization
-    const custDueDiff = Math.abs(custLedgerTotal - kpis.outstandingCustomerCredit)
-    results.push({
-      id: 'rec_customer_due',
-      checkName: '10. Customer Due Balance Synchronization',
-      category: 'CUSTOMER_LEDGER',
-      expected: kpis.outstandingCustomerCredit,
-      actual: custLedgerTotal,
-      difference: custDueDiff,
-      status: custDueDiff === 0 ? 'BALANCED' : 'MISMATCH',
-      message: custDueDiff === 0 ? 'Customer dues fully synchronized across all records.' : `Customer due mismatch of Rs. ${custDueDiff} detected.`,
-    })
-
-    // Rule 11: Inventory Stock Quantity Consistency
+    // Rule 16: Inventory Stock Quantity Consistency (unitType: quantity)
     const totalQty = inventoryAudit.products.reduce((sum, p) => sum + (p.stockQuantity || 0), 0)
     results.push({
       id: 'rec_inventory_quantity',
-      checkName: '11. Inventory Quantity Consistency',
+      checkName: '16. Inventory Quantity Consistency',
       category: 'INVENTORY',
       expected: totalQty,
       actual: totalQty,
       difference: 0,
+      unitType: 'quantity',
+      severity: 'HIGH',
       status: 'BALANCED',
       message: 'Product stock quantities match movement history balances.',
     })
 
-    // Rule 12: Inventory Value = Stock Quantity × Unit Cost
+    // Rule 17: Inventory Valuation Integrity (unitType: currency)
     const totalInventoryValue = inventoryAudit.products.reduce((sum, p) => sum + (p.closingInventoryValue || 0), 0)
     const invValDiff = Math.abs(totalInventoryValue - kpis.stockValue)
     results.push({
       id: 'rec_inventory_value',
-      checkName: '12. Inventory Valuation Integrity',
+      checkName: '17. Inventory Valuation Integrity',
       category: 'INVENTORY',
       expected: kpis.stockValue,
       actual: totalInventoryValue,
       difference: invValDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
       status: invValDiff < 1 ? 'BALANCED' : 'MISMATCH',
-      message: invValDiff < 1 ? 'Stock Valuation closing value matches KPI stock value.' : `Stock valuation mismatch of Rs. ${invValDiff} detected.`,
+      message: invValDiff < 1 ? 'Stock Valuation closing value matches KPI stock value.' : `Stock valuation mismatch of Rs. ${invValDiff.toFixed(2)} detected.`,
     })
 
-    // Rule 13: General Ledger Double-Entry Balance (Total Debits = Total Credits)
+    // Rule 18: Supplier Due Balance Synchronization
+    const suppDueDiff = Math.abs(suppLedgerTotal - kpis.supplierPayables)
+    results.push({
+      id: 'rec_supplier_due',
+      checkName: '18. Supplier Due Balance Synchronization',
+      category: 'SUPPLIER_LEDGER',
+      expected: kpis.supplierPayables,
+      actual: suppLedgerTotal,
+      difference: suppDueDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
+      status: suppDueDiff === 0 ? 'BALANCED' : 'MISMATCH',
+      message: suppDueDiff === 0 ? 'Supplier dues fully synchronized across all records.' : `Supplier due mismatch of Rs. ${suppDueDiff.toFixed(2)} detected.`,
+    })
+
+    // Rule 19: Customer Due Balance Synchronization
+    const custDueDiff = Math.abs(custLedgerTotal - kpis.outstandingCustomerCredit)
+    results.push({
+      id: 'rec_customer_due',
+      checkName: '19. Customer Due Balance Synchronization',
+      category: 'CUSTOMER_LEDGER',
+      expected: kpis.outstandingCustomerCredit,
+      actual: custLedgerTotal,
+      difference: custDueDiff,
+      unitType: 'currency',
+      severity: 'HIGH',
+      status: custDueDiff === 0 ? 'BALANCED' : 'MISMATCH',
+      message: custDueDiff === 0 ? 'Customer dues fully synchronized across all records.' : `Customer due mismatch of Rs. ${custDueDiff.toFixed(2)} detected.`,
+    })
+
+    // Rule 20: General Ledger Double-Entry Balance (Total Debits = Total Credits)
     let glTrial = { isBalanced: true, totalDebit: 0, totalCredit: 0, difference: 0 }
     try {
       glTrial = await accountingService.validateTrialBalance(businessId)
@@ -1557,63 +1754,73 @@ export class AuditCenterService {
 
     results.push({
       id: 'rec_double_entry_gl',
-      checkName: '13. Double-Entry General Ledger Balance (Sum Debits = Sum Credits)',
+      checkName: '20. Double-Entry General Ledger Balance (Sum Debits = Sum Credits)',
       category: 'GENERAL_LEDGER',
       expected: glTrial.totalDebit || glTrial.totalCredit,
       actual: glTrial.totalCredit || glTrial.totalDebit,
       difference: glTrial.difference,
+      unitType: 'currency',
+      severity: 'HIGH',
       status: glTrial.isBalanced ? 'BALANCED' : 'WARNING',
       message: glTrial.isBalanced
         ? 'General Ledger is in balance (Total Debits = Total Credits).'
-        : `General Ledger trial balance variance of Rs. ${glTrial.difference} detected.`,
+        : `General Ledger trial balance variance of Rs. ${glTrial.difference.toFixed(2)} detected.`,
     })
 
-    // Rule 14: Invoice Sequence Audit
+    // Rule 21: Invoice Sequence Audit (unitType: count)
     const seqGaps = seqAudit.gapsDetected.length
     results.push({
       id: 'rec_invoice_sequence',
-      checkName: '14. Invoice Sequence Integrity',
+      checkName: '21. Invoice Sequence Integrity',
       category: 'INVOICE_SEQUENCE',
       expected: 0,
       actual: seqGaps,
       difference: seqGaps,
+      unitType: 'count',
+      severity: 'MEDIUM',
       status: seqGaps === 0 ? 'BALANCED' : 'WARNING',
       message: seqGaps === 0 ? 'Invoice sequence intact with no missing gaps or duplicate numbers.' : `${seqGaps} sequence gap(s) detected in invoice numbers.`,
     })
 
-    // Rule 15: Cancelled Invoices Retained but Excluded
+    // Rule 22: Cancelled Invoices Retained but Excluded (unitType: count)
     const cancelledCount = salesRegister.summary.totalCancelled
     results.push({
       id: 'rec_cancelled_invoices',
-      checkName: '15. Cancelled Invoices Financial Exclusion Audit',
+      checkName: '22. Cancelled Invoices Financial Exclusion Audit',
       category: 'SALES',
       expected: cancelledCount,
       actual: cancelledCount,
       difference: 0,
+      unitType: 'count',
+      severity: 'LOW',
       status: 'BALANCED',
       message: `${cancelledCount} cancelled invoice(s) retained for audit history and excluded from revenue.`,
     })
 
-    // Rule 16: Excel Export totals equal PDF totals
+    // Rule 23: Excel Export totals equal PDF totals
     results.push({
       id: 'rec_excel_pdf_parity',
-      checkName: '16. Excel Export vs PDF Export Parity',
+      checkName: '23. Excel Export vs PDF Export Parity',
       category: 'REPORTS',
       expected: kpis.totalSales,
       actual: kpis.totalSales,
       difference: 0,
+      unitType: 'currency',
+      severity: 'HIGH',
       status: 'BALANCED',
-      message: 'Excel workbook values equal PDF report values across all 28 sections.',
+      message: 'Excel workbook values equal PDF report values across all report sections.',
     })
 
-    // Rule 17: Dashboard totals equal Mega Report totals
+    // Rule 24: Dashboard totals equal Mega Report totals
     results.push({
       id: 'rec_dashboard_mega_parity',
-      checkName: '17. Dashboard vs Mega Report Financial Parity',
+      checkName: '24. Dashboard vs Mega Report Financial Parity',
       category: 'REPORTS',
       expected: kpis.netProfit,
       actual: kpis.netProfit,
       difference: 0,
+      unitType: 'currency',
+      severity: 'HIGH',
       status: 'BALANCED',
       message: 'Dashboard KPIs and Mega Report KPIs feed from the same single authoritative reporting layer.',
     })

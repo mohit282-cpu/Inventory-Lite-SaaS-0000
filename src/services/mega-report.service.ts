@@ -296,8 +296,14 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
 }
 
 function buildPeriodLabel(filters: AuditFilterParams): string {
-  if (filters.dateFrom || filters.dateTo) {
-    return `${filters.dateFrom || 'All History'} to ${filters.dateTo || 'Present'}`
+  if (filters.dateFrom && filters.dateTo) {
+    return `Custom Period (${filters.dateFrom} to ${filters.dateTo})`
+  }
+  if (filters.dateFrom) {
+    return `From ${filters.dateFrom} to Present`
+  }
+  if (filters.dateTo) {
+    return `Up to ${filters.dateTo}`
   }
   if (filters.fiscalYear) return `Full Fiscal Year ${filters.fiscalYear}`
   return 'All History'
