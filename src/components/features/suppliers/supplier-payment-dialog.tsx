@@ -121,14 +121,16 @@ export function SupplierPaymentDialog({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
           {/* Payment Amount */}
           <div className="space-y-1.5">
-            <Label htmlFor="amount" className="text-xs font-bold text-slate-700">Payment Amount (NPR) *</Label>
+            <Label htmlFor="amount" className="text-xs font-bold text-slate-700">Payment Amount (Rs.) *</Label>
             <Input
               id="amount"
               type="number"
               step="0.01"
               min="0.01"
+              max={supplier.outstandingPayable || undefined}
               placeholder="0.00"
-              className="font-mono text-base font-bold"
+              disabled={isLoading}
+              className="font-mono text-base font-bold bg-white focus-visible:ring-emerald-500"
               {...register('amount')}
             />
             {errors.amount && <p className="text-xs text-red-600 font-medium">{errors.amount.message}</p>}
@@ -139,9 +141,10 @@ export function SupplierPaymentDialog({
             <Label htmlFor="paymentMethod" className="text-xs font-bold text-slate-700">Payment Method *</Label>
             <Select
               value={selectedPaymentMethod}
+              disabled={isLoading}
               onValueChange={(val) => setValue('paymentMethod', val as any)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="paymentMethod" className="bg-white">
                 <SelectValue placeholder="Select payment method" />
               </SelectTrigger>
               <SelectContent>
@@ -161,7 +164,8 @@ export function SupplierPaymentDialog({
             <Input
               id="referenceNumber"
               placeholder="e.g. Bank Ref # / Cheque # 998822"
-              className="font-mono"
+              disabled={isLoading}
+              className="font-mono bg-white"
               {...register('referenceNumber')}
             />
           </div>
@@ -172,6 +176,8 @@ export function SupplierPaymentDialog({
             <Input
               id="notes"
               placeholder="e.g. Partial payment for PO-881"
+              disabled={isLoading}
+              className="bg-white"
               {...register('notes')}
             />
           </div>
@@ -190,8 +196,14 @@ export function SupplierPaymentDialog({
               disabled={isLoading}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
             >
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Confirm Payment
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing Payment...
+                </>
+              ) : (
+                'Confirm Payment'
+              )}
             </Button>
           </DialogFooter>
         </form>
