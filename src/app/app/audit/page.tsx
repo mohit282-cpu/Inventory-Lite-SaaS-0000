@@ -235,47 +235,53 @@ export default function AuditCenterPage() {
         <div>
           <PageHeader
             title="Audit & Compliance Center"
-            description="Complete financial visibility, registers, tax ledgers, and transaction-level audit evidence."
+            description="Financial visibility, tax reporting, ledgers, and transaction-level audit evidence."
           />
         </div>
 
         <div className="flex items-center gap-3">
           {/* Auditor Mode Read-Only Tag */}
           {isAuditorMode && (
-            <div className="px-3 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-xs font-extrabold flex items-center gap-1.5 shadow-xs">
+            <div className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-xs font-extrabold flex items-center gap-1.5 shadow-xs">
               <Lock className="h-3.5 w-3.5 text-amber-700" />
               <span>Auditor Mode (Read-Only)</span>
             </div>
           )}
 
-          {/* View Mode Toggle */}
-          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center gap-1 text-xs">
+          {/* View Mode Toggle Segmented Control */}
+          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center gap-1 text-xs" role="group" aria-label="Audit View Selector">
             <button
               type="button"
+              aria-pressed={viewMode === 'owner'}
               onClick={() => setViewMode('owner')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
-                viewMode === 'owner' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                viewMode === 'owner' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <Briefcase className="h-3.5 w-3.5 text-indigo-600" /> Owner View
+              <Briefcase className={`h-3.5 w-3.5 ${viewMode === 'owner' ? 'text-white' : 'text-indigo-600'}`} />
+              <span>Owner View</span>
             </button>
             <button
               type="button"
+              aria-pressed={viewMode === 'accountant'}
               onClick={() => setViewMode('accountant')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
-                viewMode === 'accountant' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                viewMode === 'accountant' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <FileText className="h-3.5 w-3.5 text-indigo-600" /> Accountant View
+              <FileText className={`h-3.5 w-3.5 ${viewMode === 'accountant' ? 'text-white' : 'text-indigo-600'}`} />
+              <span>Accountant View</span>
             </button>
             <button
               type="button"
+              aria-pressed={viewMode === 'auditor'}
               onClick={() => setViewMode('auditor')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
-                viewMode === 'auditor' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                viewMode === 'auditor' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              <Eye className="h-3.5 w-3.5 text-amber-600" /> Auditor View
+              <Eye className={`h-3.5 w-3.5 ${viewMode === 'auditor' ? 'text-white' : 'text-amber-600'}`} />
+              <span>Auditor View</span>
             </button>
           </div>
         </div>
@@ -292,7 +298,7 @@ export default function AuditCenterPage() {
 
       {/* Tab Navigation */}
       <div className="border-b border-slate-200 overflow-x-auto scrollbar-none">
-        <nav className="flex space-x-1 min-w-max pb-1">
+        <nav className="flex space-x-1 min-w-max pb-1" role="tablist" aria-label="Audit Navigation Registers">
           {tabsList.map((t) => {
             const Icon = t.icon
             const isActive = activeTab === t.id
@@ -300,14 +306,17 @@ export default function AuditCenterPage() {
               <button
                 key={t.id}
                 type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={`tabpanel-${t.id}`}
                 onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                   isActive
-                    ? 'bg-white text-slate-900 shadow-xs'
+                    ? 'bg-white text-indigo-950 font-bold border-b-2 border-indigo-600 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5 text-slate-500" />
+                <Icon className={`h-4 w-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
                 <span>{t.label}</span>
               </button>
             )
