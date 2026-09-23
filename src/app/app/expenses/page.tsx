@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { PageHeader } from '@/components/ui/page-header'
-import { Card } from '@/components/ui/card'
 import { SearchInput } from '@/components/ui/search-input'
 import { DataTable, Column } from '@/components/ui/data-table'
 import { Button } from '@/components/ui/button'
@@ -15,7 +14,8 @@ import { expenseService, ExpenseSummary } from '@/services/expense.service'
 import { ExpenseInput } from '@/lib/validations'
 import { Expense } from '@/types'
 import { formatBSDate } from '@/lib/date/bs-date'
-import { Plus, Edit, Trash2, Receipt, Calendar, CreditCard } from 'lucide-react'
+import { formatMoney } from '@/lib/money'
+import { Plus, Edit, Trash2, Receipt, Calendar, Wallet, FilterX } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 
 export default function ExpensesPage() {
@@ -35,7 +35,7 @@ export default function ExpensesPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null)
+  const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null)
 
   const fetchExpensesData = useCallback(async () => {
     if (!activeBusiness?.$id) return
@@ -43,13 +43,12 @@ export default function ExpensesPage() {
       setLoading(true)
       const bId = activeBusiness.$id
       const [list, sum] = await Promise.all([
-        expenseService.listExpenses(bId, { category: selectedCategory }),
+        expenseService.listExpenses(bId, { category: selectedCategory === 'all' ? undefined : selectedCategory }),
         expenseService.getExpenseSummary(bId),
       ])
       setExpenses(list)
       setSummary(sum)
     } catch (err) {
-      console.error('Error fetching expenses:', err)
       toast({
         title: 'Error loading expenses',
         description: 'Could not retrieve expense records from database.',
@@ -71,24 +70,23 @@ export default function ExpensesPage() {
       if (editingExpense) {
         await expenseService.updateExpense(editingExpense.$id, data, activeBusiness.$id)
         toast({
-          title: 'Expense updated',
+          title: 'Expense updated successfully',
           description: 'Expense record has been saved.',
         })
       } else {
         await expenseService.createExpense(data, activeBusiness.$id, user.$id)
         toast({
-          title: 'Expense recorded',
-          description: 'New expense log added successfully.',
+          title: 'Expense recorded successfully',
+          description: 'New expense entry logged.',
         })
       }
       setFormOpen(false)
       setEditingExpense(null)
       await fetchExpensesData()
     } catch (err: any) {
-      console.error('Error saving expense:', err)
       toast({
-        title: 'Error saving expense',
-        description: err?.message || 'Failed to save expense entry.',
+        title: 'Unable to save expense',
+        description: err?.message || 'Failed to record expense entry. Please try again.',
         variant: 'destructive',
       })
     } finally {
@@ -97,18 +95,17 @@ export default function ExpensesPage() {
   }
 
   const handleDeleteConfirm = async () => {
-    if (!activeBusiness?.$id || !deletingExpenseId) return
+    if (!activeBusiness?.$id || !deletingExpense?.$id) return
     try {
-      await expenseService.deleteExpense(deletingExpenseId, activeBusiness.$id)
+      await expenseService.deleteExpense(deletingExpense.$id, activeBusiness.$id)
       toast({
         title: 'Expense deleted',
         description: 'Expense record has been removed.',
       })
       setDeleteConfirmOpen(false)
-      setDeletingExpenseId(null)
+      setDeletingExpense(null)
       await fetchExpensesData()
     } catch (err: any) {
-      console.error('Error deleting expense:', err)
       toast({
         title: 'Error deleting expense',
         description: err?.message || 'Failed to delete expense entry.',
@@ -117,41 +114,58 @@ export default function ExpensesPage() {
     }
   }
 
-  const filteredExpenses = expenses.filter((exp) => {
-    const query = searchQuery.toLowerCase()
-    const titleMatch = (exp.title || exp.description || '').toLowerCase().includes(query)
-    const categoryMatch = (exp.category || '').toLowerCase().includes(query)
-    const notesMatch = (exp.notes || '').toLowerCase().includes(query)
-    const textPass = titleMatch || categoryMatch || notesMatch
+  const handleClearFilters = () => {
+    setSearchQuery('')
+    setSelectedCategory('all')
+    setDateFilter('all')
+  }
 
-    const todayStr = new Date().toISOString().slice(0, 10)
-    const monthStr = new Date().toISOString().slice(0, 7)
-    const expDate = (exp.date || exp.createdAt || '').slice(0, 10)
+  const isFilterActive = searchQuery.trim() !== '' || selectedCategory !== 'all' || dateFilter !== 'all'
 
-    let datePass = true
-    if (dateFilter === 'today' && expDate !== todayStr) datePass = false
-    if (dateFilter === 'month' && !expDate.startsWith(monthStr)) datePass = false
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((exp) => {
+      const query = searchQuery.toLowerCase().trim()
+      const titleMatch = (exp.title || exp.description || '').toLowerCase().includes(query)
+      const categoryMatch = (exp.category || '').toLowerCase().includes(query)
+      const notesMatch = (exp.notes || '').toLowerCase().includes(query)
+      const textPass = query === '' || titleMatch || categoryMatch || notesMatch
 
-    return textPass && datePass
-  })
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const now = new Date()
+      const monthStr = now.toISOString().slice(0, 7)
+      
+      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastMonthStr = lastMonthDate.toISOString().slice(0, 7)
 
-  const currency = activeBusiness?.currency || 'NPR'
+      const expDate = (exp.date || exp.createdAt || '').slice(0, 10)
+
+      let datePass = true
+      if (dateFilter === 'today' && expDate !== todayStr) datePass = false
+      if (dateFilter === 'month' && !expDate.startsWith(monthStr)) datePass = false
+      if (dateFilter === 'last_month' && !expDate.startsWith(lastMonthStr)) datePass = false
+
+      return textPass && datePass
+    })
+  }, [expenses, searchQuery, dateFilter])
 
   const columns: Column<Expense>[] = [
     {
       key: 'title',
       header: 'Expense Description',
       sortable: true,
+      width: '35%',
       render: (item) => (
         <div>
-          <p className="font-bold text-slate-900">{item.title || item.description}</p>
-          {item.notes && <p className="text-xs text-slate-500 mt-0.5">{item.notes}</p>}
+          <p className="font-bold text-slate-900 text-sm">{item.title || item.description}</p>
+          {item.notes && <p className="text-xs text-slate-500 font-normal mt-0.5">{item.notes}</p>}
         </div>
       ),
     },
     {
       key: 'category',
       header: 'Category',
+      sortable: true,
+      width: '20%',
       render: (item) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
           {item.category}
@@ -160,11 +174,13 @@ export default function ExpensesPage() {
     },
     {
       key: 'amount',
-      header: 'Amount (Rs.)',
+      header: 'Amount',
       sortable: true,
+      width: '18%',
+      align: 'right',
       render: (item) => (
-        <span className="font-mono font-bold text-rose-700 text-base">
-          Rs. {item.amount.toFixed(2)}
+        <span className="font-mono font-bold text-slate-900 text-sm sm:text-base">
+          Rs. {formatMoney(item.amount)}
         </span>
       ),
     },
@@ -172,6 +188,8 @@ export default function ExpensesPage() {
       key: 'date',
       header: 'Date',
       sortable: true,
+      width: '15%',
+      align: 'center',
       render: (item) => (
         <span className="text-xs text-slate-800 font-mono font-bold">
           {formatBSDate(item.date || item.createdAt)}
@@ -181,10 +199,12 @@ export default function ExpensesPage() {
     {
       key: 'actions',
       header: 'Actions',
+      width: '12%',
+      align: 'right',
       render: (item) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center justify-end gap-1">
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={() => {
               setEditingExpense(item)
@@ -192,20 +212,22 @@ export default function ExpensesPage() {
             }}
             title="Edit Expense"
             aria-label={`Edit expense ${item.title || item.description}`}
+            className="h-8 w-8 text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-indigo-600"
           >
-            <Edit className="h-4 w-4 text-slate-500" />
+            <Edit className="h-3.5 w-3.5" />
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={() => {
-              setDeletingExpenseId(item.$id)
+              setDeletingExpense(item)
               setDeleteConfirmOpen(true)
             }}
             title="Delete Expense"
             aria-label={`Delete expense ${item.title || item.description}`}
+            className="h-8 w-8 text-slate-600 border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
           >
-            <Trash2 className="h-4 w-4 text-slate-500 hover:text-red-600" />
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       ),
@@ -220,115 +242,160 @@ export default function ExpensesPage() {
     <div className="space-y-6 text-slate-900">
       <PageHeader
         title="Expense Tracker"
-        description="Log and monitor operational costs (rent, utilities, salaries) for accurate net profit estimations."
+        description="Track operating expenses and monitor business spending."
         actions={
           <Button
             onClick={() => {
               setEditingExpense(null)
               setFormOpen(true)
             }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm"
           >
-            <Plus className="mr-2 h-4 w-4" /> Record New Expense
+            <Plus className="mr-1.5 h-4 w-4" /> Record Expense
           </Button>
         }
       />
 
       {/* 3 Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-slate-200 bg-white shadow-sm p-5">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-bold text-slate-600">
-              Today&apos;s Expenses
-            </span>
-            <Calendar className="h-4 w-4 text-rose-600 shrink-0" />
+        {/* Card 1: Today's Expenses */}
+        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+            <span>Today&apos;s Expenses</span>
+            <div className="h-9 w-9 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center shrink-0">
+              <Calendar className="h-4 w-4" />
+            </div>
           </div>
-          <div className="text-2xl font-extrabold text-rose-700 font-mono tracking-tight">
-            {currency} {summary.todayExpenses.toFixed(2)}
+          <div className="text-2xl font-extrabold font-mono text-slate-900 tracking-tight mt-1">
+            Rs. {formatMoney(summary.todayExpenses)}
           </div>
-          <p className="text-xs text-slate-500 mt-1">Expenses logged today</p>
-        </Card>
+          <p className="text-xs text-slate-500 font-medium">Expenses recorded today</p>
+        </div>
 
-        <Card className="border-slate-200 bg-white shadow-sm p-5">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-bold text-slate-600">
-              This Month&apos;s Expenses
-            </span>
-            <Receipt className="h-4 w-4 text-amber-600 shrink-0" />
+        {/* Card 2: This Month's Expenses */}
+        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+            <span>This Month</span>
+            <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
+              <Receipt className="h-4 w-4" />
+            </div>
           </div>
-          <div className="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
-            {currency} {summary.thisMonthExpenses.toFixed(2)}
+          <div className="text-2xl font-extrabold font-mono text-slate-900 tracking-tight mt-1">
+            Rs. {formatMoney(summary.thisMonthExpenses)}
           </div>
-          <p className="text-xs text-slate-500 mt-1">Current calendar month total</p>
-        </Card>
+          <p className="text-xs text-slate-500 font-medium">Current calendar month total</p>
+        </div>
 
-        <Card className="border-slate-200 bg-white shadow-sm p-5">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-bold text-slate-600">
-              All-Time Total Expenses
-            </span>
-            <CreditCard className="h-4 w-4 text-slate-400 shrink-0" />
+        {/* Card 3: All-Time Total Expenses */}
+        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+            <span>All-Time</span>
+            <div className="h-9 w-9 rounded-xl bg-slate-50 text-slate-700 border border-slate-200 flex items-center justify-center shrink-0">
+              <Wallet className="h-4 w-4" />
+            </div>
           </div>
-          <div className="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
-            {currency} {summary.totalExpenses.toFixed(2)}
+          <div className="text-2xl font-extrabold font-mono text-slate-900 tracking-tight mt-1">
+            Rs. {formatMoney(summary.totalExpenses)}
           </div>
-          <p className="text-xs text-slate-500 mt-1">Cumulative operational expenditure</p>
-        </Card>
+          <p className="text-xs text-slate-500 font-medium">Total recorded expenses</p>
+        </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <SearchInput
-          placeholder="Search by title, notes, or category..."
-          value={searchQuery}
-          onChange={setSearchQuery}
-          className="w-full sm:max-w-md"
-        />
+      {/* Toolbar & Filters */}
+      <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+          <div className="sm:col-span-6">
+            <SearchInput
+              aria-label="Search expenses by title, notes, or category"
+              placeholder="Search expenses by title, notes, or category..."
+              value={searchQuery}
+              onChange={setSearchQuery}
+              className="w-full max-w-full"
+            />
+          </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger aria-label="Filter expenses by category" className="w-full sm:w-44">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="rent">Rent</SelectItem>
-              <SelectItem value="utilities">Utilities</SelectItem>
-              <SelectItem value="salaries">Salaries</SelectItem>
-              <SelectItem value="supplies">Supplies</SelectItem>
-              <SelectItem value="transport">Transport</SelectItem>
-              <SelectItem value="maintenance">Maintenance</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="sm:col-span-3">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger aria-label="Filter expenses by category" className="h-11 bg-white border-slate-300 text-slate-800 text-xs font-medium rounded-lg">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent className="max-h-56">
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="rent">Rent</SelectItem>
+                <SelectItem value="utilities">Utilities (Water, Power, Net)</SelectItem>
+                <SelectItem value="salaries">Salaries & Wages</SelectItem>
+                <SelectItem value="supplies">Supplies & Stationery</SelectItem>
+                <SelectItem value="transport">Transport & Logistics</SelectItem>
+                <SelectItem value="maintenance">Maintenance & Repairs</SelectItem>
+                <SelectItem value="other">Other Expense</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger aria-label="Filter expenses by date range" className="w-full sm:w-36">
-              <SelectValue placeholder="All Time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Dates</SelectItem>
-              <SelectItem value="today">Today Only</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="sm:col-span-3 flex gap-2">
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger aria-label="Filter expenses by date range" className="h-11 bg-white border-slate-300 text-slate-800 text-xs font-medium rounded-lg flex-1">
+                <SelectValue placeholder="All Dates" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Dates</SelectItem>
+                <SelectItem value="today">Today Only</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="last_month">Last Month</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {isFilterActive && (
+              <Button
+                variant="outline"
+                onClick={handleClearFilters}
+                className="h-11 px-3 border-slate-300 text-slate-600 hover:text-slate-900 rounded-lg shrink-0"
+                title="Clear active filters"
+                aria-label="Clear active filters"
+              >
+                <FilterX className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
+
+        {isFilterActive && (
+          <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-indigo-500"></span>
+            Filters active. Displaying {filteredExpenses.length} matching expense record{filteredExpenses.length === 1 ? '' : 's'}.
+          </div>
+        )}
       </div>
 
       {/* Expense Table */}
       <DataTable
         data={filteredExpenses}
         columns={columns}
-        emptyTitle="No expenses recorded"
-        emptyDescription="Record business expenses to track operating costs."
+        emptyTitle={isFilterActive ? 'No matching expenses found' : 'No expenses recorded'}
+        emptyDescription={
+          isFilterActive
+            ? 'No expense entries match your search or filter criteria. Try adjusting your filters.'
+            : 'Start tracking operational costs (rent, utilities, salaries, supplies) to monitor business net profit.'
+        }
         emptyAction={
-          <Button
-            onClick={() => {
-              setEditingExpense(null)
-              setFormOpen(true)
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" /> Record Expense
-          </Button>
+          isFilterActive ? (
+            <Button
+              onClick={handleClearFilters}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4 text-xs"
+            >
+              Clear Filters
+            </Button>
+          ) : (
+            <Button
+              onClick={() => {
+                setEditingExpense(null)
+                setFormOpen(true)
+              }}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-10 px-4 text-xs"
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Record Expense
+            </Button>
+          )
         }
       />
 
@@ -349,12 +416,16 @@ export default function ExpensesPage() {
         isOpen={deleteConfirmOpen}
         onClose={() => {
           setDeleteConfirmOpen(false)
-          setDeletingExpenseId(null)
+          setDeletingExpense(null)
         }}
         onConfirm={handleDeleteConfirm}
         title="Delete Expense Record"
-        description="Are you sure you want to remove this expense entry? This action cannot be undone."
-        confirmText="Delete Entry"
+        description={
+          deletingExpense
+            ? `Are you sure you want to remove "${deletingExpense.title || deletingExpense.description}" (Rs. ${formatMoney(deletingExpense.amount)})? This action cannot be undone.`
+            : 'Are you sure you want to remove this expense record? This action cannot be undone.'
+        }
+        confirmText="Delete Expense"
       />
     </div>
   )

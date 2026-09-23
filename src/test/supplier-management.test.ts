@@ -91,7 +91,7 @@ describe('Supplier Management Logic & Rule Enforcement', () => {
       expect(totalPurchases).toBe(6200)
       expect(totalPaid).toBe(4200)
       expect(totalPayable).toBe(2000)
-      expect(formatMoney(totalPayable)).toBe('2000.00')
+      expect(formatMoney(totalPayable)).toBe('2,000.00')
     })
   })
 

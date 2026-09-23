@@ -29,8 +29,12 @@ export function fromMinorUnits(paisa: number): number {
  * Safely format monetary amount with 2 decimal places
  */
 export function formatMoney(amount: number): string {
+  if (typeof amount !== 'number' || isNaN(amount) || !isFinite(amount)) {
+    return '0.00'
+  }
   const paisa = toMinorUnits(amount)
-  return (paisa / 100).toFixed(2)
+  const val = paisa / 100
+  return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export interface CalculatedSaleTotals {
