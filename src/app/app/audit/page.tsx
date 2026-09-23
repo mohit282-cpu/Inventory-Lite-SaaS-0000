@@ -297,7 +297,7 @@ export default function AuditCenterPage() {
       />
 
       {/* Tab Navigation */}
-      <div className="border-b border-slate-200 overflow-x-auto scrollbar-none">
+      <div className="border-b border-slate-200 overflow-x-auto scrollbar-horizontal-visible pb-2">
         <nav className="flex space-x-1 min-w-max pb-1" role="tablist" aria-label="Audit Navigation Registers">
           {tabsList.map((t) => {
             const Icon = t.icon
