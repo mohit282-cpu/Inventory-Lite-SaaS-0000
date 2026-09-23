@@ -33,6 +33,65 @@ export function formatCurrency(amount: number | null | undefined, currency: stri
   return `${code} ${formattedNumber}`
 }
 
+export interface GrossProfitMetrics {
+  grossProfit: number
+  grossMarginPercent: number | null
+  formattedGrossProfit: string
+  formattedGrossMargin: string
+  isLoss: boolean
+  isZeroCost: boolean
+}
+
+/**
+ * Calculate Gross Profit and Gross Margin for product pricing metrics.
+ * 
+ * Rules:
+ * - Gross Profit = Selling Price - Purchase Price
+ * - Gross Margin = (Gross Profit / Selling Price) * 100
+ * - If Purchase Price is 0 or Selling Price is 0, Gross Margin displays "N/A" (never NaN or Infinity)
+ * - Format negative profit cleanly (e.g. -Rs. 5.00 or -NPR 5.00)
+ */
+export function calculateGrossProfitMetrics(
+  sellingPrice: number | null | undefined,
+  purchasePrice: number | null | undefined,
+  currency: string = 'Rs.'
+): GrossProfitMetrics {
+  const safeSelling = typeof sellingPrice === 'number' && !isNaN(sellingPrice) ? sellingPrice : 0
+  const safePurchase = typeof purchasePrice === 'number' && !isNaN(purchasePrice) ? purchasePrice : 0
+
+  const grossProfit = safeSelling - safePurchase
+  const isLoss = grossProfit < 0
+  const isZeroCost = safePurchase === 0
+
+  let formattedGrossProfit: string
+  if (isLoss) {
+    const absFormatted = formatCurrency(Math.abs(grossProfit), currency)
+    formattedGrossProfit = `-${absFormatted}`
+  } else {
+    formattedGrossProfit = formatCurrency(grossProfit, currency)
+  }
+
+  let grossMarginPercent: number | null = null
+  let formattedGrossMargin = 'N/A'
+
+  if (safePurchase > 0 && safeSelling > 0) {
+    const marginRatio = (grossProfit / safeSelling) * 100
+    if (!isNaN(marginRatio) && isFinite(marginRatio)) {
+      grossMarginPercent = marginRatio
+      formattedGrossMargin = `${marginRatio.toFixed(1)}%`
+    }
+  }
+
+  return {
+    grossProfit,
+    grossMarginPercent,
+    formattedGrossProfit,
+    formattedGrossMargin,
+    isLoss,
+    isZeroCost,
+  }
+}
+
 /**
  * Format raw payment method enum strings into clean presentation labels.
  * E.g., 'full_udhaar' -> 'Full Udhaar', 'cash' -> 'Cash', 'bank_transfer' -> 'Bank Transfer'

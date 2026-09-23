@@ -892,6 +892,8 @@ export default function ProductsPage() {
       <ProductDetailsDialog
         product={detailsProduct}
         categoryName={getCategoryName(detailsProduct?.categoryId)}
+        currencyCode={currency}
+        businessId={activeBusiness?.$id}
         isOpen={isDetailsOpen}
         onClose={() => {
           setIsDetailsOpen(false)

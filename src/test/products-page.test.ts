@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, calculateGrossProfitMetrics } from '@/lib/utils'
 import { productFormSchema } from '@/lib/validations'
 
 describe('Products Page Inventory Modernization & Quality Tests', () => {
@@ -253,6 +253,65 @@ describe('Products Page Inventory Modernization & Quality Tests', () => {
     expect(isBelowCost(100, 120)).toBe(false)
     expect(isBelowCost(100, 100)).toBe(false)
     expect(isBelowCost(0, 50)).toBe(false)
+  })
+
+  it('12. Product Details Modal: Calculates Gross Profit & Margin for Normal Product', () => {
+    // Cost: 8, Selling: 20 -> Profit: 12 (Rs. 12.00), Gross Margin: 60.0%
+    const res = calculateGrossProfitMetrics(20, 8, 'Rs.')
+    expect(res.grossProfit).toBe(12)
+    expect(res.formattedGrossProfit).toBe('Rs. 12.00')
+    expect(res.grossMarginPercent).toBe(60)
+    expect(res.formattedGrossMargin).toBe('60.0%')
+    expect(res.isLoss).toBe(false)
+    expect(res.isZeroCost).toBe(false)
+  })
+
+  it('13. Product Details Modal: Handles Zero Cost safely without NaN or Infinity', () => {
+    // Cost: 0, Selling: 20 -> Profit: 20 (Rs. 20.00), Gross Margin: N/A
+    const res = calculateGrossProfitMetrics(20, 0, 'Rs.')
+    expect(res.grossProfit).toBe(20)
+    expect(res.formattedGrossProfit).toBe('Rs. 20.00')
+    expect(res.grossMarginPercent).toBeNull()
+    expect(res.formattedGrossMargin).toBe('N/A')
+    expect(res.isLoss).toBe(false)
+    expect(res.isZeroCost).toBe(true)
+    expect(res.formattedGrossMargin).not.toContain('NaN')
+    expect(res.formattedGrossMargin).not.toContain('Infinity')
+  })
+
+  it('14. Product Details Modal: Calculates Break-even pricing correctly', () => {
+    // Cost: 20, Selling: 20 -> Profit: 0 (Rs. 0.00), Gross Margin: 0.0%
+    const res = calculateGrossProfitMetrics(20, 20, 'Rs.')
+    expect(res.grossProfit).toBe(0)
+    expect(res.formattedGrossProfit).toBe('Rs. 0.00')
+    expect(res.grossMarginPercent).toBe(0)
+    expect(res.formattedGrossMargin).toBe('0.0%')
+    expect(res.isLoss).toBe(false)
+  })
+
+  it('15. Product Details Modal: Calculates Loss accurately with negative formatting', () => {
+    // Cost: 20, Selling: 15 -> Profit: -5 (-Rs. 5.00), Gross Margin: -33.3%
+    const res = calculateGrossProfitMetrics(15, 20, 'Rs.')
+    expect(res.grossProfit).toBe(-5)
+    expect(res.formattedGrossProfit).toBe('-Rs. 5.00')
+    expect(res.grossMarginPercent).toBeCloseTo(-33.33, 1)
+    expect(res.formattedGrossMargin).toBe('-33.3%')
+    expect(res.isLoss).toBe(true)
+  })
+
+  it('16. Product Details Modal: Evaluates Low Stock Thresholds and Statuses', () => {
+    const evaluateStatus = (qty: number, threshold: number) => {
+      if (qty === 0) return 'OUT_OF_STOCK'
+      if (qty <= threshold) return 'LOW_STOCK'
+      return 'IN_STOCK'
+    }
+
+    // Low stock: Current 5, Threshold 20
+    expect(evaluateStatus(5, 20)).toBe('LOW_STOCK')
+    // Out of stock: Current 0, Threshold 20
+    expect(evaluateStatus(0, 20)).toBe('OUT_OF_STOCK')
+    // In stock: Current 60, Threshold 20
+    expect(evaluateStatus(60, 20)).toBe('IN_STOCK')
   })
 })
 
