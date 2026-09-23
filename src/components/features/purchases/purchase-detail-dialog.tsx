@@ -48,18 +48,20 @@ export function PurchaseDetailDialog({ isOpen, onClose, purchase }: PurchaseDeta
 
   if (!purchase) return null
 
+  const hasDue = (purchase.dueAmount || 0) > 0
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl border-slate-200 bg-white text-slate-900 shadow-xl max-h-[85vh] flex flex-col">
-        <DialogHeader className="shrink-0 pb-2 border-b border-slate-100">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-2xl w-[95vw] sm:w-full border-slate-200 bg-white text-slate-900 shadow-xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="p-5 pb-3 border-b border-slate-100 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-bold shrink-0">
                 <ShoppingBag className="h-5 w-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <DialogTitle className="text-xl font-bold text-slate-900">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle className="text-lg sm:text-xl font-bold text-slate-900">
                     Purchase Intake — #{purchase.purchaseNumber || purchase.$id}
                   </DialogTitle>
                   <span
@@ -88,9 +90,9 @@ export function PurchaseDetailDialog({ isOpen, onClose, purchase }: PurchaseDeta
             <span>Loading purchase details...</span>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto space-y-4 py-3 scrollbar-thin">
+          <div className="flex-1 overflow-y-auto space-y-4 p-5">
             {/* Supplier & Document Summary Card */}
-            <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
               <div className="space-y-1">
                 <div className="text-slate-500 flex items-center gap-1 font-medium">
                   <Truck className="h-3.5 w-3.5 text-indigo-600" /> Supplier:
@@ -99,8 +101,8 @@ export function PurchaseDetailDialog({ isOpen, onClose, purchase }: PurchaseDeta
                 {supplier?.phone && <div className="text-slate-500">Phone: {supplier.phone}</div>}
               </div>
 
-              <div className="space-y-1 text-right">
-                <div className="text-slate-500 flex items-center gap-1 justify-end font-medium">
+              <div className="space-y-1 sm:text-right">
+                <div className="text-slate-500 flex items-center gap-1 sm:justify-end font-medium">
                   <FileText className="h-3.5 w-3.5 text-slate-400" /> Supplier Bill #:
                 </div>
                 <div className="font-mono font-bold text-slate-900">
@@ -168,7 +170,7 @@ export function PurchaseDetailDialog({ isOpen, onClose, purchase }: PurchaseDeta
                 <span className="font-mono">Rs. {formatMoney(purchase.paidAmount)}</span>
               </div>
 
-              <div className="flex justify-between text-xs font-bold text-red-600">
+              <div className={`flex justify-between text-xs font-bold ${hasDue ? 'text-red-600' : 'text-slate-700'}`}>
                 <span>Supplier Due Balance:</span>
                 <span className="font-mono">Rs. {formatMoney(purchase.dueAmount)}</span>
               </div>
@@ -182,8 +184,8 @@ export function PurchaseDetailDialog({ isOpen, onClose, purchase }: PurchaseDeta
           </div>
         )}
 
-        <div className="pt-3 border-t border-slate-100 flex justify-end shrink-0">
-          <Button variant="outline" onClick={onClose} className="font-bold">
+        <div className="p-4 border-t border-slate-100 flex justify-end shrink-0 bg-slate-50/50">
+          <Button variant="outline" onClick={onClose} className="font-bold text-slate-700">
             Close Details
           </Button>
         </div>
@@ -191,3 +193,4 @@ export function PurchaseDetailDialog({ isOpen, onClose, purchase }: PurchaseDeta
     </Dialog>
   )
 }
+
