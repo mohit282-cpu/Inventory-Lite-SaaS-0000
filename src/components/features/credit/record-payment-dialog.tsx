@@ -20,6 +20,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Customer, Sale, PaymentMethod } from '@/types'
 import { DollarSign, Loader2, CheckCircle2, AlertCircle, User, Receipt } from 'lucide-react'
 import { formatMoney } from '@/lib/money'
+import { formatHumanInvoiceNumber, formatDate } from '@/lib/utils'
 
 interface RecordPaymentDialogProps {
   isOpen: boolean
@@ -82,8 +83,11 @@ export function RecordPaymentDialog({
 
       setCustomers(custDocs)
 
-      // Keep only sales with positive remaining due and not cancelled
-      const openSales = saleDocs.filter((s) => s.dueAmount > 0 && s.status !== 'cancelled')
+      // Keep only sales with positive remaining due (dueAmount > 0 or total - paidAmount > 0) and not cancelled
+      const openSales = saleDocs.filter((s) => {
+        const remainingDue = typeof s.dueAmount === 'number' ? s.dueAmount : (s.total || 0) - (s.paidAmount || 0)
+        return remainingDue > 0 && s.status !== 'cancelled'
+      })
       setSales(openSales)
 
       // Handle initial customer & sale selection
@@ -270,7 +274,7 @@ export function RecordPaymentDialog({
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isSubmitting) onClose() }}>
       <DialogContent
         aria-modal="true"
-        className="max-w-lg w-[95vw] sm:w-full border-slate-200 bg-white text-slate-900 shadow-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl z-[60]"
+        className="max-w-lg w-[95vw] sm:w-full border-slate-200 bg-white text-slate-900 shadow-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl z-50 pointer-events-auto"
       >
         {/* Sticky Header */}
         <DialogHeader className="p-5 pb-3 border-b border-slate-100 shrink-0 bg-white">
@@ -307,7 +311,7 @@ export function RecordPaymentDialog({
             </Button>
           </div>
         ) : (
-          <form id="payment-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4 scrollbar-thin scrollbar-thumb-slate-300">
+          <form id="payment-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto min-h-0 p-5 space-y-4 scrollbar-thin scrollbar-thumb-slate-300 pb-8">
             {/* Customer Select / Display */}
             <div className="space-y-1.5">
               <Label className="text-xs font-extrabold text-slate-700 flex items-center gap-1">
@@ -376,23 +380,35 @@ export function RecordPaymentDialog({
               )}
             </div>
 
-            {/* Financial Breakdown Summary & Live Math Card */}
+            {/* Financial Breakdown Summary & Compact Information Card */}
             {currentSale ? (
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-                {selectedCustomerObj && availableSales.length > 1 && (
-                  <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                    <span className="text-slate-600 font-medium">Customer Total Outstanding:</span>
-                    <span className="font-mono font-bold text-slate-900">
-                      Rs. {formatMoney(customerTotalDue)}{' '}
-                      <span className="text-[10px] text-slate-500 font-normal font-sans">
-                        ({availableSales.length} open sales)
-                      </span>
-                    </span>
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2.5">
+                {/* Compact Invoice Metadata Header */}
+                <div className="grid grid-cols-2 gap-2 pb-2 border-b border-slate-200 text-[11px]">
+                  <div>
+                    <span className="text-slate-500 font-medium">Invoice Number:</span>
+                    <div className="font-mono font-bold text-slate-900">{formatHumanInvoiceNumber(currentSale)}</div>
                   </div>
-                )}
+                  <div>
+                    <span className="text-slate-500 font-medium">Sale Number:</span>
+                    <div className="font-mono font-bold text-slate-900">{currentSale.saleNumber || `SALE-${currentSale.$id.slice(-6)}`}</div>
+                  </div>
+                  {currentSale.createdAt && (
+                    <div>
+                      <span className="text-slate-500 font-medium">Invoice Date:</span>
+                      <div className="font-mono font-semibold text-slate-700">{formatDate(currentSale.createdAt)}</div>
+                    </div>
+                  )}
+                  {selectedCustomerObj && availableSales.length > 1 && (
+                    <div>
+                      <span className="text-slate-500 font-medium">Cust. Total Due:</span>
+                      <div className="font-mono font-bold text-slate-900">Rs. {formatMoney(customerTotalDue)}</div>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex justify-between text-slate-600">
-                  <span>Total Sale / Invoice:</span>
+                  <span>Total Sale / Invoice Amount:</span>
                   <span className="font-mono font-bold text-slate-900">Rs. {formatMoney(currentSale.total)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
@@ -400,7 +416,7 @@ export function RecordPaymentDialog({
                   <span className="font-mono font-bold text-emerald-700">Rs. {formatMoney(currentSale.paidAmount)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-amber-900 pt-1.5 border-t border-slate-200">
-                  <span>Selected Invoice Due:</span>
+                  <span>Outstanding Credit Due:</span>
                   <span className="font-mono font-extrabold text-sm text-amber-800">Rs. {formatMoney(currentSale.dueAmount)}</span>
                 </div>
 
@@ -426,9 +442,16 @@ export function RecordPaymentDialog({
             {/* Payment Amount & Payment Date Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="paymentAmountInput" className="text-xs font-extrabold text-slate-700">
-                  Payment Amount (Rs.) *
-                </Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="paymentAmountInput" className="text-xs font-extrabold text-slate-700">
+                    Payment Amount (Rs.) *
+                  </Label>
+                  {currentSale && (
+                    <span className="text-[11px] font-mono font-semibold text-slate-500">
+                      Maximum payment: Rs. {formatMoney(currentSale.dueAmount)}
+                    </span>
+                  )}
+                </div>
                 <Input
                   id="paymentAmountInput"
                   type="number"

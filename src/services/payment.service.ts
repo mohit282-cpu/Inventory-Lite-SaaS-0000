@@ -95,6 +95,10 @@ export class PaymentService extends BaseService {
           throw new Error('Associated sale transaction not found')
         }
 
+        if (sale.status === 'cancelled') {
+          throw new Error('Cannot record payment for a cancelled sale')
+        }
+
         const saleDuePaisa = toMinorUnits(sale.dueAmount)
         if (paymentPaisa > saleDuePaisa) {
           throw new Error(

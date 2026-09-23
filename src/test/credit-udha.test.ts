@@ -274,5 +274,41 @@ describe('Credit / Udhar Management Module Tests', () => {
       )
     ).rejects.toThrow(/Payment amount must be greater than zero/)
   })
+
+  it('rejects payment against a cancelled sale or across business tenants', async () => {
+    const prod = await productService.createProduct(
+      { name: 'Pipes', sku: 'PIP-01', unit: 'pcs', purchasePrice: 200, sellingPrice: 400, stockQuantity: 50 },
+      bizA,
+      user1
+    )
+
+    const saleRes = await saleService.createSale(
+      {
+        items: [{ productId: prod.$id, quantity: 2, unitPrice: 400, discount: 0 }],
+        taxRate: 0,
+        paidAmount: 0,
+        paymentMethod: 'cash',
+      } as any,
+      bizA,
+      user1
+    )
+
+    // Cancel sale
+    await saleService.cancelSale(saleRes.sale.$id, bizA, user1, 'Test cancellation')
+
+    // Payment against cancelled sale MUST fail
+    await expect(
+      paymentService.createPayment(
+        {
+          saleId: saleRes.sale.$id,
+          amount: 400,
+          paymentMethod: 'cash',
+        },
+        bizA,
+        user1
+      )
+    ).rejects.toThrow(/Cannot record payment for a cancelled sale/)
+  })
 })
+
 
