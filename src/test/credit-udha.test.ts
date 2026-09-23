@@ -230,4 +230,49 @@ describe('Credit / Udhar Management Module Tests', () => {
     expect(ledgerA.some((item) => item.saleId === saleA.sale.$id)).toBe(true)
     expect(ledgerB.some((item) => item.saleId === saleB.sale.$id)).toBe(true)
   })
+
+  it('rejects zero or negative payments', async () => {
+    const prod = await productService.createProduct(
+      { name: 'Wire Coil', sku: 'WIR-01', unit: 'meter', purchasePrice: 50, sellingPrice: 100, stockQuantity: 100 },
+      bizA,
+      user1
+    )
+
+    const saleRes = await saleService.createSale(
+      {
+        items: [{ productId: prod.$id, quantity: 10, unitPrice: 100, discount: 0 }],
+        taxRate: 0,
+        paidAmount: 200,
+        paymentMethod: 'cash',
+      } as any,
+      bizA,
+      user1
+    )
+
+    // Due amount is 800. Zero or negative payments must fail
+    await expect(
+      paymentService.createPayment(
+        {
+          saleId: saleRes.sale.$id,
+          amount: 0,
+          paymentMethod: 'cash',
+        },
+        bizA,
+        user1
+      )
+    ).rejects.toThrow(/Payment amount must be greater than zero/)
+
+    await expect(
+      paymentService.createPayment(
+        {
+          saleId: saleRes.sale.$id,
+          amount: -150,
+          paymentMethod: 'cash',
+        },
+        bizA,
+        user1
+      )
+    ).rejects.toThrow(/Payment amount must be greater than zero/)
+  })
 })
+

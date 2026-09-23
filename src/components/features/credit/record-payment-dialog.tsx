@@ -77,13 +77,13 @@ export function RecordPaymentDialog({
       setLoadError(null)
       const [custDocs, saleDocs] = await Promise.all([
         customerService.listCustomers(activeBusiness.$id),
-        saleService.listSales(activeBusiness.$id),
+        saleService.listSales(activeBusiness.$id, { limit: 500 }),
       ])
 
       setCustomers(custDocs)
 
-      // Keep only sales with positive remaining due
-      const openSales = saleDocs.filter((s) => s.dueAmount > 0)
+      // Keep only sales with positive remaining due and not cancelled
+      const openSales = saleDocs.filter((s) => s.dueAmount > 0 && s.status !== 'cancelled')
       setSales(openSales)
 
       // Handle initial customer & sale selection
@@ -93,14 +93,23 @@ export function RecordPaymentDialog({
       if (targetCustId !== 'all') {
         const custOpenSales = openSales.filter((s) => s.customerId === targetCustId)
         if (preselectedSaleId && custOpenSales.some((s) => s.$id === preselectedSaleId)) {
+          const match = custOpenSales.find((s) => s.$id === preselectedSaleId)!
           setSelectedSaleId(preselectedSaleId)
+          setPaymentAmountInput(match.dueAmount.toString())
         } else if (custOpenSales.length === 1) {
+          // AUTO-SELECT single sale
           setSelectedSaleId(custOpenSales[0].$id)
+          setPaymentAmountInput(custOpenSales[0].dueAmount.toString())
         } else {
           setSelectedSaleId('')
+          setPaymentAmountInput('')
         }
       } else if (preselectedSaleId) {
-        setSelectedSaleId(preselectedSaleId)
+        const match = openSales.find((s) => s.$id === preselectedSaleId)
+        if (match) {
+          setSelectedSaleId(preselectedSaleId)
+          setPaymentAmountInput(match.dueAmount.toString())
+        }
       }
     } catch (err: any) {
       setLoadError('Unable to load outstanding credit transactions. Please try again.')
@@ -124,8 +133,6 @@ export function RecordPaymentDialog({
     return sales.filter((s) => s.customerId === selectedCustomerId)
   }, [selectedCustomerId, sales])
 
-  const customerOpenSales = availableSales
-
   // Currently selected sale object
   const currentSale = useMemo(() => {
     return sales.find((s) => s.$id === selectedSaleId) || null
@@ -144,25 +151,33 @@ export function RecordPaymentDialog({
     return availableSales.reduce((acc, s) => acc + s.dueAmount, 0)
   }, [selectedCustomerObj, availableSales])
 
-  // Auto-fill payment amount when a sale is selected
-  useEffect(() => {
-    if (currentSale) {
-      setPaymentAmountInput(currentSale.dueAmount.toString())
-    }
-  }, [currentSale])
-
   // Handle Customer Selection Dropdown change
   const handleCustomerChange = (val: string) => {
     setSelectedCustomerId(val)
     if (val === 'all') {
       setSelectedSaleId('')
+      setPaymentAmountInput('')
     } else {
       const custSales = sales.filter((s) => s.customerId === val)
       if (custSales.length === 1) {
+        // AUTO-SELECT single transaction for customer
         setSelectedSaleId(custSales[0].$id)
+        setPaymentAmountInput(custSales[0].dueAmount.toString())
       } else {
         setSelectedSaleId('')
+        setPaymentAmountInput('')
       }
+    }
+  }
+
+  // Handle Sale Selection Dropdown change
+  const handleSaleChange = (val: string) => {
+    setSelectedSaleId(val)
+    const match = sales.find((s) => s.$id === val)
+    if (match) {
+      setPaymentAmountInput(match.dueAmount.toString())
+    } else {
+      setPaymentAmountInput('')
     }
   }
 
@@ -174,16 +189,22 @@ export function RecordPaymentDialog({
   // Validation flags
   const isAmountTooLow = enteredAmount <= 0 && paymentAmountInput.trim() !== ''
   const isAmountTooHigh = currentSale ? enteredAmount > currentSale.dueAmount + 0.01 : false
-  const isInvalidAmount = isAmountTooLow || isAmountTooHigh || paymentAmountInput.trim() === '' || isNaN(enteredAmount)
+  const isInvalidAmount =
+    !currentSale ||
+    isAmountTooLow ||
+    isAmountTooHigh ||
+    paymentAmountInput.trim() === '' ||
+    isNaN(enteredAmount) ||
+    enteredAmount <= 0
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeBusiness?.$id || !user?.$id) return
 
-    if (!selectedSaleId) {
+    if (!selectedSaleId || !currentSale) {
       toast({
         title: 'Validation Error',
-        description: 'Please select an outstanding transaction.',
+        description: 'Please select an outstanding credit transaction.',
         variant: 'destructive',
       })
       return
@@ -198,7 +219,7 @@ export function RecordPaymentDialog({
       return
     }
 
-    if (currentSale && enteredAmount > currentSale.dueAmount + 0.01) {
+    if (enteredAmount > currentSale.dueAmount + 0.01) {
       toast({
         title: 'Overpayment Not Allowed',
         description: `Payment amount (Rs. ${formatMoney(enteredAmount)}) cannot exceed outstanding balance of Rs. ${formatMoney(currentSale.dueAmount)}.`,
@@ -213,8 +234,8 @@ export function RecordPaymentDialog({
       await paymentService.createPayment(
         {
           saleId: selectedSaleId,
-          customerId: selectedCustomerId !== 'all' ? selectedCustomerId : currentSale?.customerId,
-          invoiceId: currentSale?.invoiceId,
+          customerId: selectedCustomerId !== 'all' ? selectedCustomerId : currentSale.customerId,
+          invoiceId: currentSale.invoiceId,
           amount: enteredAmount,
           paymentMethod,
           paymentDate: new Date(paymentDate).toISOString(),
@@ -228,7 +249,7 @@ export function RecordPaymentDialog({
       toast({
         title: 'Payment Recorded Successfully!',
         description: `Recorded payment of Rs. ${formatMoney(enteredAmount)} for ${
-          currentSale?.saleNumber || 'Sale'
+          currentSale.saleNumber || 'Sale'
         }.`,
       })
 
@@ -328,7 +349,7 @@ export function RecordPaymentDialog({
               <Label className="text-xs font-extrabold text-slate-700 flex items-center gap-1">
                 <Receipt className="h-3.5 w-3.5 text-indigo-600" /> Select Sale / Invoice Transaction *
               </Label>
-              <Select value={selectedSaleId} onValueChange={setSelectedSaleId} disabled={isSubmitting || availableSales.length === 0}>
+              <Select value={selectedSaleId} onValueChange={handleSaleChange} disabled={isSubmitting || availableSales.length === 0}>
                 <SelectTrigger aria-label="Select Sale or Invoice Transaction" className="h-11 text-xs font-medium bg-white border-slate-300 text-slate-900 rounded-lg">
                   <SelectValue
                     placeholder={
@@ -356,26 +377,26 @@ export function RecordPaymentDialog({
             </div>
 
             {/* Financial Breakdown Summary & Live Math Card */}
-            {currentSale && (
+            {currentSale ? (
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-                {selectedCustomerObj && customerOpenSales.length > 1 && (
+                {selectedCustomerObj && availableSales.length > 1 && (
                   <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                     <span className="text-slate-600 font-medium">Customer Total Outstanding:</span>
                     <span className="font-mono font-bold text-slate-900">
                       Rs. {formatMoney(customerTotalDue)}{' '}
                       <span className="text-[10px] text-slate-500 font-normal font-sans">
-                        ({customerOpenSales.length} open sales)
+                        ({availableSales.length} open sales)
                       </span>
                     </span>
                   </div>
                 )}
 
                 <div className="flex justify-between text-slate-600">
-                  <span>Total Sale Invoice:</span>
+                  <span>Total Sale / Invoice:</span>
                   <span className="font-mono font-bold text-slate-900">Rs. {formatMoney(currentSale.total)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Already Paid on Invoice:</span>
+                  <span>Already Paid:</span>
                   <span className="font-mono font-bold text-emerald-700">Rs. {formatMoney(currentSale.paidAmount)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-amber-900 pt-1.5 border-t border-slate-200">
@@ -385,7 +406,7 @@ export function RecordPaymentDialog({
 
                 {/* Live Remaining Balance Calculation */}
                 <div className="flex justify-between font-bold pt-1.5 border-t border-slate-200">
-                  <span className="text-slate-700">Remaining Balance After Payment:</span>
+                  <span className="text-slate-700">Remaining Due After Payment:</span>
                   <span className={`font-mono font-extrabold text-sm ${isSettled ? 'text-emerald-700' : 'text-amber-800'}`}>
                     Rs. {formatMoney(remainingDue)}
                     {isSettled && (
@@ -396,25 +417,34 @@ export function RecordPaymentDialog({
                   </span>
                 </div>
               </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                Please select an outstanding credit transaction above to enter a payment.
+              </div>
             )}
 
             {/* Payment Amount & Payment Date Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-extrabold text-slate-700">Payment Amount (Rs.) *</Label>
+                <Label htmlFor="paymentAmountInput" className="text-xs font-extrabold text-slate-700">
+                  Payment Amount (Rs.) *
+                </Label>
                 <Input
+                  id="paymentAmountInput"
                   type="number"
                   step="0.01"
                   min="0.01"
                   max={currentSale ? currentSale.dueAmount : undefined}
-                  placeholder="0.00"
+                  placeholder={currentSale ? '0.00' : 'Select transaction first'}
                   value={paymentAmountInput}
                   onChange={(e) => setPaymentAmountInput(e.target.value)}
                   disabled={isSubmitting || !currentSale}
-                  className={`h-11 font-mono font-bold text-sm bg-white rounded-lg ${
-                    isAmountTooHigh || isAmountTooLow
-                      ? 'border-red-500 text-red-600 focus:ring-red-500'
-                      : 'border-slate-300 text-emerald-700'
+                  className={`h-11 font-mono font-bold text-sm rounded-lg ${
+                    !currentSale
+                      ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                      : isAmountTooHigh || isAmountTooLow
+                      ? 'bg-white border-red-500 text-red-600 focus:ring-red-500'
+                      : 'bg-white border-slate-300 text-emerald-700'
                   }`}
                   required
                 />
@@ -425,14 +455,17 @@ export function RecordPaymentDialog({
                 )}
                 {isAmountTooHigh && currentSale && (
                   <p className="text-[11px] text-red-600 font-medium">
-                    Payment cannot exceed outstanding balance of Rs. {formatMoney(currentSale.dueAmount)}.
+                    Payment amount cannot exceed remaining due of Rs. {formatMoney(currentSale.dueAmount)}.
                   </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-extrabold text-slate-700">Payment Date *</Label>
+                <Label htmlFor="paymentDate" className="text-xs font-extrabold text-slate-700">
+                  Payment Date *
+                </Label>
                 <Input
+                  id="paymentDate"
                   type="date"
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
@@ -463,8 +496,11 @@ export function RecordPaymentDialog({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-extrabold text-slate-700">Reference / Txn #</Label>
+                <Label htmlFor="referenceNumber" className="text-xs font-extrabold text-slate-700">
+                  Reference / Txn #
+                </Label>
                 <Input
+                  id="referenceNumber"
                   type="text"
                   placeholder="e.g. TXN-99812"
                   value={referenceNumber}
@@ -477,8 +513,11 @@ export function RecordPaymentDialog({
 
             {/* Notes */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-extrabold text-slate-700">Payment Notes (Optional)</Label>
+              <Label htmlFor="paymentNotes" className="text-xs font-extrabold text-slate-700">
+                Payment Notes (Optional)
+              </Label>
               <textarea
+                id="paymentNotes"
                 placeholder="Add receipt details or notes..."
                 value={notes}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
