@@ -198,7 +198,7 @@ export function AppShellSkeleton({
   message?: string
 }) {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-100/70 text-slate-900 font-sans antialiased">
+    <div className="flex h-screen h-[100dvh] w-full max-w-full overflow-hidden bg-slate-100/70 text-slate-900 font-sans antialiased">
       <SkeletonSidebar />
       <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
         <SkeletonTopbar />

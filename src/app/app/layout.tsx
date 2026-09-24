@@ -28,7 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-100/70 text-slate-900 font-sans antialiased">
+    <div className="flex h-screen h-[100dvh] w-full max-w-full overflow-hidden bg-slate-100/70 text-slate-900 font-sans antialiased">
       {/* Desktop Sidebar */}
       <Sidebar />
 
