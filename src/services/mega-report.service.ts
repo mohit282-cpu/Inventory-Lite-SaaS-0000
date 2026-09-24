@@ -32,12 +32,8 @@ import type { AuditLogEntry } from '@/services/audit-log.service'
 import { productService } from '@/services/product.service'
 import { categoryService } from '@/services/category.service'
 import { expenseService } from '@/services/expense.service'
-import { paymentService } from '@/services/payment.service'
-import { supplierPaymentService } from '@/services/supplier-payment.service'
 import { stockMovementService } from '@/services/stock-movement.service'
 import { businessService } from '@/services/business.service'
-import { customerService } from '@/services/customer.service'
-import { supplierService } from '@/services/supplier.service'
 import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { authorizeBusinessAccess } from '@/lib/authorization'
@@ -48,15 +44,11 @@ import type {
   AuditFilterParams,
   Category,
   CreditNote,
-  Customer,
   DebitNote,
   Expense,
-  Payment,
   Product,
   Sale,
   StockMovement,
-  Supplier,
-  SupplierPayment,
   UserRole,
 } from '@/types'
 import {
@@ -185,11 +177,7 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
     expenses,
     creditNotes,
     debitNotes,
-    customerPayments,
-    supplierPayments,
     stockMovements,
-    allCustomers,
-    allSuppliers,
   ] = await Promise.all([
     auditCenterService.getSalesRegister(businessId, resolvedFilters),
     auditCenterService.getPurchaseRegister(businessId, resolvedFilters),
@@ -214,14 +202,7 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
     }),
     collectionList<CreditNote>(COLLECTIONS.CREDIT_NOTES, businessId),
     collectionList<DebitNote>(COLLECTIONS.DEBIT_NOTES, businessId),
-    paymentService.listAllPayments(businessId, {
-      dateFrom: resolvedFilters.dateFrom,
-      dateTo: resolvedFilters.dateTo,
-    }),
-    supplierPaymentService.listSupplierPayments(businessId).catch(() => []),
     stockMovementService.getMovementHistory(businessId),
-    customerService.listAllCustomers(businessId).catch(() => []),
-    supplierService.listAllSuppliers(businessId).catch(() => []),
   ])
 
   const productRows = buildProductRows(products, categories)
@@ -230,7 +211,7 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
   const movementRows = buildMovementRows(stockMovements, products)
   const creditNoteRows = buildCreditNoteRows(creditNotes)
   const debitNoteRows = buildDebitNoteRows(debitNotes)
-  const paymentRows = buildPaymentRows(customerPayments, supplierPayments, products, allCustomers, allSuppliers)
+  const paymentRows = buildPaymentRowsFromAudit(payments)
   const invoiceRows = buildInvoiceRows(salesRegister.rows)
 
   // ------------------------------------------------ SALES RECONCILIATION
@@ -485,53 +466,20 @@ function buildDebitNoteRows(debitNotes: DebitNote[]): MegaDebitNoteRow[] {
   }))
 }
 
-function buildPaymentRows(
-  customerPayments: Payment[],
-  supplierPayments: SupplierPayment[],
-  products: Product[],
-  allCustomers: Customer[] = [],
-  allSuppliers: Supplier[] = []
-): MegaPaymentRow[] {
-  const custMap = new Map<string, string>()
-  for (const c of allCustomers) {
-    if (c.$id && c.name) custMap.set(c.$id, c.name)
-  }
-  const suppMap = new Map<string, string>()
-  for (const s of allSuppliers) {
-    if (s.$id && s.name) suppMap.set(s.$id, s.name)
-  }
-
-  const rows: MegaPaymentRow[] = []
-  for (const p of customerPayments) {
-    const resolvedName = (p.customerId ? custMap.get(p.customerId) : undefined) || (p as any).customerName || 'Walk-in Customer'
-    rows.push({
-      date: isoDate(p.paymentDate) || isoDate(p.createdAt),
-      entityType: 'customer',
-      entityName: safeStr(resolvedName, 'Walk-in Customer'),
-      reference: safeStr(p.referenceNumber, '—'),
+function buildPaymentRowsFromAudit(payments: PaymentAuditRecord[]): MegaPaymentRow[] {
+  return payments
+    .map((p) => ({
+      date: isoDate(p.date),
+      entityType: p.entityType,
+      entityName: safeStr(p.entityName, p.entityType === 'customer' ? 'Walk-in Customer' : 'Supplier'),
+      reference: safeStr(p.reference, '—'),
       amount: fin(p.amount),
-      method: safeStr(p.paymentMethod),
-      referenceNo: safeStr(p.referenceNumber, '—'),
-      createdBy: safeStr(p.createdBy || 'System'),
-      status: safeStr(p.status || 'POSTED').toUpperCase(),
-    })
-  }
-  for (const sp of supplierPayments) {
-    const resolvedName = (sp.supplierId ? suppMap.get(sp.supplierId) : undefined) || (sp as any).supplierName || 'Supplier'
-    rows.push({
-      date: isoDate(sp.paymentDate) || isoDate(sp.createdAt),
-      entityType: 'supplier',
-      entityName: safeStr(resolvedName, 'Supplier'),
-      reference: safeStr(sp.referenceNumber, '—'),
-      amount: fin(sp.amount),
-      method: safeStr(sp.paymentMethod),
-      referenceNo: safeStr(sp.referenceNumber, '—'),
-      createdBy: safeStr(sp.createdBy || 'System'),
-      status: 'COMPLETED',
-    })
-  }
-  void products
-  return rows.sort((a, b) => (b.date < a.date ? -1 : a.date < b.date ? 1 : 0))
+      method: safeStr(p.method, 'cash'),
+      referenceNo: safeStr(p.reference, '—'),
+      createdBy: safeStr(p.createdBy, 'System'),
+      status: safeStr(p.status, 'COMPLETED').toUpperCase(),
+    }))
+    .sort((a, b) => (b.date < a.date ? -1 : a.date < b.date ? 1 : 0))
 }
 
 function buildInvoiceRows(rows: Array<{

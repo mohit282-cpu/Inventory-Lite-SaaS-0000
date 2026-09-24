@@ -369,13 +369,21 @@ export class AuditCenterService {
       saleItemsBySale.set(item._saleId, existing)
     }
 
+    const business = await businessService.getBusiness(businessId).catch(() => null)
+    const isVatRegistered = Boolean(
+      (business?.vatNumber && String(business.vatNumber).trim() !== '') ||
+      (business?.taxRegistrationType && String(business.taxRegistrationType).toUpperCase() === 'VAT')
+    )
+
     for (const sale of filteredSales) {
       if (sale.status === 'cancelled') continue
       totalSalesCount += 1
       totalSales += sale.total || 0
 
-      // Output VAT: use stored vatAmount field on sale record (computed at sale creation)
-      outputVat += sale.vatAmount || 0
+      // Output VAT: use stored vatAmount field if business is VAT registered
+      if (isVatRegistered) {
+        outputVat += sale.vatAmount || 0
+      }
 
       // WAC COGS computation & discounts from sale items
       let saleLineDiscounts = 0
@@ -399,7 +407,9 @@ export class AuditCenterService {
       if ((purch as any).status === 'cancelled') continue
       totalPurchaseCount += 1
       totalPurchases += purch.total || 0
-      inputVat += purch.vatAmount || 0
+      if (isVatRegistered) {
+        inputVat += purch.vatAmount || 0
+      }
     }
 
     let salesReturnsAmount = 0
@@ -653,20 +663,28 @@ export class AuditCenterService {
    */
   async getVatSummary(businessId: string, filters?: AuditFilterParams) {
     const f = resolveFilters(filters)
-    const [kpis, salesRegister, purchaseRegister] = await Promise.all([
+    const [kpis, salesRegister, purchaseRegister, business] = await Promise.all([
       this.getAuditOverviewKPIs(businessId, f),
       this.getSalesRegister(businessId, f),
       this.getPurchaseRegister(businessId, f),
+      businessService.getBusiness(businessId).catch(() => null),
     ])
+
+    const isVatRegistered = Boolean(
+      (business?.vatNumber && String(business.vatNumber).trim() !== '') ||
+      (business?.taxRegistrationType && String(business.taxRegistrationType).toUpperCase() === 'VAT')
+    )
 
     const taxableSales = salesRegister.summary.totalTaxableAmount
     const taxablePurchases = purchaseRegister.summary.taxablePurchases
-    const outputVat = kpis.outputVat
-    const inputVat = kpis.inputVat
+    const outputVat = isVatRegistered ? kpis.outputVat : 0
+    const inputVat = isVatRegistered ? kpis.inputVat : 0
     const netVatPosition = outputVat - inputVat
 
-    let status: 'PAYABLE' | 'REFUNDABLE_CREDIT' | 'NIL' = 'NIL'
-    if (netVatPosition > 0) {
+    let status: 'PAYABLE' | 'REFUNDABLE_CREDIT' | 'NIL' | 'NOT_APPLICABLE' = 'NIL'
+    if (!isVatRegistered) {
+      status = 'NOT_APPLICABLE'
+    } else if (netVatPosition > 0) {
       status = 'PAYABLE'
     } else if (netVatPosition < 0) {
       status = 'REFUNDABLE_CREDIT'
@@ -683,6 +701,8 @@ export class AuditCenterService {
       inputVat,
       netVatPosition,
       vatRate: 13,
+      isVatRegistered,
+      vatRegistrationStatus: isVatRegistered ? 'Registered' : 'Not Registered',
       status,
     }
   }
