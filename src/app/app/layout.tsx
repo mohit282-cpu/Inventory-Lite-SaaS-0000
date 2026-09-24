@@ -36,7 +36,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
       {/* Main Content Area */}
-      <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden pb-16 md:pb-0">
+      <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
         {/* Top Bar */}
         <TopNav onOpenMobileNav={() => setMobileNavOpen(true)} />
 
@@ -54,8 +54,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
 
         {/* Responsive Page Viewport */}
-        <main className="flex-1 overflow-y-auto scrollbar-thin p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto space-y-6 animate-fade-in pb-12 md:pb-0">
+        <main className="flex-1 overflow-y-auto scrollbar-thin p-4 sm:p-6 lg:p-8 pb-24 md:pb-12">
+          <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
             {children}
           </div>
         </main>

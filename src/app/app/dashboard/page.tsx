@@ -186,15 +186,15 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 text-slate-900">
       {/* 1. Dashboard Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <div className="text-xs font-semibold text-indigo-600 mb-1">
+          <div className="text-xs font-semibold text-indigo-600 mb-0.5">
             Dashboard Overview
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
             Welcome back, {firstName}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
             Here&apos;s what&apos;s happening with <span className="font-semibold text-slate-900">{businessName}</span> today.
           </p>
         </div>
@@ -202,10 +202,10 @@ export default function DashboardPage() {
         <div className="shrink-0">
           <Button
             asChild
-            className="h-11 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-xs"
+            className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs"
           >
             <Link href="/app/sales/new">
-              <Plus className="mr-2 h-4 w-4" /> Open POS Terminal
+              <Plus className="mr-1.5 h-4 w-4" /> Open POS Terminal
             </Link>
           </Button>
         </div>
@@ -256,12 +256,12 @@ export default function DashboardPage() {
             {metrics?.totalProducts || 0}
           </div>
           <div className="flex items-center gap-2 text-xs mt-1.5 font-medium">
-            <Link href="/app/stock" className="text-amber-600 hover:underline">
-              Low Stock: {metrics?.lowStockProducts || 0}
+            <Link href="/app/stock" className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 hover:bg-amber-100 transition-colors">
+              {metrics?.lowStockProducts || 0} Low Stock
             </Link>
-            <span className="text-slate-400">•</span>
-            <Link href="/app/stock" className="text-rose-600 hover:underline">
-              Out of Stock: {metrics?.outOfStockProducts || 0}
+            <span className="text-slate-300">•</span>
+            <Link href="/app/stock" className="text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded border border-rose-200 hover:bg-rose-100 transition-colors">
+              {metrics?.outOfStockProducts || 0} Out of Stock
             </Link>
           </div>
         </Card>
@@ -307,28 +307,28 @@ export default function DashboardPage() {
           <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 font-mono tracking-tight">
             {formatCurrency(metrics?.totalDue || 0, currency)}
           </div>
-          <div className="flex items-center justify-between mt-1.5">
+          <div className="flex items-center justify-between mt-2 pt-1">
             <p className="text-xs text-slate-500">
               From {customerCount} {customerCount === 1 ? 'registered customer' : 'registered customers'}
             </p>
-            <Link href="/app/credit" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center">
-              View Receivables <ArrowUpRight className="ml-0.5 h-3 w-3" />
+            <Link href="/app/credit" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center">
+              View Receivables <ArrowUpRight className="ml-0.5 h-3.5 w-3.5" />
             </Link>
           </div>
         </Card>
       </div>
 
       {/* 3. Financial Notice Banner */}
-      <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-600">
-        <div className="flex items-start gap-2.5">
-          <Info className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+      <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-600">
+        <div className="flex items-center gap-2.5">
+          <Info className="h-4 w-4 text-indigo-600 shrink-0" />
           <div>
-            <span className="font-bold text-slate-900 mr-1.5">Notice:</span>
+            <span className="font-bold text-slate-900 mr-1">Notice:</span>
             Dashboard profit is an estimate based on sales, COGS, and expenses. For detailed financial records, open Audit & Compliance.
           </div>
         </div>
         <Link href="/app/audit" className="shrink-0">
-          <Button size="sm" variant="outline" className="h-8 border-slate-300 bg-white text-xs text-slate-900 hover:bg-slate-50 whitespace-nowrap font-semibold">
+          <Button size="sm" variant="outline" className="h-7 border-slate-300 bg-white text-[11px] text-slate-900 hover:bg-slate-50 whitespace-nowrap font-bold">
             Open Audit & Compliance →
           </Button>
         </Link>
@@ -337,7 +337,7 @@ export default function DashboardPage() {
       {/* 4. Analytics & Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sales Trend Chart */}
-        <Card className="lg:col-span-2 border-slate-200 bg-white p-6 shadow-xs">
+        <Card className="lg:col-span-2 min-w-0 border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
           <div className="pb-4 border-b border-slate-100 mb-4">
             <h2 className="text-base font-bold text-slate-900">Sales Revenue Trend</h2>
             <p className="text-xs text-slate-500">Daily sales breakdown • Last 7 Days</p>
@@ -346,7 +346,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Payment Methods Share */}
-        <Card className="border-slate-200 bg-white p-6 shadow-xs">
+        <Card className="min-w-0 border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
           <div className="pb-4 border-b border-slate-100 mb-4">
             <h2 className="text-base font-bold text-slate-900">Payment Method Share</h2>
             <p className="text-xs text-slate-500">Sales volume by payment channel</p>
