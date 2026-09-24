@@ -27,6 +27,7 @@ interface DataTableProps<T> {
   itemLabel?: string
   isFiltered?: boolean
   totalRecords?: number
+  renderMobileCard?: (item: T) => React.ReactNode
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -41,6 +42,7 @@ export function DataTable<T extends Record<string, any>>({
   itemLabel = 'entries',
   isFiltered = false,
   totalRecords,
+  renderMobileCard,
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1)
   const [sortKey, setSortKey] = useState<string | null>(null)
@@ -93,8 +95,19 @@ export function DataTable<T extends Record<string, any>>({
 
   return (
     <div className="w-full space-y-3">
-      {/* Responsive Table Wrapper */}
-      <div className="overflow-x-auto scrollbar-thin rounded-xl border border-slate-200 bg-white shadow-xs">
+      {/* Mobile Card View (< 640px) */}
+      {renderMobileCard ? (
+        <div className="block sm:hidden space-y-3">
+          {paginatedData.map((item, rowIdx) => (
+            <div key={item.$id || item.id || rowIdx} className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2">
+              {renderMobileCard(item)}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Desktop / Tablet Table Wrapper */}
+      <div className={`overflow-x-auto scrollbar-thin rounded-xl border border-slate-200 bg-white shadow-xs ${renderMobileCard ? 'hidden sm:block' : ''}`}>
         <table className="w-full text-left text-sm text-slate-800 border-collapse">
           <thead className="bg-slate-50 text-[12px] font-semibold text-slate-600 border-b border-slate-200">
             <tr>

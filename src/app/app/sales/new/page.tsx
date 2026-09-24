@@ -279,12 +279,14 @@ export default function CreateSalePage() {
     if (match) {
       addToCart(match)
       setBarcodeInput('')
+      setTimeout(() => barcodeInputRef.current?.focus(), 0)
     } else {
       toast({
         title: 'Product Not Found',
         description: `No product matching barcode/SKU "${barcodeInput.trim()}"`,
         variant: 'destructive',
       })
+      setTimeout(() => barcodeInputRef.current?.focus(), 0)
     }
   }
 
@@ -296,6 +298,7 @@ export default function CreateSalePage() {
         description: `"${product.name}" has no available stock!`,
         variant: 'destructive',
       })
+      setTimeout(() => barcodeInputRef.current?.focus(), 0)
       return
     }
 
@@ -326,6 +329,9 @@ export default function CreateSalePage() {
         },
       ]
     })
+
+    // Re-focus barcode input for hands-free continuous scanner workflow
+    setTimeout(() => barcodeInputRef.current?.focus(), 0)
   }
 
   const updateQuantity = (productId: string, newQty: number) => {

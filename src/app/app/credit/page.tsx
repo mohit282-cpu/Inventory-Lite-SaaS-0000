@@ -392,6 +392,63 @@ export default function CreditPage() {
         data={ledgerItems}
         columns={columns}
         isLoading={isLoading}
+        renderMobileCard={(item) => (
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-bold text-slate-900 text-sm">{item.customerName}</div>
+                {item.customerPhone && <div className="text-[11px] text-slate-500 font-mono">{item.customerPhone}</div>}
+              </div>
+              <span
+                className={`font-mono font-bold text-[10px] px-2 py-0.5 rounded border ${
+                  item.status === 'PAID'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : item.status === 'PARTIAL'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : item.status === 'OVERDUE'
+                    ? 'bg-red-50 text-red-800 border-red-200'
+                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                }`}
+              >
+                {item.status}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-slate-600">
+              <span className="font-mono font-bold text-indigo-700">{item.saleNumber}</span>
+              <span className="font-mono text-slate-500">{formatBSDate(item.saleDate)}</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-center font-mono">
+              <div className="bg-slate-50 p-1.5 rounded border border-slate-100">
+                <div className="text-[10px] text-slate-400 font-sans uppercase">Total</div>
+                <div className="font-semibold text-slate-900">Rs. {formatMoney(item.totalAmount)}</div>
+              </div>
+              <div className="bg-emerald-50/50 p-1.5 rounded border border-emerald-100">
+                <div className="text-[10px] text-emerald-700 font-sans uppercase">Paid</div>
+                <div className="font-bold text-emerald-800">Rs. {formatMoney(item.paidAmount)}</div>
+              </div>
+              <div className={`p-1.5 rounded border ${item.dueAmount > 0 ? 'bg-amber-50/80 border-amber-200' : 'bg-slate-50 border-slate-100'}`}>
+                <div className={`text-[10px] font-sans uppercase ${item.dueAmount > 0 ? 'text-amber-800' : 'text-slate-400'}`}>Due</div>
+                <div className={`font-bold ${item.dueAmount > 0 ? 'text-amber-900' : 'text-slate-700'}`}>Rs. {formatMoney(item.dueAmount)}</div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedDrawerItem(item)
+                  setIsDrawerOpen(true)
+                }}
+                className="h-8 text-xs font-semibold text-indigo-700 border-indigo-200 hover:bg-indigo-50 gap-1 w-full justify-center"
+              >
+                <Eye className="h-3.5 w-3.5" /> View / Record Payment
+              </Button>
+            </div>
+          </div>
+        )}
         emptyTitle={
           isFilterActive && statusFilter !== 'UNPAID'
             ? 'No matching credit records'

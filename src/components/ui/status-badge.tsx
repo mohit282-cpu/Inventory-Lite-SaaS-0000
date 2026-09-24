@@ -30,12 +30,14 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     case 'stock_in':
     case 'purchase':
     case 'opening_stock':
+    case 'sale':
     case 'owner':
       return <Badge variant="success" className={className}>{label}</Badge>
 
     case 'pending':
     case 'adjustment':
     case 'stock_adjustment':
+    case 'stock_out':
     case 'admin':
       return <Badge variant="warning" className={className}>{label}</Badge>
 
@@ -50,9 +52,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     case 'inactive':
     case 'cancelled':
     case 'refunded':
-    case 'stock_out':
     case 'damage':
-    case 'sale':
       return <Badge variant="destructive" className={className}>{label}</Badge>
 
     case 'staff':
