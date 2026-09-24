@@ -45,7 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="bg-amber-500 text-white px-4 py-1.5 text-xs font-bold flex items-center justify-between shadow-xs shrink-0">
             <div className="flex items-center gap-2">
               <WifiOff className="h-4 w-4 shrink-0" />
-              <span>You&apos;re offline. Inventory Lite is running in offline mode. Changes will sync automatically when back online.</span>
+              <span>You&apos;re offline. Some features may be unavailable until your connection is restored.</span>
             </div>
             <span className="bg-amber-600/90 px-2 py-0.5 rounded text-[10px] tracking-wide uppercase font-extrabold hidden sm:inline-block">
               Offline Mode

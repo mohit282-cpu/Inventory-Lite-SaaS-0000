@@ -25,7 +25,25 @@ export function MobileBottomBar({ onOpenMore }: MobileBottomBarProps) {
       <div className="grid grid-cols-5 gap-1 items-center max-w-md mx-auto">
         {tabs.map((tab) => {
           const isActive = currentPath === tab.href || (tab.href !== '/app/dashboard' && currentPath.startsWith(tab.href))
+          const isPos = tab.name === 'POS'
           const Icon = tab.icon
+
+          if (isPos) {
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all min-h-[48px] ${
+                  isActive
+                    ? 'bg-indigo-600 text-white font-extrabold shadow-sm'
+                    : 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200 hover:bg-indigo-100'
+                }`}
+              >
+                <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-indigo-600'}`} />
+                <span className="text-[10px] mt-0.5 tracking-tight uppercase font-extrabold">{tab.name}</span>
+              </Link>
+            )
+          }
 
           return (
             <Link

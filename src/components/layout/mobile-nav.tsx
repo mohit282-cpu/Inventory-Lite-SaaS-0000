@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NAVIGATION_GROUPS } from '@/components/layout/sidebar'
@@ -17,18 +18,44 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const pathname = usePathname()
   const { activeBusiness, logout } = useAuth()
 
+  useEffect(() => {
+    if (!isOpen) return
+
+    // 1. Lock Body Scroll
+    const originalStyle = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    // 2. Escape Key Listener
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = originalStyle
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 md:hidden flex">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Mobile navigation menu drawer"
+      className="fixed inset-0 z-50 md:hidden flex animate-fade-in"
+    >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
+        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
-      {/* Drawer */}
-      <div className="relative max-w-[280px] w-full bg-white border-r border-slate-200 flex flex-col h-full z-10 shadow-xl text-slate-900">
+      {/* Drawer Content */}
+      <div className="relative max-w-[280px] w-full bg-white border-r border-slate-200 flex flex-col h-full z-10 shadow-2xl text-slate-900 animate-slide-in-right">
         {/* Header */}
         <div className="h-14 px-4 flex items-center justify-between border-b border-slate-200">
           <Link href="/app/dashboard" onClick={onClose} className="flex items-center gap-2">
@@ -38,7 +65,7 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
             type="button"
             onClick={onClose}
             aria-label="Close navigation menu drawer"
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+            className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <X className="h-5 w-5" />
           </button>

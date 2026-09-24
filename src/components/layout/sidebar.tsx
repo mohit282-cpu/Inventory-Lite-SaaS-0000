@@ -14,7 +14,7 @@ import {
   ShoppingCart,
   Wallet,
   Receipt,
-  Calendar as CalendarIcon,
+  FileText,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -22,7 +22,17 @@ import {
   Truck,
   ShoppingBag,
   ShieldCheck,
+  ChevronsUpDown,
+  Check,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface NavGroup {
   label: string
@@ -34,27 +44,43 @@ const NAVIGATION_GROUPS: NavGroup[] = [
     label: 'Core',
     items: [
       { name: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      { name: 'POS Terminal', href: '/app/sales/new', icon: ShoppingCart },
+      { name: 'Sales & Invoices', href: '/app/sales', icon: Receipt },
+      { name: 'Customers', href: '/app/customers', icon: Users },
+      { name: 'Receivables / Udhar', href: '/app/credit', icon: Wallet },
+    ],
+  },
+  {
+    label: 'Purchasing',
+    items: [
+      { name: 'Purchases', href: '/app/purchases', icon: ShoppingBag },
+      { name: 'Suppliers', href: '/app/suppliers', icon: Truck },
+    ],
+  },
+  {
+    label: 'Inventory',
+    items: [
       { name: 'Products', href: '/app/products', icon: Package },
       { name: 'Categories', href: '/app/categories', icon: FolderTree },
-      { name: 'Stock', href: '/app/stock', icon: Boxes },
+      { name: 'Stock Management', href: '/app/stock', icon: Boxes },
     ],
   },
   {
-    label: 'Transactions',
+    label: 'Finance',
     items: [
-      { name: 'Customers', href: '/app/customers', icon: Users },
-      { name: 'Sales', href: '/app/sales', icon: ShoppingCart },
-      { name: 'Suppliers', href: '/app/suppliers', icon: Truck },
-      { name: 'Purchases', href: '/app/purchases', icon: ShoppingBag },
-      { name: 'Credit / Udhar', href: '/app/credit', icon: Wallet },
       { name: 'Expenses', href: '/app/expenses', icon: Receipt },
+      { name: 'Tax Invoices', href: '/app/invoices', icon: FileText },
     ],
   },
   {
-    label: 'Business',
+    label: 'Administration',
     items: [
       { name: 'Audit & Compliance', href: '/app/audit', icon: ShieldCheck },
-      { name: 'Calendar', href: '/app/calendar', icon: CalendarIcon },
       { name: 'Settings', href: '/app/settings', icon: Settings },
     ],
   },
@@ -66,7 +92,7 @@ export { NAVIGATION_GROUPS }
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { activeBusiness, memberships } = useAuth()
+  const { activeBusiness, memberships, switchBusiness } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   const currentRole = memberships.find((m) => m.businessId === activeBusiness?.$id)?.role || 'owner'
@@ -94,27 +120,74 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Business Display */}
+      {/* Business Selector / Display */}
       <div className="px-3 py-2.5 border-b border-slate-200">
-        <div
-          className={`w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 ${
-            isCollapsed ? 'justify-center px-0' : ''
-          }`}
-        >
-          <div className="h-7 w-7 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center shrink-0">
-            <Building className="h-3.5 w-3.5" />
-          </div>
-          {!isCollapsed && (
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-slate-900 truncate leading-tight">
-                {activeBusiness?.name || 'My Store'}
-              </div>
-              <div className="text-[10px] text-slate-500 capitalize leading-tight">
-                {currentRole} · {activeBusiness?.currency || 'NPR'}
-              </div>
+        {memberships.length > 1 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Switch active business"
+                className={`w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100/80 transition-colors ${
+                  isCollapsed ? 'justify-center px-0' : ''
+                }`}
+              >
+                <div className="h-7 w-7 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center shrink-0 font-bold text-xs">
+                  <Building className="h-3.5 w-3.5" />
+                </div>
+                {!isCollapsed && (
+                  <>
+                    <div className="min-w-0 flex-1 text-left">
+                      <div className="text-xs font-bold text-slate-900 truncate leading-tight">
+                        {activeBusiness?.name || 'My Store'}
+                      </div>
+                      <div className="text-[10px] text-slate-500 capitalize leading-tight">
+                        {currentRole} · {activeBusiness?.currency || 'NPR'}
+                      </div>
+                    </div>
+                    <ChevronsUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56 bg-white border-slate-200 shadow-md">
+              <DropdownMenuLabel className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                Switch Active Business
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {memberships.map((m) => (
+                <DropdownMenuItem
+                  key={m.businessId}
+                  onClick={() => switchBusiness(m.businessId)}
+                  className="flex items-center justify-between text-xs cursor-pointer"
+                >
+                  <span className="font-semibold truncate">{m.businessId === activeBusiness?.$id ? activeBusiness?.name : m.businessId}</span>
+                  {m.businessId === activeBusiness?.$id && <Check className="h-3.5 w-3.5 text-indigo-600" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <div
+            className={`w-full flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 ${
+              isCollapsed ? 'justify-center px-0' : ''
+            }`}
+          >
+            <div className="h-7 w-7 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center shrink-0">
+              <Building className="h-3.5 w-3.5" />
             </div>
-          )}
-        </div>
+            {!isCollapsed && (
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-slate-900 truncate leading-tight">
+                  {activeBusiness?.name || 'My Store'}
+                </div>
+                <div className="text-[10px] text-slate-500 capitalize leading-tight">
+                  {currentRole} · {activeBusiness?.currency || 'NPR'}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Grouped Navigation */}
@@ -156,7 +229,7 @@ export function Sidebar() {
       {/* Sidebar Bottom Footer */}
       {!isCollapsed && (
         <div className="px-4 py-3 border-t border-slate-200 text-xs text-slate-600 font-medium">
-          Inventory Lite v1.0 • NPR 0 Free
+          Inventory Lite v1.0 • SaaS Production
         </div>
       )}
     </aside>

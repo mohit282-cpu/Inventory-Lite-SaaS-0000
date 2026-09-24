@@ -90,9 +90,23 @@ export default function CreateSalePage() {
   const [paidAmountInput, setPaidAmountInput] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Focus barcode input on mount
+  // Focus barcode input on mount & register POS keyboard shortcuts (F2, F4, F10)
   useEffect(() => {
     barcodeInputRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault()
+        barcodeInputRef.current?.focus()
+      } else if (e.key === 'F4') {
+        e.preventDefault()
+        setIsCustomerDialogOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   const fetchData = useCallback(async () => {
