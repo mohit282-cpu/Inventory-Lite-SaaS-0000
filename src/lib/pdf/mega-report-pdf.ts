@@ -139,6 +139,18 @@ function safeDate(v?: string): string {
   return v ? formatBsDate(v) : '—'
 }
 
+function cleanStatusText(status?: string): string {
+  if (!status) return '—'
+  return safeText(status).replace(/_/g, ' ').toUpperCase()
+}
+
+function truncateUserId(userId?: string): string {
+  if (!userId) return '—'
+  const str = safeText(userId)
+  if (str.length <= 10) return str
+  return `${str.slice(0, 4)}...${str.slice(-4)}`
+}
+
 function ensurePageSpace(
   doc: Page,
   currentY: number,
@@ -227,84 +239,84 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
   }
   // ------------------------------------------------ 7. CUSTOMERS
   if (inc('customers')) {
-    y = ensurePageSpace(doc, y, 30, 'portrait', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('customers', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '7. CUSTOMERS', 'Customer directory')
     y = drawCustomerDirectory(doc, y, data)
   }
   // ------------------------------------------------ 8. CUSTOMER LEDGER
   if (inc('customer_ledger')) {
-    y = ensurePageSpace(doc, y, 35, 'portrait', data)
+    y = ensurePageSpace(doc, y, 45, 'portrait', data)
     sectionPageMap.set('customer_ledger', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '8. CUSTOMER LEDGER', 'Per-customer opening / invoices / payments / closing')
     y = drawCustomerLedger(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 9. CUSTOMER UDHAAR / RECEIVABLES
   if (inc('customer_receivables')) {
-    y = ensurePageSpace(doc, y, 30, 'portrait', data)
+    y = ensurePageSpace(doc, y, 40, 'portrait', data)
     sectionPageMap.set('customer_receivables', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '9. CUSTOMER UDHAAR / RECEIVABLES', 'Outstanding receivables with aging')
     y = drawCustomerReceivables(doc, y, data)
   }
-  // ------------------------------------------------ 10. SUPPLIERS
+  // ------------------------------------------------ 10. SUPPLIERS (Start fresh page to balance Customer / Supplier domains)
   if (inc('suppliers')) {
-    y = ensurePageSpace(doc, y, 30, 'portrait', data)
+    y = nextPage(doc, 'portrait', data)
     sectionPageMap.set('suppliers', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '10. SUPPLIERS', 'Supplier directory')
     y = drawSupplierDirectory(doc, y, data)
   }
   // ------------------------------------------------ 11. SUPPLIER LEDGER
   if (inc('supplier_ledger')) {
-    y = ensurePageSpace(doc, y, 35, 'portrait', data)
+    y = ensurePageSpace(doc, y, 45, 'portrait', data)
     sectionPageMap.set('supplier_ledger', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '11. SUPPLIER LEDGER', 'Per-supplier opening / purchases / payments / closing')
     y = drawSupplierLedger(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 12. SUPPLIER PAYABLES
   if (inc('supplier_payables')) {
-    y = ensurePageSpace(doc, y, 30, 'portrait', data)
+    y = ensurePageSpace(doc, y, 40, 'portrait', data)
     sectionPageMap.set('supplier_payables', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '12. SUPPLIER PAYABLES', 'Outstanding payables with aging')
     y = drawSupplierPayables(doc, y, data)
   }
   // ------------------------------------------------ 13. PAYMENTS
   if (inc('payments')) {
-    y = ensurePageSpace(doc, y, 35, 'portrait', data)
+    y = ensurePageSpace(doc, y, 60, 'portrait', data)
     sectionPageMap.set('payments', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '13. PAYMENTS REGISTER', 'Customer and supplier payments')
     y = drawPayments(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 14. EXPENSES
   if (inc('expenses')) {
-    y = ensurePageSpace(doc, y, 30, 'portrait', data)
+    y = ensurePageSpace(doc, y, 40, 'portrait', data)
     sectionPageMap.set('expenses', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '14. EXPENSES', 'Expense register for the period')
     y = drawExpenses(doc, y, data)
   }
   // ------------------------------------------------ 15. PRODUCTS
   if (inc('products')) {
-    y = ensurePageSpace(doc, y, 35, 'portrait', data)
+    y = ensurePageSpace(doc, y, 55, 'portrait', data)
     sectionPageMap.set('products', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '15. PRODUCTS', 'Product catalog with stock and prices')
     y = drawProducts(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 16. CATEGORIES
   if (inc('categories')) {
-    y = ensurePageSpace(doc, y, 25, 'portrait', data)
+    y = ensurePageSpace(doc, y, 35, 'portrait', data)
     sectionPageMap.set('categories', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '16. CATEGORIES', 'Product categories with product counts')
     y = drawCategories(doc, y, data)
   }
-  // ------------------------------------------------ 17. STOCK & VALUATION
+  // ------------------------------------------------ 17. STOCK & VALUATION (75mm required to keep header + summary + table together)
   if (inc('stock_valuation')) {
-    y = ensurePageSpace(doc, y, 35, 'portrait', data)
+    y = ensurePageSpace(doc, y, 75, 'portrait', data)
     sectionPageMap.set('stock_valuation', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '17. STOCK & INVENTORY VALUATION', 'Valuation and retail summary per product')
     y = drawStockValuation(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 18. STOCK MOVEMENT
   if (inc('stock_movement')) {
-    y = ensurePageSpace(doc, y, 35, 'portrait', data)
+    y = ensurePageSpace(doc, y, 55, 'portrait', data)
     sectionPageMap.set('stock_movement', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '18. STOCK MOVEMENT', 'Inventory movement register')
     y = drawStockMovement(doc, y, data, pageHook)
@@ -1006,23 +1018,23 @@ function drawSalesRegister(doc: Page, y: number, data: MegaReportData, hook: any
     formatNpr(r.total),
     formatNpr(r.paidAmount),
     formatNpr(r.outstanding),
-    safeText(r.paymentStatus),
+    cleanStatusText(r.paymentStatus),
   ])
 
   return drawTable(doc, {
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Date', width: 20 },
-      { head: 'Invoice #', width: 30 },
-      { head: 'Customer', width: 40 },
-      { head: 'Taxable', align: 'right', width: 22 },
+      { head: 'Date', width: 22 },
+      { head: 'Invoice #', width: 32 },
+      { head: 'Customer', width: 44 },
+      { head: 'Taxable', align: 'right', width: 24 },
       { head: 'Discount', align: 'right', width: 22 },
-      { head: 'VAT', align: 'right', width: 20 },
-      { head: 'Total', align: 'right', width: 24 },
-      { head: 'Paid', align: 'right', width: 22 },
-      { head: 'Due', align: 'right', width: 22 },
-      { head: 'Status', width: 22 },
+      { head: 'VAT', align: 'right', width: 22 },
+      { head: 'Total', align: 'right', width: 26 },
+      { head: 'Paid', align: 'right', width: 24 },
+      { head: 'Due', align: 'right', width: 24 },
+      { head: 'Status', width: 29 },
     ],
     body,
     totals: [
@@ -1063,23 +1075,23 @@ function drawPurchaseRegister(doc: Page, y: number, data: MegaReportData, hook: 
     formatNpr(r.total),
     formatNpr(r.paidAmount),
     formatNpr(r.outstanding),
-    safeText(r.paymentStatus),
+    cleanStatusText(r.paymentStatus),
   ])
 
   return drawTable(doc, {
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Date', width: 20 },
-      { head: 'Purchase #', width: 30 },
-      { head: 'Supplier', width: 40 },
-      { head: 'Taxable', align: 'right', width: 22 },
+      { head: 'Date', width: 22 },
+      { head: 'Purchase #', width: 32 },
+      { head: 'Supplier', width: 44 },
+      { head: 'Taxable', align: 'right', width: 24 },
       { head: 'Discount', align: 'right', width: 22 },
-      { head: 'VAT', align: 'right', width: 20 },
-      { head: 'Total', align: 'right', width: 24 },
-      { head: 'Paid', align: 'right', width: 22 },
-      { head: 'Due', align: 'right', width: 22 },
-      { head: 'Status', width: 22 },
+      { head: 'VAT', align: 'right', width: 22 },
+      { head: 'Total', align: 'right', width: 26 },
+      { head: 'Paid', align: 'right', width: 24 },
+      { head: 'Due', align: 'right', width: 24 },
+      { head: 'Status', width: 29 },
     ],
     body,
     totals: [
@@ -1151,7 +1163,6 @@ function drawReturnsAdjustments(doc: Page, y: number, data: MegaReportData): num
 }
 
 function drawCustomerDirectory(doc: Page, y: number, data: MegaReportData): number {
-  // Customer directory derived from ledger names.
   const ledgers = data.customerLedgers
   if (ledgers.length === 0) return drawEmptyNote(doc, y, 'No customers recorded for this business.')
 
@@ -1160,16 +1171,16 @@ function drawCustomerDirectory(doc: Page, y: number, data: MegaReportData): numb
     safeText(c.panNumber ?? '—'),
     safeText(c.phone ?? '—'),
     formatNpr(c.closingBalance),
-    safeText(c.reconciliationStatus),
+    cleanStatusText(c.reconciliationStatus),
   ])
   return drawTable(doc, {
     startY: y,
     columns: [
-      { head: 'Customer', width: 48 },
+      { head: 'Customer', width: 52 },
       { head: 'PAN', width: 28 },
-      { head: 'Phone', width: 30 },
-      { head: 'Balance', align: 'right', width: 32 },
-      { head: 'Status', width: 28 },
+      { head: 'Phone', width: 32 },
+      { head: 'Balance', align: 'right', width: 34 },
+      { head: 'Status', width: 36 },
     ],
     body,
   })
@@ -1192,13 +1203,13 @@ function drawCustomerLedger(doc: Page, y: number, data: MegaReportData, hook: an
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Customer', width: 56 },
-      { head: 'Opening', align: 'right', width: 28 },
-      { head: 'Invoices', align: 'right', width: 28 },
-      { head: 'Payments', align: 'right', width: 28 },
-      { head: 'Credit/Returns', align: 'right', width: 32 },
-      { head: 'Closing', align: 'right', width: 28 },
-      { head: 'Outstanding', align: 'right', width: 28 },
+      { head: 'Customer', width: 44 },
+      { head: 'Opening', align: 'right', width: 23 },
+      { head: 'Invoices', align: 'right', width: 23 },
+      { head: 'Payments', align: 'right', width: 23 },
+      { head: 'Credit/Returns', align: 'right', width: 23 },
+      { head: 'Closing', align: 'right', width: 23 },
+      { head: 'Outstanding', align: 'right', width: 23 },
     ],
     body,
     fontScale: 'dense',
@@ -1224,12 +1235,12 @@ function drawCustomerReceivables(doc: Page, y: number, data: MegaReportData): nu
   return drawTable(doc, {
     startY: y,
     columns: [
-      { head: 'Customer', width: 42 },
+      { head: 'Customer', width: 46 },
       { head: '0-30', align: 'right', width: 24 },
       { head: '31-60', align: 'right', width: 24 },
       { head: '61-90', align: 'right', width: 24 },
-      { head: '90+', align: 'right', width: 22 },
-      { head: 'Outstanding', align: 'right', width: 34 },
+      { head: '90+', align: 'right', width: 24 },
+      { head: 'Outstanding', align: 'right', width: 40 },
     ],
     body,
     totals: [
@@ -1256,16 +1267,16 @@ function drawSupplierDirectory(doc: Page, y: number, data: MegaReportData): numb
     safeText(s.panNumber ?? '—'),
     safeText(s.phone ?? '—'),
     formatNpr(s.closingPayable),
-    safeText(s.reconciliationStatus),
+    cleanStatusText(s.reconciliationStatus),
   ])
   return drawTable(doc, {
     startY: y,
     columns: [
-      { head: 'Supplier', width: 48 },
+      { head: 'Supplier', width: 52 },
       { head: 'PAN', width: 28 },
-      { head: 'Phone', width: 30 },
-      { head: 'Balance', align: 'right', width: 32 },
-      { head: 'Status', width: 28 },
+      { head: 'Phone', width: 32 },
+      { head: 'Balance', align: 'right', width: 34 },
+      { head: 'Status', width: 36 },
     ],
     body,
   })
@@ -1288,13 +1299,13 @@ function drawSupplierLedger(doc: Page, y: number, data: MegaReportData, hook: an
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Supplier', width: 56 },
-      { head: 'Opening', align: 'right', width: 28 },
-      { head: 'Purchases', align: 'right', width: 28 },
-      { head: 'Payments', align: 'right', width: 28 },
-      { head: 'Returns/Adj', align: 'right', width: 32 },
-      { head: 'Closing', align: 'right', width: 28 },
-      { head: 'Net Payable', align: 'right', width: 28 },
+      { head: 'Supplier', width: 44 },
+      { head: 'Opening', align: 'right', width: 23 },
+      { head: 'Purchases', align: 'right', width: 23 },
+      { head: 'Payments', align: 'right', width: 23 },
+      { head: 'Returns/Adj', align: 'right', width: 23 },
+      { head: 'Closing', align: 'right', width: 23 },
+      { head: 'Net Payable', align: 'right', width: 23 },
     ],
     body,
     fontScale: 'dense',
@@ -1320,12 +1331,12 @@ function drawSupplierPayables(doc: Page, y: number, data: MegaReportData): numbe
   return drawTable(doc, {
     startY: y,
     columns: [
-      { head: 'Supplier', width: 42 },
+      { head: 'Supplier', width: 46 },
       { head: '0-30', align: 'right', width: 24 },
       { head: '31-60', align: 'right', width: 24 },
       { head: '61-90', align: 'right', width: 24 },
-      { head: '90+', align: 'right', width: 22 },
-      { head: 'Payable', align: 'right', width: 34 },
+      { head: '90+', align: 'right', width: 24 },
+      { head: 'Payable', align: 'right', width: 40 },
     ],
     body,
   })
@@ -1342,21 +1353,21 @@ function drawPayments(doc: Page, y: number, data: MegaReportData, hook: any): nu
     safeText(p.reference),
     formatNpr(p.amount),
     safeText(p.method),
-    safeText(p.status),
-    safeText(p.createdBy),
+    cleanStatusText(p.status),
+    truncateUserId(p.createdBy),
   ])
   return drawTable(doc, {
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Date', width: 22 },
-      { head: 'Payment Type', width: 30 },
-      { head: 'Customer / Supplier', width: 42 },
-      { head: 'Reference', width: 34 },
-      { head: 'Amount', align: 'right', width: 28 },
-      { head: 'Method', width: 26 },
-      { head: 'Status', width: 22 },
-      { head: 'Recorded By', width: 30 },
+      { head: 'Date', width: 20 },
+      { head: 'Payment Type', width: 22 },
+      { head: 'Party', width: 38 },
+      { head: 'Reference', width: 30 },
+      { head: 'Amount', align: 'right', width: 24 },
+      { head: 'Method', width: 18 },
+      { head: 'Status', align: 'center', width: 16 },
+      { head: 'User', width: 14 },
     ],
     body,
     totals: [
@@ -1412,13 +1423,13 @@ function drawProducts(doc: Page, y: number, data: MegaReportData, hook: any): nu
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Product', width: 60 },
-      { head: 'SKU', width: 34 },
-      { head: 'Category', width: 40 },
-      { head: 'Stock', align: 'right', width: 22 },
-      { head: 'Cost (Rs)', align: 'right', width: 32 },
-      { head: 'Selling (Rs)', align: 'right', width: 32 },
-      { head: 'Status', width: 24 },
+      { head: 'Product', width: 44 },
+      { head: 'SKU', width: 26 },
+      { head: 'Category', width: 32 },
+      { head: 'Stock', align: 'right', width: 16 },
+      { head: 'Cost (Rs)', align: 'right', width: 22 },
+      { head: 'Selling (Rs)', align: 'right', width: 22 },
+      { head: 'Status', width: 20 },
     ],
     body,
     fontScale: 'dense',
@@ -1458,7 +1469,7 @@ function drawStockValuation(doc: Page, y: number, data: MegaReportData, hook: an
   })
   y = drawTotalsBar(doc, {
     startY: y,
-    text: `Opening: ${formatNpr(inv.summary.openingStockValue)} | In: ${formatNpr(inv.summary.stockInValue)} | Out: ${formatNpr(inv.summary.stockOutValue)} | Note: Potential Gross Margin is based on current inventory cost and current selling prices (distinguish from realized sales margin).`,
+    text: `Opening: ${formatNpr(inv.summary.openingStockValue)} | In: ${formatNpr(inv.summary.stockInValue)} | Out: ${formatNpr(inv.summary.stockOutValue)} | Note: Potential Gross Margin is based on current inventory cost and current selling prices.`,
   })
 
   if (inv.products.length === 0) return drawEmptyNote(doc, y, 'No stock valuation data available.')
@@ -1478,15 +1489,14 @@ function drawStockValuation(doc: Page, y: number, data: MegaReportData, hook: an
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Product', width: 52 },
-      { head: 'SKU', width: 30 },
-      { head: 'Qty', align: 'right', width: 18 },
-      { head: 'Unit Cost', align: 'right', width: 24 },
+      { head: 'Product', width: 36 },
+      { head: 'SKU', width: 28 },
+      { head: 'Qty', align: 'right', width: 14 },
+      { head: 'Unit Cost', align: 'right', width: 22 },
       { head: 'Clos. Value', align: 'right', width: 26 },
-      { head: 'Selling', align: 'right', width: 24 },
-      { head: 'Retail', align: 'right', width: 26 },
-      { head: 'Margin', align: 'right', width: 26 },
-      { head: 'Cost', width: 18 },
+      { head: 'Selling', align: 'right', width: 22 },
+      { head: 'Retail', align: 'right', width: 24 },
+      { head: 'Cost', width: 10 },
     ],
     body,
     totals: [
@@ -1519,8 +1529,7 @@ function drawStockMovement(doc: Page, y: number, data: MegaReportData, hook: any
       safeText(m.sku),
       displayType,
       qtySign,
-      formatNumber(m.previousQuantity),
-      formatNumber(m.newQuantity),
+      `${m.previousQuantity} → ${m.newQuantity}`,
       safeText(m.reason),
     ]
   })
@@ -1529,14 +1538,13 @@ function drawStockMovement(doc: Page, y: number, data: MegaReportData, hook: any
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Date', width: 22 },
-      { head: 'Product', width: 44 },
-      { head: 'SKU', width: 24 },
-      { head: 'Type', width: 22 },
-      { head: 'Qty', align: 'right', width: 16 },
-      { head: 'From', align: 'right', width: 15 },
-      { head: 'To', align: 'right', width: 15 },
-      { head: 'Reason', width: 24 },
+      { head: 'Date', width: 20 },
+      { head: 'Product', width: 36 },
+      { head: 'SKU', width: 22 },
+      { head: 'Type', width: 18 },
+      { head: 'Qty', align: 'right', width: 14 },
+      { head: 'From → To', align: 'right', width: 22 },
+      { head: 'Reason', width: 50 },
     ],
     body,
     fontScale: 'dense',
@@ -1774,7 +1782,7 @@ function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): 
     safeDate(a.timestamp),
     safeText(a.action),
     safeText(a.target),
-    safeText(a.userId),
+    truncateUserId(a.userId),
     safeText(formatAuditMetadataDetails(a.metadata)),
   ])
   return drawTable(doc, {
@@ -1782,10 +1790,10 @@ function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): 
     pageHook: hook,
     columns: [
       { head: 'Date', width: 22 },
-      { head: 'Action', width: 32 },
-      { head: 'Target', width: 34 },
-      { head: 'User', width: 26 },
-      { head: 'Details' },
+      { head: 'Action', width: 28 },
+      { head: 'Target', width: 28 },
+      { head: 'User', width: 22 },
+      { head: 'Details', width: 82 },
     ],
     body,
     fontScale: 'dense',
@@ -1803,18 +1811,18 @@ function drawCancelledDocuments(doc: Page, y: number, data: MegaReportData): num
     formatNpr(d.amount),
     safeText(d.partyName),
     safeText(d.reason),
-    safeText(d.cancelledBy),
+    truncateUserId(d.cancelledBy),
   ])
   return drawTable(doc, {
     startY: y,
     columns: [
-      { head: 'Type', width: 28 },
+      { head: 'Type', width: 24 },
       { head: 'Doc #', width: 22 },
-      { head: 'Date', width: 20 },
+      { head: 'Date', width: 18 },
       { head: 'Amount', align: 'right', width: 22 },
-      { head: 'Party', width: 32 },
+      { head: 'Party', width: 28 },
       { head: 'Reason', width: 40 },
-      { head: 'Cancelled By' },
+      { head: 'Cancelled By', width: 28 },
     ],
     body,
   })
