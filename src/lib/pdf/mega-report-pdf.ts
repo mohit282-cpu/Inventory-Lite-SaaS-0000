@@ -323,7 +323,7 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
   }
   // ------------------------------------------------ 19. PROFIT & LOSS / COGS
   if (inc('profit_loss')) {
-    y = ensurePageSpace(doc, y, 35, 'portrait', data)
+    y = ensurePageSpace(doc, y, 75, 'portrait', data)
     sectionPageMap.set('profit_loss', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '19. PROFIT & LOSS STATEMENT', 'P&L waterfall with COGS')
     y = drawProfitLoss(doc, y, data)
@@ -382,7 +382,7 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
     y = ensurePageSpace(doc, y, 30, 'portrait', data)
     sectionPageMap.set('ird_reconciliation', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '27. IRD RECONCILIATION', 'Invoice-level tax authority reconciliation')
-    y = drawIrdReconciliation(doc, y, data)
+    y = drawIrdReconciliation(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 28. DATA INTEGRITY
   if (inc('data_integrity')) {
@@ -914,6 +914,19 @@ function drawReconciliationSummary(doc: Page, y: number, data: MegaReportData): 
   const warningCount = checks.filter((r) => r.status === 'WARNING').length
   const mismatchCount = checks.filter((r) => r.status === 'MISMATCH').length
 
+  const acctStatus = data.accountingValidation?.status || 'PASS'
+  const taxStatus = data.taxValidation?.status || 'PASS'
+
+  y = drawSummaryCard(doc, {
+    startY: y,
+    columns: [
+      { label: 'Financial Reconciliation', value: `${balancedCount}/${checks.length} Checks Passed` },
+      { label: 'Data Consistency', value: `${mismatchCount} Mismatches` },
+      { label: 'Accounting Validation', value: acctStatus },
+      { label: 'Tax Validation', value: taxStatus },
+    ],
+  })
+
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
   const inner = pageWidth - margin * 2
@@ -935,7 +948,7 @@ function drawReconciliationSummary(doc: Page, y: number, data: MegaReportData): 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(statusColor[0], statusColor[1], statusColor[2])
-  const statusBadge = balancedCount === checks.length ? `✓ ALL CHECKS PASSED (${checks.length}/${checks.length})` : `ISSUES DETECTED`
+  const statusBadge = balancedCount === checks.length ? `ALL CHECKS PASSED (${checks.length}/${checks.length})` : `ISSUES DETECTED`
   doc.text(`${statusBadge}   |   Balanced: ${balancedCount}   |   Warning: ${warningCount}   |   Mismatch: ${mismatchCount}`, margin + 6, y + 11.5)
 
   y += 18
@@ -956,18 +969,18 @@ function drawReconciliationSummary(doc: Page, y: number, data: MegaReportData): 
     fmtVal(r.expected, r.unitType),
     fmtVal(r.actual, r.unitType),
     fmtVal(r.difference, r.unitType),
-    r.status === 'BALANCED' ? '✓ PASS' : r.status,
+    r.status === 'BALANCED' ? 'PASS' : r.status,
   ])
 
   return drawTable(doc, {
     startY: y,
     columns: [
-      { head: 'Check Name', width: 60 },
-      { head: 'Category', width: 30 },
-      { head: 'Expected', align: 'right', width: 26 },
-      { head: 'Actual', align: 'right', width: 26 },
+      { head: 'Check Name', width: 62 },
+      { head: 'Category', width: 28 },
+      { head: 'Expected', align: 'right', width: 25 },
+      { head: 'Actual', align: 'right', width: 25 },
       { head: 'Difference', align: 'right', width: 24 },
-      { head: 'Status', width: 16 },
+      { head: 'Status', width: 18 },
     ],
     body,
     striped: true,
@@ -1342,6 +1355,17 @@ function drawSupplierPayables(doc: Page, y: number, data: MegaReportData): numbe
   })
 }
 
+function formatPaymentMethod(method?: string): string {
+  if (!method) return '—'
+  const m = safeText(method).toLowerCase().replace(/_/g, ' ')
+  if (m.includes('bank')) return 'Bank Transfer'
+  if (m.includes('cash')) return 'Cash'
+  if (m.includes('esewa')) return 'eSewa'
+  if (m.includes('khalti')) return 'Khalti'
+  if (m.includes('cheque')) return 'Cheque'
+  return m.replace(/\b\w/g, (l) => l.toUpperCase())
+}
+
 function drawPayments(doc: Page, y: number, data: MegaReportData, hook: any): number {
   const payments = data.paymentsDetail
   if (payments.length === 0) return drawEmptyNote(doc, y, 'No payment transactions recorded for the selected period.')
@@ -1352,27 +1376,25 @@ function drawPayments(doc: Page, y: number, data: MegaReportData, hook: any): nu
     safeText(p.entityName),
     safeText(p.reference),
     formatNpr(p.amount),
-    safeText(p.method),
+    formatPaymentMethod(p.method),
     cleanStatusText(p.status),
-    truncateUserId(p.createdBy),
   ])
   return drawTable(doc, {
     startY: y,
     pageHook: hook,
     columns: [
       { head: 'Date', width: 20 },
-      { head: 'Payment Type', width: 22 },
+      { head: 'Type', width: 28 },
       { head: 'Party', width: 38 },
-      { head: 'Reference', width: 30 },
+      { head: 'Reference', width: 26 },
       { head: 'Amount', align: 'right', width: 24 },
-      { head: 'Method', width: 18 },
-      { head: 'Status', align: 'center', width: 16 },
-      { head: 'User', width: 14 },
+      { head: 'Method', width: 24 },
+      { head: 'Status', align: 'center', width: 22 },
     ],
     body,
     totals: [
       {
-        cells: ['', '', '', 'TOTAL', formatNpr(payments.reduce((a, p) => a + p.amount, 0)), '', '', ''],
+        cells: ['', '', '', 'TOTAL', formatNpr(payments.reduce((a, p) => a + p.amount, 0)), '', ''],
       },
     ],
     fontScale: 'dense',
@@ -1489,14 +1511,15 @@ function drawStockValuation(doc: Page, y: number, data: MegaReportData, hook: an
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Product', width: 36 },
-      { head: 'SKU', width: 28 },
-      { head: 'Qty', align: 'right', width: 14 },
-      { head: 'Unit Cost', align: 'right', width: 22 },
-      { head: 'Clos. Value', align: 'right', width: 26 },
-      { head: 'Selling', align: 'right', width: 22 },
-      { head: 'Retail', align: 'right', width: 24 },
-      { head: 'Cost', width: 10 },
+      { head: 'Product', width: 32 },
+      { head: 'SKU', width: 24 },
+      { head: 'Qty', align: 'right', width: 12 },
+      { head: 'Unit Cost', align: 'right', width: 20 },
+      { head: 'Clos. Value', align: 'right', width: 22 },
+      { head: 'Selling Price', align: 'right', width: 22 },
+      { head: 'Retail Value', align: 'right', width: 22 },
+      { head: 'Gross Margin', align: 'right', width: 20 },
+      { head: 'Cost Status', align: 'center', width: 8 },
     ],
     body,
     totals: [
@@ -1528,8 +1551,9 @@ function drawStockMovement(doc: Page, y: number, data: MegaReportData, hook: any
       safeText(m.productName),
       safeText(m.sku),
       displayType,
+      formatNumber(m.previousQuantity),
       qtySign,
-      `${m.previousQuantity} → ${m.newQuantity}`,
+      formatNumber(m.newQuantity),
       safeText(m.reason),
     ]
   })
@@ -1539,12 +1563,13 @@ function drawStockMovement(doc: Page, y: number, data: MegaReportData, hook: any
     pageHook: hook,
     columns: [
       { head: 'Date', width: 20 },
-      { head: 'Product', width: 36 },
-      { head: 'SKU', width: 22 },
+      { head: 'Product', width: 34 },
+      { head: 'SKU', width: 24 },
       { head: 'Type', width: 18 },
+      { head: 'From', align: 'right', width: 14 },
       { head: 'Qty', align: 'right', width: 14 },
-      { head: 'From → To', align: 'right', width: 22 },
-      { head: 'Reason', width: 50 },
+      { head: 'To', align: 'right', width: 14 },
+      { head: 'Reason', width: 44 },
     ],
     body,
     fontScale: 'dense',
@@ -1774,13 +1799,31 @@ function formatAuditMetadataDetails(meta: unknown): string {
   }
 }
 
+function formatAuditActionLabel(action?: string): string {
+  if (!action) return '—'
+  const act = safeText(action).toUpperCase()
+  const map: Record<string, string> = {
+    STOCK_MOVEMENT: 'Stock Movement',
+    PURCHASE_CREATED: 'Purchase Created',
+    SALE_CREATED: 'Sale Created',
+    EXPENSE_CREATED: 'Expense Created',
+    SALE_CANCELLED: 'Sale Cancelled',
+    PURCHASE_CANCELLED: 'Purchase Cancelled',
+    CUSTOMER_CREATED: 'Customer Created',
+    SUPPLIER_CREATED: 'Supplier Created',
+    PRICE_OVERRIDE: 'Price Override',
+  }
+  if (map[act]) return map[act]
+  return act.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+}
+
 function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): number {
   const trail = data.auditTrail
   if (trail.length === 0) return drawEmptyNote(doc, y, 'No audit trail entries for the selected period.')
 
   const body = trail.map((a) => [
     safeDate(a.timestamp),
-    safeText(a.action),
+    formatAuditActionLabel(a.action),
     safeText(a.target),
     truncateUserId(a.userId),
     safeText(formatAuditMetadataDetails(a.metadata)),
@@ -1789,11 +1832,11 @@ function drawAuditTrail(doc: Page, y: number, data: MegaReportData, hook: any): 
     startY: y,
     pageHook: hook,
     columns: [
-      { head: 'Date', width: 22 },
-      { head: 'Action', width: 28 },
-      { head: 'Target', width: 28 },
+      { head: 'Date', width: 20 },
+      { head: 'Action', width: 30 },
+      { head: 'Target', width: 26 },
       { head: 'User', width: 22 },
-      { head: 'Details', width: 82 },
+      { head: 'Details', width: 84 },
     ],
     body,
     fontScale: 'dense',
@@ -1843,7 +1886,7 @@ function drawIrdReadiness(doc: Page, y: number, data: MegaReportData): number {
   return drawMetadata(doc, { startY: y, lines, columnCount: 2 })
 }
 
-function drawIrdReconciliation(doc: Page, y: number, data: MegaReportData): number {
+function drawIrdReconciliation(doc: Page, y: number, data: MegaReportData, hook?: any): number {
   const items = data.irdReconciliation
   if (items.length === 0) return drawEmptyNote(doc, y, 'No IRD reconciliation records found for the period.')
 
@@ -1857,16 +1900,18 @@ function drawIrdReconciliation(doc: Page, y: number, data: MegaReportData): numb
   ])
   return drawTable(doc, {
     startY: y,
+    pageHook: hook,
     columns: [
-      { head: 'Invoice #', width: 40 },
-      { head: 'Date', width: 25 },
-      { head: 'Customer', width: 65 },
-      { head: 'Total Amount', align: 'right', width: 35 },
-      { head: 'Local Status', width: 45 },
-      { head: 'IRD Status', width: 63 },
+      { head: 'Invoice #', width: 28 },
+      { head: 'Date', width: 20 },
+      { head: 'Customer', width: 42 },
+      { head: 'Total Amount', align: 'right', width: 26 },
+      { head: 'Local Status', width: 32 },
+      { head: 'IRD Status', width: 34 },
     ],
     body,
     totals: [{ cells: ['TOTAL', '', '', formatNpr(items.reduce((a, r) => a + r.totalAmount, 0)), '', ''] }],
+    fontScale: 'dense',
   })
 }
 
@@ -1904,7 +1949,7 @@ function drawIntegrity(doc: Page, y: number, data: MegaReportData): number {
   doc.setFontSize(7.5)
   doc.setTextColor(barColor[0], barColor[1], barColor[2])
   const conclusionText = issues.length === 0
-    ? '✓ All 24 Reconciliation Checks Passed. 0 Warnings, 0 Mismatches. Report Generation Complete.'
+    ? 'All 24 Reconciliation Checks Passed. 0 Warnings, 0 Mismatches. Report Generation Complete.'
     : `Attention Required: ${issues.length} integrity warning(s) detected. Please review system audit logs.`
   doc.text(conclusionText, margin + 6, y + 12.5)
 

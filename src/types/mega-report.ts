@@ -277,6 +277,22 @@ export interface MegaReportData {
     costDataMissingCount: number
     reconciliationCount: number
   }
+
+  accountingValidation?: {
+    status: 'PASS' | 'WARNING' | 'FAIL'
+    issues: string[]
+    taxableInvoicesReconciled: boolean
+    cogsCompleteness: boolean
+    sequenceIntact: boolean
+  }
+  taxValidation?: {
+    status: 'PASS' | 'WARNING' | 'FAIL'
+    isVatRegistered: boolean
+    vatRate: number
+    taxableSalesReconciled: boolean
+    taxablePurchasesReconciled: boolean
+    issues: string[]
+  }
 }
 
 export interface AnalyticsKpiCard {

@@ -501,12 +501,18 @@ export class AuditCenterService {
    */
   async getSalesRegister(businessId: string, filters?: AuditFilterParams) {
     const f = resolveFilters(filters)
-    const [sales, allCustomers] = await Promise.all([
+    const [sales, allCustomers, business] = await Promise.all([
       saleService.listAllSales(businessId, { dateFrom: f.dateFrom, dateTo: f.dateTo, customerId: f.customerId }),
       customerService.listAllCustomers(businessId),
+      businessService.getBusiness(businessId).catch(() => null),
     ])
     const filtered = this.applyFilters(sales, f)
       .filter((s) => !f.customerId || s.customerId === f.customerId)
+
+    const isVatRegistered = Boolean(
+      (business?.vatNumber && String(business.vatNumber).trim() !== '') ||
+      (business?.taxRegistrationType && String(business.taxRegistrationType).toUpperCase() === 'VAT')
+    )
 
     const customerMap = new Map<string, any>()
     for (const c of allCustomers) {
@@ -527,8 +533,27 @@ export class AuditCenterService {
       const customerPan = cust?.panNumber || 'N/A'
 
       const discount = s.discount || 0
-      const taxableAmount = s.taxableAmount || Math.max(0, (s.subtotal || 0) - discount)
-      const vat = s.vatAmount || 0
+      const total = s.total || 0
+      let rawVat = s.vatAmount ?? s.tax ?? 0
+
+      // If business is VAT registered and vatAmount is missing on historical record, fall back to tax difference
+      if (isVatRegistered && rawVat === 0 && total > 0) {
+        const rawTaxable = s.taxableAmount || Math.max(0, (s.subtotal || 0) - discount)
+        if (total > rawTaxable) {
+          rawVat = Math.round((total - rawTaxable) * 100) / 100
+        }
+      }
+
+      let vat = 0
+      let taxableAmount = 0
+
+      if (isVatRegistered) {
+        vat = rawVat
+        taxableAmount = s.taxableAmount || Math.max(0, total - vat)
+      } else {
+        vat = 0
+        taxableAmount = total
+      }
 
       let paymentStatus = 'UNPAID'
       if (s.status === 'cancelled') {
@@ -543,7 +568,7 @@ export class AuditCenterService {
         totalCancelled += 1
       } else {
         totalInvoices += 1
-        totalSales += s.total || 0
+        totalSales += total
         totalDiscount += discount
         totalTaxable += taxableAmount
         totalVat += vat
@@ -558,7 +583,7 @@ export class AuditCenterService {
         taxableAmount,
         discount,
         vat,
-        total: s.total || 0,
+        total,
         paidAmount: s.paidAmount || 0,
         outstanding: s.dueAmount || 0,
         paymentStatus,
@@ -587,16 +612,22 @@ export class AuditCenterService {
    */
   async getPurchaseRegister(businessId: string, filters?: AuditFilterParams) {
     const f = resolveFilters(filters)
-    const [purchases, allSuppliers] = await Promise.all([
+    const [purchases, allSuppliers, business] = await Promise.all([
       purchaseService.listAllPurchases(businessId, {
         dateFrom: f.dateFrom,
         dateTo: f.dateTo,
         supplierId: f.supplierId,
       }),
       supplierService.listAllSuppliers(businessId),
+      businessService.getBusiness(businessId).catch(() => null),
     ])
     const filtered = this.applyFilters(purchases, f)
       .filter((p) => !f.supplierId || p.supplierId === f.supplierId)
+
+    const isVatRegistered = Boolean(
+      (business?.vatNumber && String(business.vatNumber).trim() !== '') ||
+      (business?.taxRegistrationType && String(business.taxRegistrationType).toUpperCase() === 'VAT')
+    )
 
     const supplierMap = new Map<string, any>()
     for (const s of allSuppliers) {
@@ -613,8 +644,26 @@ export class AuditCenterService {
       const supplierPan = supp?.panVatNumber || 'N/A'
 
       const discount = p.discount || 0
-      const taxableAmount = p.subtotal ? Math.max(0, p.subtotal - discount) : 0
-      const vat = p.vatAmount || 0
+      const total = p.total || 0
+      let rawVat = p.vatAmount ?? p.tax ?? 0
+
+      if (isVatRegistered && rawVat === 0 && total > 0) {
+        const rawTaxable = p.subtotal ? Math.max(0, p.subtotal - discount) : 0
+        if (total > rawTaxable) {
+          rawVat = Math.round((total - rawTaxable) * 100) / 100
+        }
+      }
+
+      let vat = 0
+      let taxableAmount = 0
+
+      if (isVatRegistered) {
+        vat = rawVat
+        taxableAmount = p.taxableAmount || Math.max(0, total - vat)
+      } else {
+        vat = 0
+        taxableAmount = total
+      }
 
       let paymentStatus = 'UNPAID'
       if (p.status === 'cancelled') {
@@ -625,7 +674,7 @@ export class AuditCenterService {
         paymentStatus = 'PARTIAL'
       }
 
-      totalPurchases += p.total || 0
+      totalPurchases += total
       taxablePurchases += taxableAmount
       inputVat += vat
 
@@ -638,7 +687,7 @@ export class AuditCenterService {
         taxableAmount,
         discount,
         vatAmount: vat,
-        total: p.total || 0,
+        total,
         paidAmount: p.paidAmount || 0,
         outstanding: p.dueAmount || 0,
         paymentStatus,
@@ -1449,7 +1498,7 @@ export class AuditCenterService {
     const salesRegDiff = Math.abs(salesRegister.summary.totalSales - kpis.totalSales)
     results.push({
       id: 'rec_sales_register',
-      checkName: '1. Sales Register vs Financial Engine Sales',
+      checkName: 'Sales Register vs Financial Engine Sales',
       category: 'SALES',
       expected: kpis.totalSales,
       actual: salesRegister.summary.totalSales,
@@ -1464,7 +1513,7 @@ export class AuditCenterService {
     const purchRegDiff = Math.abs(purchaseRegister.summary.totalPurchases - kpis.totalPurchases)
     results.push({
       id: 'rec_purchase_register',
-      checkName: '2. Purchase Register vs Financial Engine Purchases',
+      checkName: 'Purchase Register vs Financial Engine Purchases',
       category: 'PURCHASES',
       expected: kpis.totalPurchases,
       actual: purchaseRegister.summary.totalPurchases,
@@ -1484,7 +1533,7 @@ export class AuditCenterService {
     const invoiceRegDiff = Math.abs(salesRegister.summary.totalSales - reconciledInvoiceTotal)
     results.push({
       id: 'rec_invoice_register',
-      checkName: '3. Sales Register vs Invoice Register & Ledgers (Registered + Walk-in)',
+      checkName: 'Sales Register vs Invoice Register & Ledgers (Registered + Walk-in)',
       category: 'SALES',
       expected: salesRegister.summary.totalSales,
       actual: reconciledInvoiceTotal,
@@ -1507,7 +1556,7 @@ export class AuditCenterService {
     const salesPaidDiff = Math.abs(salesPaidTotal - customerPaymentsTotal)
     results.push({
       id: 'rec_sales_paid_vs_payments',
-      checkName: '4. Sales Paid Amount vs Customer Payment Register',
+      checkName: 'Sales Paid Amount vs Customer Payment Register',
       category: 'PAYMENT',
       expected: salesPaidTotal,
       actual: customerPaymentsTotal,
@@ -1528,7 +1577,7 @@ export class AuditCenterService {
     const custPayDiff = Math.abs(custLedgerPaymentsTotal - registeredCustPaymentsTotal)
     results.push({
       id: 'rec_customer_ledger_payments',
-      checkName: '5. Customer Ledger Payments vs Payment Register',
+      checkName: 'Customer Ledger Payments vs Payment Register',
       category: 'PAYMENT',
       expected: custLedgerPaymentsTotal,
       actual: registeredCustPaymentsTotal,
@@ -1545,7 +1594,7 @@ export class AuditCenterService {
     const invPaidDiff = Math.abs(salesPaidTotal - customerPaymentsTotal)
     results.push({
       id: 'rec_invoice_paid_vs_payments',
-      checkName: '6. Invoice Paid Amount vs Payment Records',
+      checkName: 'Invoice Paid Amount vs Payment Records',
       category: 'PAYMENT',
       expected: salesPaidTotal,
       actual: customerPaymentsTotal,
@@ -1562,7 +1611,7 @@ export class AuditCenterService {
     const vatDiff = Math.abs(vatSummary.outputVat - kpis.outputVat)
     results.push({
       id: 'rec_output_vat',
-      checkName: '7. Output VAT vs Central Tax Engine',
+      checkName: 'Output VAT vs Central Tax Engine',
       category: 'VAT',
       expected: kpis.outputVat,
       actual: vatSummary.outputVat,
@@ -1578,7 +1627,7 @@ export class AuditCenterService {
     const custDiff = Math.abs(custLedgerTotal - kpis.outstandingCustomerCredit)
     results.push({
       id: 'rec_customer_receivables',
-      checkName: '8. Customer Ledger Dues vs Overview Receivables',
+      checkName: 'Customer Ledger Dues vs Overview Receivables',
       category: 'CUSTOMER_LEDGER',
       expected: kpis.outstandingCustomerCredit,
       actual: custLedgerTotal,
@@ -1594,7 +1643,7 @@ export class AuditCenterService {
     const suppDiff = Math.abs(suppLedgerTotal - kpis.supplierPayables)
     results.push({
       id: 'rec_supplier_payables',
-      checkName: '9. Supplier Ledger Payables vs Overview Payables',
+      checkName: 'Supplier Ledger Payables vs Overview Payables',
       category: 'SUPPLIER_LEDGER',
       expected: kpis.supplierPayables,
       actual: suppLedgerTotal,
@@ -1610,7 +1659,7 @@ export class AuditCenterService {
     const pnlGrossDiff = Math.abs(profitability.grossSales - salesRegGross)
     results.push({
       id: 'rec_pnl_gross_sales',
-      checkName: '10. P&L Gross Sales vs Sales Register Gross Sales',
+      checkName: 'P&L Gross Sales vs Sales Register Gross Sales',
       category: 'PROFITABILITY',
       expected: salesRegGross,
       actual: profitability.grossSales,
@@ -1625,7 +1674,7 @@ export class AuditCenterService {
     const discountDiff = Math.abs(profitability.discounts - salesRegister.summary.totalDiscount)
     results.push({
       id: 'rec_pnl_discounts',
-      checkName: '11. P&L Discounts vs Sales Register Discounts',
+      checkName: 'P&L Discounts vs Sales Register Discounts',
       category: 'PROFITABILITY',
       expected: salesRegister.summary.totalDiscount,
       actual: profitability.discounts,
@@ -1641,7 +1690,7 @@ export class AuditCenterService {
     const netSalesDiff = Math.abs(expectedNetSales - profitability.netSales)
     results.push({
       id: 'rec_net_sales',
-      checkName: '12. Net Sales Formula Reconciliation',
+      checkName: 'Net Sales Formula Reconciliation',
       category: 'PROFITABILITY',
       expected: expectedNetSales,
       actual: profitability.netSales,
@@ -1657,7 +1706,7 @@ export class AuditCenterService {
     const grossProfitDiff = Math.abs(expectedGrossProfit - profitability.grossProfit)
     results.push({
       id: 'rec_gross_profit',
-      checkName: '13. Gross Profit Formula Reconciliation',
+      checkName: 'Gross Profit Formula Reconciliation',
       category: 'PROFITABILITY',
       expected: expectedGrossProfit,
       actual: profitability.grossProfit,
@@ -1673,7 +1722,7 @@ export class AuditCenterService {
     const netProfitDiff = Math.abs(expectedNetProfit - profitability.netProfit)
     results.push({
       id: 'rec_net_profit',
-      checkName: '14. Net Profit Formula Reconciliation',
+      checkName: 'Net Profit Formula Reconciliation',
       category: 'PROFITABILITY',
       expected: expectedNetProfit,
       actual: profitability.netProfit,
@@ -1688,7 +1737,7 @@ export class AuditCenterService {
     const cogsDiff = Math.abs(kpis.cogs - inventoryAudit.summary.totalCogs)
     results.push({
       id: 'rec_cogs_consistency',
-      checkName: '15. P&L COGS vs Stock Valuation COGS',
+      checkName: 'P&L COGS vs Stock Valuation COGS',
       category: 'COGS',
       expected: kpis.cogs,
       actual: inventoryAudit.summary.totalCogs,
@@ -1703,7 +1752,7 @@ export class AuditCenterService {
     const totalQty = inventoryAudit.products.reduce((sum, p) => sum + (p.stockQuantity || 0), 0)
     results.push({
       id: 'rec_inventory_quantity',
-      checkName: '16. Inventory Quantity Consistency',
+      checkName: 'Inventory Quantity Consistency',
       category: 'INVENTORY',
       expected: totalQty,
       actual: totalQty,
@@ -1719,7 +1768,7 @@ export class AuditCenterService {
     const invValDiff = Math.abs(totalInventoryValue - kpis.stockValue)
     results.push({
       id: 'rec_inventory_value',
-      checkName: '17. Inventory Valuation Integrity',
+      checkName: 'Inventory Valuation Integrity',
       category: 'INVENTORY',
       expected: kpis.stockValue,
       actual: totalInventoryValue,
@@ -1734,7 +1783,7 @@ export class AuditCenterService {
     const suppDueDiff = Math.abs(suppLedgerTotal - kpis.supplierPayables)
     results.push({
       id: 'rec_supplier_due',
-      checkName: '18. Supplier Due Balance Synchronization',
+      checkName: 'Supplier Due Balance Synchronization',
       category: 'SUPPLIER_LEDGER',
       expected: kpis.supplierPayables,
       actual: suppLedgerTotal,
@@ -1749,7 +1798,7 @@ export class AuditCenterService {
     const custDueDiff = Math.abs(custLedgerTotal - kpis.outstandingCustomerCredit)
     results.push({
       id: 'rec_customer_due',
-      checkName: '19. Customer Due Balance Synchronization',
+      checkName: 'Customer Due Balance Synchronization',
       category: 'CUSTOMER_LEDGER',
       expected: kpis.outstandingCustomerCredit,
       actual: custLedgerTotal,
@@ -1774,7 +1823,7 @@ export class AuditCenterService {
 
     results.push({
       id: 'rec_double_entry_gl',
-      checkName: '20. Double-Entry General Ledger Balance (Sum Debits = Sum Credits)',
+      checkName: 'Double-Entry General Ledger Balance (Sum Debits = Sum Credits)',
       category: 'GENERAL_LEDGER',
       expected: glTrial.totalDebit || glTrial.totalCredit,
       actual: glTrial.totalCredit || glTrial.totalDebit,
@@ -1791,7 +1840,7 @@ export class AuditCenterService {
     const seqGaps = seqAudit.gapsDetected.length
     results.push({
       id: 'rec_invoice_sequence',
-      checkName: '21. Invoice Sequence Integrity',
+      checkName: 'Invoice Sequence Integrity',
       category: 'INVOICE_SEQUENCE',
       expected: 0,
       actual: seqGaps,
@@ -1806,7 +1855,7 @@ export class AuditCenterService {
     const cancelledCount = salesRegister.summary.totalCancelled
     results.push({
       id: 'rec_cancelled_invoices',
-      checkName: '22. Cancelled Invoices Financial Exclusion Audit',
+      checkName: 'Cancelled Invoices Financial Exclusion Audit',
       category: 'SALES',
       expected: cancelledCount,
       actual: cancelledCount,
@@ -1820,7 +1869,7 @@ export class AuditCenterService {
     // Rule 23: Excel Export totals equal PDF totals
     results.push({
       id: 'rec_excel_pdf_parity',
-      checkName: '23. Excel Export vs PDF Export Parity',
+      checkName: 'Excel Export vs PDF Export Parity',
       category: 'REPORTS',
       expected: kpis.totalSales,
       actual: kpis.totalSales,
@@ -1834,7 +1883,7 @@ export class AuditCenterService {
     // Rule 24: Dashboard totals equal Mega Report totals
     results.push({
       id: 'rec_dashboard_mega_parity',
-      checkName: '24. Dashboard vs Mega Report Financial Parity',
+      checkName: 'Dashboard vs Mega Report Financial Parity',
       category: 'REPORTS',
       expected: kpis.netProfit,
       actual: kpis.netProfit,

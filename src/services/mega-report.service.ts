@@ -337,6 +337,53 @@ export async function getMegaReportData(opts: MegaReportOptions): Promise<MegaRe
       costDataMissingCount: kpis.costDataMissingCount,
       reconciliationCount: reconciliation.length,
     },
+    accountingValidation: (() => {
+      const issues: string[] = []
+      const taxableInvoicesReconciled = Math.abs(salesReconciliation.difference) < 0.01
+      if (!taxableInvoicesReconciled) {
+        issues.push(`Invoice total discrepancy of Rs. ${salesReconciliation.difference.toFixed(2)} detected.`)
+      }
+      const cogsCompleteness = kpis.costDataMissingCount === 0
+      if (!cogsCompleteness) {
+        issues.push(`${kpis.costDataMissingCount} product(s) missing cost data.`)
+      }
+      const sequenceIntact = invoiceSequence.isSequenceIntact
+      if (!sequenceIntact) {
+        issues.push(`Invoice sequence gaps or duplicates detected.`)
+      }
+      return {
+        status: (issues.length === 0 ? 'PASS' : taxableInvoicesReconciled ? 'WARNING' : 'FAIL') as 'PASS' | 'WARNING' | 'FAIL',
+        issues,
+        taxableInvoicesReconciled,
+        cogsCompleteness,
+        sequenceIntact,
+      }
+    })(),
+    taxValidation: (() => {
+      const issues: string[] = []
+      const taxableSalesReconciled = isVatRegistered
+        ? Math.abs((salesRegister.summary.totalTaxableAmount + salesRegister.summary.totalVat) - salesRegister.summary.totalSales) < 0.01
+        : salesRegister.summary.totalVat === 0
+      if (!taxableSalesReconciled) {
+        issues.push('Sales Register VAT / taxable components do not equal total sales.')
+      }
+
+      const taxablePurchasesReconciled = isVatRegistered
+        ? Math.abs((purchaseRegister.summary.taxablePurchases + purchaseRegister.summary.inputVat) - purchaseRegister.summary.totalPurchases) < 0.01
+        : purchaseRegister.summary.inputVat === 0
+      if (!taxablePurchasesReconciled) {
+        issues.push('Purchase Register VAT / taxable components do not equal total purchases.')
+      }
+
+      return {
+        status: (issues.length === 0 ? 'PASS' : 'WARNING') as 'PASS' | 'WARNING' | 'FAIL',
+        isVatRegistered,
+        vatRate: vatSummary.vatRate,
+        taxableSalesReconciled,
+        taxablePurchasesReconciled,
+        issues,
+      }
+    })(),
   }
 }
 
