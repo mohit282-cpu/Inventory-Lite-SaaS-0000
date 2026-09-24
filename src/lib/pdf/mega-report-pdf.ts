@@ -129,7 +129,7 @@ function drawSectionTitle(doc: Page, y: number, title: string, subtitle?: string
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-    doc.text(truncateText(safeText(subtitle), 200), margin, y + 11)
+    doc.text(truncateText(safeText(subtitle), 160), margin, y + 11)
   }
 
   return y + (subtitle ? 16 : 12)
@@ -713,21 +713,16 @@ function drawKpiGrid(doc: Page, y: number, data: MegaReportData): number {
   const k = data.kpis
   const profit = data.profitability
 
-  // Primary KPIs — shown larger with semantic color coding
-  const primaryItems: { label: string; value: string; semantic: 'primary' | 'positive' | 'negative' | 'warning' }[] = [
-    { label: 'Net Sales', value: formatNpr(profit.netSales), semantic: 'primary' },
-    { label: 'Gross Profit', value: formatNpr(k.grossProfit), semantic: k.grossProfit >= 0 ? 'positive' : 'negative' },
-    { label: 'Net Profit', value: formatNpr(k.netProfit), semantic: k.netProfit >= 0 ? 'positive' : 'negative' },
-    { label: 'COGS', value: formatNpr(k.cogs), semantic: 'primary' },
-    { label: 'Total Sales', value: formatNpr(k.totalSales), semantic: 'primary' },
-    { label: 'Operating Expenses', value: formatNpr(k.expenses), semantic: 'warning' },
-    { label: 'Inventory Value', value: formatNpr(k.stockValue), semantic: 'primary' },
-    { label: 'Receivables', value: formatNpr(k.outstandingCustomerCredit), semantic: k.outstandingCustomerCredit > 0 ? 'warning' : 'positive' },
-  ]
-
-  // Secondary KPIs
-  const secondaryItems: { label: string; value: string }[] = [
+  const items: { label: string; value: string }[] = [
+    { label: 'Total Sales', value: formatNpr(k.totalSales) },
     { label: 'Total Purchases', value: formatNpr(k.totalPurchases) },
+    { label: 'Net Sales', value: formatNpr(profit.netSales) },
+    { label: 'COGS', value: formatNpr(k.cogs) },
+    { label: 'Gross Profit', value: formatNpr(k.grossProfit) },
+    { label: 'Net Profit', value: formatNpr(k.netProfit) },
+    { label: 'Expenses', value: formatNpr(k.expenses) },
+    { label: 'Stock Value', value: formatNpr(k.stockValue) },
+    { label: 'Receivables', value: formatNpr(k.outstandingCustomerCredit) },
     { label: 'Payables', value: formatNpr(k.supplierPayables) },
     { label: 'Output VAT', value: formatNpr(k.outputVat) },
     { label: 'Input VAT', value: formatNpr(k.inputVat) },
@@ -738,86 +733,42 @@ function drawKpiGrid(doc: Page, y: number, data: MegaReportData): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
   const colWidth = (pageWidth - margin * 2 - gap * (cols - 1)) / cols
-  const primaryCellHeight = 22
-  const secondaryCellHeight = 17
+  const cellHeight = 20
 
-  // Caption
+  // Small caption row above the cards.
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text('KEY PERFORMANCE INDICATORS', margin, y)
+  doc.text('PERFORMANCE DASHBOARD', margin, y)
   y += 4
 
-  // Primary KPI cards
-  primaryItems.forEach((it, idx) => {
+  items.forEach((it, idx) => {
     const row = Math.floor(idx / cols)
     const col = idx % cols
     const x = margin + col * (colWidth + gap)
-    const topY = y + 3 + row * (primaryCellHeight + 5)
+    const topY = y + 3 + row * (cellHeight + 5)
 
     doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
     doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-    doc.roundedRect(x, topY, colWidth, primaryCellHeight, 2.5, 2.5, 'FD')
+    doc.roundedRect(x, topY, colWidth, cellHeight, 2.5, 2.5, 'FD')
 
-    // Semantic stripe
-    const stripeColor =
-      it.semantic === 'positive' ? PDF_COLORS.positive800 :
-      it.semantic === 'negative' ? PDF_COLORS.negative800 :
-      it.semantic === 'warning' ? ([185, 107, 0] as const) :
-      PDF_COLORS.accent700
-    doc.setFillColor(stripeColor[0], stripeColor[1], stripeColor[2])
-    doc.rect(x, topY, 2, primaryCellHeight, 'F')
+    // Thin accent stripe on the left edge of each card
+    doc.setFillColor(PDF_COLORS.accent700[0], PDF_COLORS.accent700[1], PDF_COLORS.accent700[2])
+    doc.rect(x, topY, 1.6, cellHeight, 'F')
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(6.5)
     doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-    doc.text(truncateText(it.label.toUpperCase(), 24), x + 5, topY + 6.5)
-
-    // Value color — use semantic color for Net Profit negative
-    const valueColor =
-      it.semantic === 'negative' ? PDF_COLORS.negative800 :
-      it.semantic === 'positive' ? PDF_COLORS.positive800 :
-      PDF_COLORS.ink900
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(it.label === 'Net Profit' ? 10 : 9)
-    doc.setTextColor(valueColor[0], valueColor[1], valueColor[2])
-    doc.text(truncateText(it.value, 18), x + 5, topY + primaryCellHeight - 5)
-  })
-
-  const primaryRowsUsed = Math.ceil(primaryItems.length / cols)
-  const primaryBlockEnd = y + 3 + primaryRowsUsed * (primaryCellHeight + 5) + 2
-
-  // Secondary caption
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7)
-  doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.text('ADDITIONAL METRICS', margin, primaryBlockEnd)
-
-  const secY = primaryBlockEnd + 4
-  secondaryItems.forEach((it, idx) => {
-    const col = idx % cols
-    const x = margin + col * (colWidth + gap)
-    const topY = secY + 2
-
-    doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
-    doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-    doc.roundedRect(x, topY, colWidth, secondaryCellHeight, 2, 2, 'FD')
-
-    doc.setFillColor(PDF_COLORS.ink300[0], PDF_COLORS.ink300[1], PDF_COLORS.ink300[2])
-    doc.rect(x, topY, 1.6, secondaryCellHeight, 'F')
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6)
-    doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-    doc.text(truncateText(it.label.toUpperCase(), 24), x + 5, topY + 5.5)
+    doc.text(truncateText(it.label.toUpperCase(), 24), x + 5, topY + 6)
 
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-    doc.setTextColor(PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2])
-    doc.text(truncateText(it.value, 18), x + 5, topY + 12.5)
+    doc.setFontSize(9.5)
+    doc.setTextColor(PDF_COLORS.ink900[0], PDF_COLORS.ink900[1], PDF_COLORS.ink900[2])
+    doc.text(truncateText(it.value, 18), x + 5, topY + 15)
   })
 
-  return secY + 2 + secondaryCellHeight + 6
+  const rowsUsed = Math.ceil(items.length / cols)
+  return y + 3 + rowsUsed * (cellHeight + 5) + 4
 }
 
 /** Executive summary charts — only drawn when data is meaningful. */
@@ -972,8 +923,7 @@ function drawReconciliationSummary(doc: Page, y: number, data: MegaReportData): 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(statusColor[0], statusColor[1], statusColor[2])
-  const allPassed = balancedCount === checks.length
-  const statusBadge = allPassed ? `ALL CHECKS PASSED (${checks.length}/${checks.length})` : `ISSUES DETECTED`
+  const statusBadge = balancedCount === checks.length ? `✓ ALL CHECKS PASSED (${checks.length}/${checks.length})` : `ISSUES DETECTED`
   doc.text(`${statusBadge}   |   Balanced: ${balancedCount}   |   Warning: ${warningCount}   |   Mismatch: ${mismatchCount}`, margin + 6, y + 11.5)
 
   y += 18
@@ -994,18 +944,18 @@ function drawReconciliationSummary(doc: Page, y: number, data: MegaReportData): 
     fmtVal(r.expected, r.unitType),
     fmtVal(r.actual, r.unitType),
     fmtVal(r.difference, r.unitType),
-    r.status === 'BALANCED' ? 'PASS' : r.status === 'WARNING' ? 'WARNING' : r.status === 'MISMATCH' ? 'MISMATCH' : safeText(r.status),
+    r.status === 'BALANCED' ? '✓ PASS' : r.status,
   ])
 
   return drawTable(doc, {
     startY: y,
     columns: [
-      { head: 'Check Name', width: 56 },
-      { head: 'Category', width: 28 },
+      { head: 'Check Name', width: 60 },
+      { head: 'Category', width: 30 },
       { head: 'Expected', align: 'right', width: 26 },
       { head: 'Actual', align: 'right', width: 26 },
       { head: 'Difference', align: 'right', width: 24 },
-      { head: 'Status', width: 22 },
+      { head: 'Status', width: 16 },
     ],
     body,
     striped: true,
@@ -1381,90 +1331,41 @@ function drawSupplierPayables(doc: Page, y: number, data: MegaReportData): numbe
   })
 }
 
-function drawPaymentsSubTable(
-  doc: Page,
-  y: number,
-  payments: MegaReportData['paymentsDetail'],
-  hook: any,
-): number {
+function drawPayments(doc: Page, y: number, data: MegaReportData, hook: any): number {
+  const payments = data.paymentsDetail
+  if (payments.length === 0) return drawEmptyNote(doc, y, 'No payment transactions recorded for the selected period.')
+
   const body = payments.map((p) => [
     safeDate(p.date),
+    p.entityType === 'customer' ? 'Customer Payment' : 'Supplier Payment',
     safeText(p.entityName),
     safeText(p.reference),
     formatNpr(p.amount),
     safeText(p.method),
     safeText(p.status),
-    truncateText(safeText(p.createdBy), 14),
+    safeText(p.createdBy),
   ])
   return drawTable(doc, {
     startY: y,
     pageHook: hook,
     columns: [
       { head: 'Date', width: 22 },
-      { head: 'Customer / Supplier', width: 50 },
-      { head: 'Reference', width: 36 },
-      { head: 'Amount', align: 'right', width: 30 },
+      { head: 'Payment Type', width: 30 },
+      { head: 'Customer / Supplier', width: 42 },
+      { head: 'Reference', width: 34 },
+      { head: 'Amount', align: 'right', width: 28 },
       { head: 'Method', width: 26 },
       { head: 'Status', width: 22 },
-      { head: 'Recorded By', width: 28 },
+      { head: 'Recorded By', width: 30 },
     ],
     body,
     totals: [
-      { cells: ['', 'TOTAL', '', formatNpr(payments.reduce((a, p) => a + p.amount, 0)), '', '', ''] },
+      {
+        cells: ['', '', '', 'TOTAL', formatNpr(payments.reduce((a, p) => a + p.amount, 0)), '', '', ''],
+      },
     ],
     fontScale: 'dense',
   })
-}
-
-function drawPayments(doc: Page, y: number, data: MegaReportData, hook: any): number {
-  const payments = data.paymentsDetail
-  if (payments.length === 0) return drawEmptyNote(doc, y, 'No payment transactions recorded for the selected period.')
-
-  const customerPayments = payments.filter((p) => p.entityType === 'customer')
-  const supplierPayments = payments.filter((p) => p.entityType === 'supplier')
-
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const margin = PDF_SPACING.pageMargin
-
-  // Customer payments subsection
-  if (customerPayments.length > 0) {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(PDF_COLORS.accent900[0], PDF_COLORS.accent900[1], PDF_COLORS.accent900[2])
-    doc.text('CUSTOMER PAYMENTS', margin, y)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-    doc.text(`${customerPayments.length} transaction(s)`, margin, y + 5)
-    y += 9
-    y = drawPaymentsSubTable(doc, y, customerPayments, hook)
-  } else {
-    y = drawEmptyNote(doc, y, 'No customer payments recorded for the selected period.')
-  }
-
-  // Supplier payments subsection — add separator
-  y += 4
-  doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-  doc.setLineWidth(0.4)
-  doc.line(margin, y, pageWidth - margin, y)
-  y += 6
-
-  if (supplierPayments.length > 0) {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(PDF_COLORS.accent900[0], PDF_COLORS.accent900[1], PDF_COLORS.accent900[2])
-    doc.text('SUPPLIER PAYMENTS', margin, y)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-    doc.text(`${supplierPayments.length} transaction(s)`, margin, y + 5)
-    y += 9
-    y = drawPaymentsSubTable(doc, y, supplierPayments, hook)
-  } else {
-    y = drawEmptyNote(doc, y, 'No supplier payments recorded for the selected period.')
-  }
-
-  return y
 }
 
 function drawExpenses(doc: Page, y: number, data: MegaReportData): number {
@@ -1584,8 +1485,8 @@ function drawStockValuation(doc: Page, y: number, data: MegaReportData, hook: an
       { head: 'Clos. Value', align: 'right', width: 26 },
       { head: 'Selling', align: 'right', width: 24 },
       { head: 'Retail', align: 'right', width: 26 },
-      { head: 'Pot. Margin', align: 'right', width: 26 },
-      { head: 'Cost Data', width: 18 },
+      { head: 'Margin', align: 'right', width: 26 },
+      { head: 'Cost', width: 18 },
     ],
     body,
     totals: [
@@ -1645,97 +1546,51 @@ function drawStockMovement(doc: Page, y: number, data: MegaReportData, hook: any
 function drawProfitLoss(doc: Page, y: number, data: MegaReportData): number {
   const p = data.profitability
   const k = data.kpis
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const margin = PDF_SPACING.pageMargin
-  const inner = pageWidth - margin * 2
 
-  // Waterfall rows — totals use a highlighted band
-  const rows: { label: string; value: string; highlight?: 'subtotal' | 'profit' | 'loss' | 'indent' }[] = [
-    { label: 'Gross Sales', value: formatNpr(p.grossSales) },
-    { label: '  Less: Discounts', value: `(${formatNpr(p.discounts)})`, highlight: 'indent' },
-    { label: '  Less: Sales Returns', value: `(${formatNpr(p.salesReturns)})`, highlight: 'indent' },
-    { label: 'NET SALES', value: formatNpr(p.netSales), highlight: 'subtotal' },
-    { label: '  Less: Cost of Goods Sold (COGS)', value: `(${formatNpr(p.cogs)})`, highlight: 'indent' },
-    { label: 'GROSS PROFIT', value: formatNpr(k.grossProfit), highlight: k.grossProfit >= 0 ? 'profit' : 'loss' },
-    { label: '  Gross Margin %', value: formatPercent(p.grossMarginPercent), highlight: 'indent' },
-    { label: '  Less: Operating Expenses', value: `(${formatNpr(p.expenses)})`, highlight: 'indent' },
-    { label: 'NET PROFIT / (LOSS)', value: formatNpr(p.netProfit), highlight: p.netProfit >= 0 ? 'profit' : 'loss' },
-    { label: '  Net Margin %', value: formatPercent(p.netMarginPercent), highlight: 'indent' },
+  const body = [
+    ['Gross Sales', formatNpr(p.grossSales)],
+    ['Discounts', formatNpr(p.discounts)],
+    ['Sales Returns', formatNpr(p.salesReturns)],
+    ['NET SALES', formatNpr(p.netSales)],
+    ['Cost of Goods Sold (COGS)', formatNpr(p.cogs)],
+    ['GROSS PROFIT', formatNpr(k.grossProfit)],
+    ['Gross Margin %', formatPercent(p.grossMarginPercent)],
+    ['Operating Expenses', formatNpr(p.expenses)],
+    ['NET PROFIT', formatNpr(p.netProfit)],
+    ['Net Margin %', formatPercent(p.netMarginPercent)],
   ]
 
-  // Draw P&L as manual rows for semantic highlighting
-  const rowH = 9
-  const labelCol = margin
-  const valueCol = pageWidth - margin
-
-  rows.forEach((row, i) => {
-    const rowY = y + i * rowH
-    const isSubtotal = row.highlight === 'subtotal'
-    const isProfit = row.highlight === 'profit'
-    const isLoss = row.highlight === 'loss'
-    const isHighlighted = isSubtotal || isProfit || isLoss
-
-    // Fill background for highlighted rows
-    if (isHighlighted) {
-      const fillColor =
-        isLoss ? [255, 240, 240] as const :
-        isProfit ? [240, 253, 244] as const :
-        PDF_COLORS.canvas100
-      doc.setFillColor(fillColor[0], fillColor[1], fillColor[2])
-      doc.rect(margin, rowY - 1, inner, rowH, 'F')
-
-      // Left accent stripe
-      const stripeColor = isLoss ? PDF_COLORS.negative800 : isProfit ? PDF_COLORS.positive800 : PDF_COLORS.accent700
-      doc.setFillColor(stripeColor[0], stripeColor[1], stripeColor[2])
-      doc.rect(margin, rowY - 1, 2.5, rowH, 'F')
-    } else {
-      // Zebra stripe for non-highlighted rows
-      if (i % 2 === 0) {
-        doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
-        doc.rect(margin, rowY - 1, inner, rowH, 'F')
-      }
-    }
-
-    // Row border
-    doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-    doc.setLineWidth(0.2)
-    doc.line(margin, rowY + rowH - 1, pageWidth - margin, rowY + rowH - 1)
-
-    // Label
-    const labelColor = isLoss ? PDF_COLORS.negative800 : isProfit ? PDF_COLORS.positive800 : isSubtotal ? PDF_COLORS.accent900 : PDF_COLORS.ink700
-    doc.setFont('helvetica', isHighlighted ? 'bold' : 'normal')
-    doc.setFontSize(isHighlighted ? 9 : 8.5)
-    doc.setTextColor(labelColor[0], labelColor[1], labelColor[2])
-    doc.text(safeText(row.label), labelCol + 4, rowY + 5.5)
-
-    // Value (right-aligned)
-    doc.setFont('helvetica', isHighlighted ? 'bold' : 'normal')
-    doc.setFontSize(isHighlighted ? 9 : 8.5)
-    doc.text(safeText(row.value), valueCol - 2, rowY + 5.5, { align: 'right' })
+  const finalY = drawTable(doc, {
+    startY: y,
+    columns: [
+      { head: 'Financial Line Item', width: 110 },
+      { head: 'Amount (NPR)', align: 'right' },
+    ],
+    body,
+    striped: true,
   })
 
-  let nextY = y + rows.length * rowH + 6
-
+  let nextY = finalY
   if (k.costDataMissingCount > 0) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(PDF_COLORS.negative800[0], PDF_COLORS.negative800[1], PDF_COLORS.negative800[2])
     doc.text(
-      `Note: ${formatNumber(k.costDataMissingCount)} product(s) are missing cost data — COGS and gross profit may be understated.`,
-      margin,
-      nextY,
+      `Note: ${formatNumber(k.costDataMissingCount)} product(s) are missing cost data, so COGS/gross profit may be understated.`,
+      PDF_SPACING.pageMargin,
+      nextY + 2,
     )
     nextY += 6
   }
 
-  if (p.netProfit < 0) {
+  if (p.netProfit < 0 || p.netMarginPercent < 0) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(PDF_COLORS.negative800[0], PDF_COLORS.negative800[1], PDF_COLORS.negative800[2])
     doc.text(
-      `Note: Operating expenses exceed current-period net sales (negative net margin of ${formatPercent(p.netMarginPercent)}).`,
-      margin,
-      nextY,
+      `Note: Operating expenses exceed current-period revenue (negative net margin).`,
+      PDF_SPACING.pageMargin,
+      nextY + 2,
     )
     nextY += 6
   }
@@ -2040,11 +1895,9 @@ function drawIntegrity(doc: Page, y: number, data: MegaReportData): number {
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   doc.setTextColor(barColor[0], barColor[1], barColor[2])
-  const totalCheckCount = data.reconciliation.length
-  const passedCount = data.reconciliation.filter((r) => r.status === 'BALANCED').length
   const conclusionText = issues.length === 0
-    ? `All ${totalCheckCount} Reconciliation Checks Passed (${passedCount}/${totalCheckCount}). 0 Warnings. 0 Mismatches. Report Generation Complete.`
-    : `Attention Required: ${issues.length} integrity warning(s) detected. ${totalCheckCount - passedCount} check(s) require review. Please consult system audit logs.`
+    ? '✓ All 24 Reconciliation Checks Passed. 0 Warnings, 0 Mismatches. Report Generation Complete.'
+    : `Attention Required: ${issues.length} integrity warning(s) detected. Please review system audit logs.`
   doc.text(conclusionText, margin + 6, y + 12.5)
 
   return y + 24
