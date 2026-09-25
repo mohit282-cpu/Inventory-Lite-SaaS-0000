@@ -184,17 +184,17 @@ export default function DashboardPage() {
   const customerCount = metrics?.totalCustomers || 0
 
   return (
-    <div className="space-y-6 text-slate-900">
+    <div className="space-y-6 text-slate-900 pb-8 sm:pb-12">
       {/* 1. Dashboard Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <div className="text-xs font-semibold text-indigo-600 mb-0.5">
+          <div className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5">
             Dashboard Overview
           </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Welcome back, {firstName}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Here&apos;s what&apos;s happening with <span className="font-semibold text-slate-900">{businessName}</span> today.
           </p>
         </div>
@@ -202,7 +202,7 @@ export default function DashboardPage() {
         <div className="shrink-0">
           <Button
             asChild
-            className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs"
+            className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs"
           >
             <Link href="/app/sales/new">
               <Plus className="mr-1.5 h-4 w-4" /> Open POS Terminal
@@ -214,48 +214,54 @@ export default function DashboardPage() {
       {/* 2. Primary KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Today's Sales */}
-        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-semibold text-slate-500">
-              Today&apos;s Sales
-            </span>
-            <ShoppingCart className="h-4 w-4 text-emerald-600 shrink-0" />
+        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2">
+              <span className="text-xs font-semibold text-slate-500">
+                Today&apos;s Sales
+              </span>
+              <ShoppingCart className="h-4 w-4 text-emerald-600 shrink-0" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 font-mono tracking-tight">
+              {formatCurrency(todaySalesVal, currency)}
+            </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 font-mono tracking-tight">
-            {formatCurrency(todaySalesVal, currency)}
-          </div>
-          <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1">
+          <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
             <TrendingUp className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
             {todaySalesVal > 0 ? 'Revenue generated today' : 'No sales recorded today'}
           </p>
         </Card>
 
         {/* This Month's Sales */}
-        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-semibold text-slate-500">
-              This Month&apos;s Sales
-            </span>
-            <TrendingUp className="h-4 w-4 text-indigo-600 shrink-0" />
+        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2">
+              <span className="text-xs font-semibold text-slate-500">
+                This Month&apos;s Sales
+              </span>
+              <TrendingUp className="h-4 w-4 text-indigo-600 shrink-0" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
+              {formatCurrency(metrics?.thisMonthSales || 0, currency)}
+            </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
-            {formatCurrency(metrics?.thisMonthSales || 0, currency)}
-          </div>
-          <p className="text-xs text-slate-500 mt-1.5">Current calendar month total</p>
+          <p className="text-xs text-slate-500 mt-2">Current calendar month total</p>
         </Card>
 
         {/* Cataloged Products Summary */}
-        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-semibold text-slate-500">
-              Cataloged Products
-            </span>
-            <Package className="h-4 w-4 text-indigo-600 shrink-0" />
+        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2">
+              <span className="text-xs font-semibold text-slate-500">
+                Cataloged Products
+              </span>
+              <Package className="h-4 w-4 text-indigo-600 shrink-0" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
+              {metrics?.totalProducts || 0}
+            </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
-            {metrics?.totalProducts || 0}
-          </div>
-          <div className="flex items-center gap-2 text-xs mt-1.5 font-medium">
+          <div className="flex items-center gap-1.5 text-xs mt-2 font-medium">
             <Link href="/app/stock" className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200 hover:bg-amber-100 transition-colors">
               {metrics?.lowStockProducts || 0} Low Stock
             </Link>
@@ -267,51 +273,57 @@ export default function DashboardPage() {
         </Card>
 
         {/* Today's Expenses */}
-        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-semibold text-slate-500">
-              Today&apos;s Expenses
-            </span>
-            <CreditCard className="h-4 w-4 text-rose-600 shrink-0" />
+        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2">
+              <span className="text-xs font-semibold text-slate-500">
+                Today&apos;s Expenses
+              </span>
+              <CreditCard className="h-4 w-4 text-rose-600 shrink-0" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-rose-600 font-mono tracking-tight">
+              {formatCurrency(todayExpensesVal, currency)}
+            </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-rose-600 font-mono tracking-tight">
-            {formatCurrency(todayExpensesVal, currency)}
-          </div>
-          <p className="text-xs text-slate-500 mt-1.5">
+          <p className="text-xs text-slate-500 mt-2">
             {todayExpensesVal > 0 ? 'Logged operational costs today' : 'No expenses recorded today'}
           </p>
         </Card>
 
         {/* Monthly Expenses */}
-        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-semibold text-slate-500">
-              Monthly Expenses
-            </span>
-            <CreditCard className="h-4 w-4 text-slate-500 shrink-0" />
+        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2">
+              <span className="text-xs font-semibold text-slate-500">
+                Monthly Expenses
+              </span>
+              <CreditCard className="h-4 w-4 text-slate-500 shrink-0" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
+              {formatCurrency(metrics?.thisMonthExpenses || 0, currency)}
+            </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight">
-            {formatCurrency(metrics?.thisMonthExpenses || 0, currency)}
-          </div>
-          <p className="text-xs text-slate-500 mt-1.5">Current month total expenses</p>
+          <p className="text-xs text-slate-500 mt-2">Current month total expenses</p>
         </Card>
 
         {/* Outstanding Dues */}
-        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between pb-2">
-            <span className="text-xs font-semibold text-slate-500">
-              Outstanding Dues (Udhar)
-            </span>
-            <Users className="h-4 w-4 text-amber-600 shrink-0" />
+        <Card className="p-5 border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-2">
+              <span className="text-xs font-semibold text-slate-500">
+                Outstanding Dues (Udhar)
+              </span>
+              <Users className="h-4 w-4 text-amber-600 shrink-0" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 font-mono tracking-tight">
+              {formatCurrency(metrics?.totalDue || 0, currency)}
+            </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 font-mono tracking-tight">
-            {formatCurrency(metrics?.totalDue || 0, currency)}
-          </div>
-          <div className="flex items-center justify-between mt-2 pt-1">
-            <p className="text-xs text-slate-500">
+          <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
+            <span>
               From {customerCount} {customerCount === 1 ? 'registered customer' : 'registered customers'}
-            </p>
-            <Link href="/app/credit" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center">
+            </span>
+            <Link href="/app/credit" className="font-bold text-indigo-600 hover:text-indigo-800 flex items-center">
               View Receivables <ArrowUpRight className="ml-0.5 h-3.5 w-3.5" />
             </Link>
           </div>
@@ -319,18 +331,16 @@ export default function DashboardPage() {
       </div>
 
       {/* 3. Financial Notice Banner */}
-      <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-600">
-        <div className="flex items-center gap-2.5">
+      <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs text-slate-600">
+        <div className="flex items-center gap-2">
           <Info className="h-4 w-4 text-indigo-600 shrink-0" />
-          <div>
-            <span className="font-bold text-slate-900 mr-1">Notice:</span>
+          <span>
+            <strong className="font-semibold text-slate-900 mr-1">Notice:</strong>
             Dashboard profit is an estimate based on sales, COGS, and expenses. For detailed financial records, open Audit & Compliance.
-          </div>
+          </span>
         </div>
-        <Link href="/app/audit" className="shrink-0">
-          <Button size="sm" variant="outline" className="h-7 border-slate-300 bg-white text-[11px] text-slate-900 hover:bg-slate-50 whitespace-nowrap font-bold">
-            Open Audit & Compliance →
-          </Button>
+        <Link href="/app/audit" className="shrink-0 text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center">
+          View Financial Details <ArrowUpRight className="ml-0.5 h-3.5 w-3.5" />
         </Link>
       </div>
 
@@ -338,33 +348,35 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sales Trend Chart */}
         <Card className="lg:col-span-2 min-w-0 border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
-          <div className="pb-4 border-b border-slate-100 mb-4">
+          <div className="pb-3 border-b border-slate-100 mb-4">
             <h2 className="text-base font-bold text-slate-900">Sales Revenue Trend</h2>
             <p className="text-xs text-slate-500">Daily sales breakdown • Last 7 Days</p>
           </div>
           <SalesTrendChart data={salesTrend} currency={currency} />
         </Card>
 
-        {/* Payment Methods Share */}
-        <Card className="min-w-0 border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
-          <div className="pb-4 border-b border-slate-100 mb-4">
-            <h2 className="text-base font-bold text-slate-900">Payment Method Share</h2>
-            <p className="text-xs text-slate-500">Sales volume by payment channel</p>
+        {/* Payment Methods */}
+        <Card className="min-w-0 border-slate-200 bg-white p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="pb-3 border-b border-slate-100 mb-4">
+              <h2 className="text-base font-bold text-slate-900">Payment Methods</h2>
+              <p className="text-xs text-slate-500">Sales volume by payment channel</p>
+            </div>
+            <PaymentMethodsChart data={paymentMethods} currency={currency} />
           </div>
-          <PaymentMethodsChart data={paymentMethods} currency={currency} />
         </Card>
       </div>
 
       {/* 5. Top Products & Low Stock Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Top Products */}
-        <Card className="lg:col-span-2 border-slate-200 bg-white p-6 shadow-xs">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+        <Card className="lg:col-span-2 border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
             <div>
               <h2 className="text-base font-bold text-slate-900">Top-Selling Products</h2>
               <p className="text-xs text-slate-500">Highest revenue catalog items</p>
             </div>
-            <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+            <Button variant="ghost" size="sm" asChild className="h-7 px-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
               <Link href="/app/products">
                 Catalog <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
               </Link>
@@ -375,13 +387,13 @@ export default function DashboardPage() {
         </Card>
 
         {/* Stock Alerts */}
-        <Card className="border-slate-200 bg-white p-6 shadow-xs">
+        <Card className="border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" /> Low Stock Alerts
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 whitespace-nowrap">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" /> Low Stock Alerts
             </h2>
-            <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
-              <Link href="/app/stock">View Inventory</Link>
+            <Button variant="ghost" size="sm" asChild className="h-7 px-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
+              <Link href="/app/stock">View Inventory →</Link>
             </Button>
           </div>
 
@@ -411,7 +423,7 @@ export default function DashboardPage() {
                 </Link>
               ))
             ) : (
-              <div className="text-center py-10 text-slate-600 text-xs flex flex-col items-center justify-center gap-2">
+              <div className="text-center py-6 text-slate-600 text-xs flex flex-col items-center justify-center gap-1.5">
                 <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                 <p className="font-semibold text-slate-800">✓ All stock levels are within healthy thresholds.</p>
               </div>
@@ -421,15 +433,15 @@ export default function DashboardPage() {
       </div>
 
       {/* 6. Recent Sales Activity */}
-      <Card className="border-slate-200 bg-white p-6 shadow-xs">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+      <Card className="border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
           <div>
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-indigo-600" /> Recent Sales Activity
+              <Clock className="h-4 w-4 text-indigo-600 shrink-0" /> Recent Sales Activity
             </h2>
             <p className="text-xs text-slate-500">Latest orders recorded at the POS counter</p>
           </div>
-          <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+          <Button variant="ghost" size="sm" asChild className="h-7 px-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
             <Link href="/app/sales">
               View All <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
             </Link>
@@ -506,13 +518,10 @@ export default function DashboardPage() {
             </div>
           </>
         ) : (
-          <div className="text-center py-8 text-slate-500 text-xs space-y-3">
-            <p>No sales have been recorded yet.</p>
-            <Button asChild size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs">
-              <Link href="/app/sales/new">
-                <Plus className="mr-1.5 h-3.5 w-3.5" /> Open POS Terminal
-              </Link>
-            </Button>
+          <div className="py-6 px-4 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50 space-y-1">
+            <Clock className="h-7 w-7 text-indigo-500/60 mx-auto mb-1" />
+            <h3 className="text-sm font-bold text-slate-900">No sales recorded yet</h3>
+            <p className="text-xs text-slate-500">Complete your first sale to see activity here.</p>
           </div>
         )}
       </Card>

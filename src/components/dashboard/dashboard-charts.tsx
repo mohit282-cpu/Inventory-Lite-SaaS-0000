@@ -13,7 +13,7 @@ import {
   Tooltip,
 } from 'recharts'
 import { SalesChartPoint, TopProductPoint, PaymentMethodPoint } from '@/services/analytics.service'
-import { CreditCard, Package, TrendingUp, Plus, ArrowUpRight } from 'lucide-react'
+import { CreditCard, Package, TrendingUp, ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatPaymentMethodLabel } from '@/lib/utils'
 
@@ -31,19 +31,14 @@ export function SalesTrendChart({ data, currency = 'NPR' }: SalesTrendChartProps
   // 0 meaningful data points
   if (meaningfulPoints.length === 0) {
     return (
-      <div className="py-12 px-4 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-        <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
-          <TrendingUp className="h-5 w-5" />
+      <div className="py-8 px-4 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+        <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-2">
+          <TrendingUp className="h-4.5 w-4.5" />
         </div>
-        <h3 className="text-sm font-bold text-slate-900 mb-1">Sales Revenue</h3>
-        <p className="text-xs text-slate-500 mb-4 max-w-sm mx-auto">
-          No sales data available for this period. More sales activity will appear here as transactions occur.
+        <h3 className="text-sm font-bold text-slate-900 mb-0.5">No sales yet</h3>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+          Your sales activity will appear here after your first transaction.
         </p>
-        <Button asChild size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs">
-          <Link href="/app/sales/new">
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> Open POS Terminal
-          </Link>
-        </Button>
       </div>
     )
   }
@@ -143,10 +138,12 @@ export function PaymentMethodsChart({ data, currency = 'NPR' }: PaymentMethodsCh
   // 0 payment methods
   if (validMethods.length === 0) {
     return (
-      <div className="py-10 px-4 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-        <CreditCard className="h-8 w-8 mx-auto text-slate-400 mb-2 opacity-40" />
-        <h3 className="text-sm font-bold text-slate-900 mb-1">Payment Method Share</h3>
-        <p className="text-xs text-slate-500">No payment method transactions logged yet.</p>
+      <div className="py-8 px-4 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+        <CreditCard className="h-7 w-7 mx-auto text-slate-400 mb-2 opacity-50" />
+        <h3 className="text-sm font-bold text-slate-900 mb-0.5">No payment data</h3>
+        <p className="text-xs text-slate-500 max-w-xs mx-auto">
+          Sales volume by payment channel will appear here as payments are recorded.
+        </p>
       </div>
     )
   }
@@ -256,10 +253,12 @@ export function TopProductsChart({ data, currency = 'NPR' }: TopProductsChartPro
   // 0 products
   if (validProducts.length === 0) {
     return (
-      <div className="py-12 px-4 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-        <Package className="h-8 w-8 mx-auto text-slate-400 mb-2 opacity-40" />
-        <h3 className="text-sm font-bold text-slate-900 mb-1">No Product Sales</h3>
-        <p className="text-xs text-slate-500">Top-selling products will automatically populate here as sales occur.</p>
+      <div className="py-8 px-4 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+        <Package className="h-7 w-7 mx-auto text-slate-400 mb-2 opacity-50" />
+        <h3 className="text-sm font-bold text-slate-900 mb-0.5">No Product Sales</h3>
+        <p className="text-xs text-slate-500 max-w-xs mx-auto">
+          Top-selling products will automatically populate here as sales occur.
+        </p>
       </div>
     )
   }
