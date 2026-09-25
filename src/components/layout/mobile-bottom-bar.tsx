@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, Package, ShoppingCart, Users, Menu } from 'lucide-react'
+import { isRouteActive } from '@/lib/utils'
 
 interface MobileBottomBarProps {
   onOpenMore: () => void
@@ -24,7 +25,8 @@ export function MobileBottomBar({ onOpenMore }: MobileBottomBarProps) {
     <nav aria-label="Mobile navigation bar" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-lg px-2 pt-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
       <div className="grid grid-cols-5 gap-1 items-center max-w-md mx-auto">
         {tabs.map((tab) => {
-          const isActive = currentPath === tab.href || (tab.href !== '/app/dashboard' && currentPath.startsWith(tab.href))
+          const allTabHrefs = tabs.map((t) => t.href)
+          const isActive = isRouteActive(tab.href, currentPath, allTabHrefs)
           const isPos = tab.name === 'POS'
           const Icon = tab.icon
 

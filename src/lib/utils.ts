@@ -424,3 +424,27 @@ export function sanitizeAppwriteDocId(id: string | undefined | null, prefix = 'd
 
   return sanitized
 }
+
+/**
+ * Determine if a navigation link is active based on current pathname.
+ * Avoids false-positive prefix matching (e.g. /app/sales matching when on /app/sales/new).
+ */
+export function isRouteActive(itemHref: string, currentPath: string, allHrefs: string[] = []): boolean {
+  if (!currentPath || !itemHref) return false
+  if (currentPath === itemHref) return true
+  if (itemHref === '/app/dashboard') return currentPath === '/app/dashboard'
+
+  if (currentPath.startsWith(`${itemHref}/`)) {
+    // Check if there is another navigation item that is a more specific exact/prefix match
+    const hasMoreSpecificMatch = allHrefs.some(
+      (otherHref) =>
+        otherHref !== itemHref &&
+        otherHref.length > itemHref.length &&
+        (currentPath === otherHref || currentPath.startsWith(`${otherHref}/`))
+    )
+    return !hasMoreSpecificMatch
+  }
+
+  return false
+}
+

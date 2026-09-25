@@ -3,7 +3,8 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { NAVIGATION_GROUPS } from '@/components/layout/sidebar'
+import { NAVIGATION_GROUPS, NAVIGATION_ITEMS } from '@/components/layout/sidebar'
+import { isRouteActive } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 import { X, LogOut } from 'lucide-react'
 import { InstallAppButton } from '@/components/pwa/install-prompt'
@@ -91,7 +92,8 @@ export function MobileNav({ isOpen, onClose }: MobileNavProps) {
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const currentPath = pathname || ''
-                  const isActive = currentPath === item.href || (item.href !== '/app/dashboard' && currentPath.startsWith(item.href))
+                  const allNavHrefs = NAVIGATION_ITEMS.map((n) => n.href)
+                  const isActive = isRouteActive(item.href, currentPath, allNavHrefs)
                   const Icon = item.icon
 
                   return (

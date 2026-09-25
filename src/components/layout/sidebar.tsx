@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { isRouteActive } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 import { AppLogo } from '@/components/ui/app-logo'
 import {
@@ -202,7 +203,8 @@ export function Sidebar() {
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const currentPath = pathname || ''
-                const isActive = currentPath === item.href || (item.href !== '/app/dashboard' && currentPath.startsWith(item.href))
+                const allNavHrefs = NAVIGATION_ITEMS.map((n) => n.href)
+                const isActive = isRouteActive(item.href, currentPath, allNavHrefs)
                 const Icon = item.icon
 
                 return (
