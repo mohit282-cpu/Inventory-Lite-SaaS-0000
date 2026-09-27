@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/context/auth-context'
 import { getCurrentFiscalYear } from '@/lib/date/bs-date'
 import { PageHeader } from '@/components/ui/page-header'
@@ -64,6 +64,8 @@ import {
   Briefcase,
   AlertCircle,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -106,6 +108,24 @@ export default function AuditCenterPage() {
     referenceId: string
     details: Record<string, any>
   } | null>(null)
+
+  // Navigation Scroll Ref
+  const tabsContainerRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll active tab into view when activeTab changes
+  useEffect(() => {
+    if (!tabsContainerRef.current) return
+    const activeEl = tabsContainerRef.current.querySelector<HTMLElement>(`[data-tab-id="${activeTab}"]`)
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }, [activeTab])
+
+  const scrollTabsContainer = (direction: 'left' | 'right') => {
+    if (!tabsContainerRef.current) return
+    const amount = direction === 'left' ? -220 : 220
+    tabsContainerRef.current.scrollBy({ left: amount, behavior: 'smooth' })
+  }
 
   // Determine user role permission
   const currentRole = memberships.find((m) => m.businessId === activeBusiness?.$id)?.role || 'owner'
@@ -296,32 +316,59 @@ export default function AuditCenterPage() {
         suppliers={suppliers}
       />
 
-      {/* Tab Navigation */}
-      <div className="border-b border-slate-200 overflow-x-auto scrollbar-horizontal-visible pb-2">
-        <nav className="flex space-x-1 min-w-max pb-1" role="tablist" aria-label="Audit Navigation Registers">
-          {tabsList.map((t) => {
-            const Icon = t.icon
-            const isActive = activeTab === t.id
-            return (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                aria-controls={`tabpanel-${t.id}`}
-                onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  isActive
-                    ? 'bg-white text-indigo-950 font-bold border-b-2 border-indigo-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
-                <span>{t.label}</span>
-              </button>
-            )
-          })}
-        </nav>
+      {/* Horizontal Audit Tab Navigation Bar */}
+      <div className="relative border-b border-slate-200 bg-slate-50/50 rounded-xl p-1.5 shadow-2xs group">
+        {/* Desktop Left Scroll Button */}
+        <button
+          type="button"
+          onClick={() => scrollTabsContainer('left')}
+          aria-label="Scroll tabs left"
+          className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-10 h-7 w-7 items-center justify-center rounded-lg bg-white/90 text-slate-600 shadow-xs border border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        {/* Scroll Container */}
+        <div
+          ref={tabsContainerRef}
+          className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent px-1 py-1 max-w-full"
+        >
+          <nav className="flex space-x-1.5 min-w-max px-1" role="tablist" aria-label="Audit Navigation Registers">
+            {tabsList.map((t) => {
+              const Icon = t.icon
+              const isActive = activeTab === t.id
+              return (
+                <button
+                  key={t.id}
+                  data-tab-id={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`tabpanel-${t.id}`}
+                  onClick={() => setActiveTab(t.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    isActive
+                      ? 'bg-white text-indigo-950 font-bold border-b-2 border-indigo-600 shadow-xs ring-1 ring-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span className="truncate">{t.label}</span>
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+
+        {/* Desktop Right Scroll Button */}
+        <button
+          type="button"
+          onClick={() => scrollTabsContainer('right')}
+          aria-label="Scroll tabs right"
+          className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-10 h-7 w-7 items-center justify-center rounded-lg bg-white/90 text-slate-600 shadow-xs border border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Render Selected Tab */}
