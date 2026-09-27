@@ -225,7 +225,7 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
   }
   // ------------------------------------------------ 5. SALES RETURNS
   if (inc('sales_returns')) {
-    const reqSpace = data.returnsAdjustments.filter((r) => r.type === 'SALES_RETURN').length === 0 ? 20 : 35
+    const reqSpace = data.returnsAdjustments.filter((r) => r.type === 'SALES_RETURN').length === 0 ? 32 : 50
     y = ensurePageSpace(doc, y, reqSpace, 'portrait', data)
     sectionPageMap.set('sales_returns', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '5. SALES RETURNS', 'Customer returns and adjustments')
@@ -233,7 +233,7 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
   }
   // ------------------------------------------------ 6. PURCHASE RETURNS / RETURNS & ADJUSTMENTS
   if (inc('returns_adjustments')) {
-    const reqSpace = data.returnsAdjustments.length === 0 ? 20 : 35
+    const reqSpace = data.returnsAdjustments.length === 0 ? 25 : 45
     y = ensurePageSpace(doc, y, reqSpace, 'portrait', data)
     sectionPageMap.set('returns_adjustments', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '6. PURCHASE RETURNS & ADJUSTMENTS', 'Returns, notes and inventory adjustments')
@@ -1970,8 +1970,10 @@ function drawEmptyNote(doc: Page, y: number, message: string): number {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
 
-  const prefix = 'NO RECORDS FOUND — '
-  const fullText = prefix + safeText(message)
+  const textStr = safeText(message)
+  const fullText = textStr.startsWith('NO RECORDS FOUND')
+    ? textStr
+    : `NO RECORDS FOUND — ${textStr}`
   const maxTextWidth = containerWidth - 10
 
   const lines: string[] = typeof doc.splitTextToSize === 'function'
