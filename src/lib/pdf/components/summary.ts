@@ -59,21 +59,37 @@ export interface PdfTotalsBarOptions {
   textColor?: readonly [number, number, number]
 }
 
-/** Draw a single-line KPI/totals bar. Returns the new y below it. */
+/** Draw a responsive KPI/totals bar with auto-wrapping for long notes. Returns the new y below it. */
 export function drawTotalsBar(doc: jsPDF, opts: PdfTotalsBarOptions): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
-  const height = PDF_SPACING.totalsBarHeight
-
-  doc.setFillColor(PDF_COLORS.canvas100[0], PDF_COLORS.canvas100[1], PDF_COLORS.canvas100[2])
-  doc.setDrawColor(PDF_COLORS.ink300[0], PDF_COLORS.ink300[1], PDF_COLORS.ink300[2])
-  doc.rect(margin, opts.startY, pageWidth - margin * 2, height, 'FD')
+  const containerWidth = pageWidth - margin * 2
 
   doc.setFont(PDF_FONT.base, 'bold')
   doc.setFontSize(8)
+
+  const maxTextWidth = containerWidth - 8 // 4mm padding left and right
+  const textStr = safeText(opts.text)
+  const lines: string[] = typeof doc.splitTextToSize === 'function'
+    ? doc.splitTextToSize(textStr, maxTextWidth)
+    : [textStr]
+
+  const lineHeight = 3.8
+  const paddingY = 3.2
+  const calculatedHeight = Math.max(PDF_SPACING.totalsBarHeight, lines.length * lineHeight + paddingY * 2 - 1)
+
+  doc.setFillColor(PDF_COLORS.canvas100[0], PDF_COLORS.canvas100[1], PDF_COLORS.canvas100[2])
+  doc.setDrawColor(PDF_COLORS.ink300[0], PDF_COLORS.ink300[1], PDF_COLORS.ink300[2])
+  doc.rect(margin, opts.startY, containerWidth, calculatedHeight, 'FD')
+
   const color = opts.textColor ?? PDF_COLORS.ink900
   doc.setTextColor(color[0], color[1], color[2])
-  doc.text(safeText(opts.text), margin + 4, opts.startY + height / 2 + 1)
 
-  return opts.startY + height + 6
+  let startTextY = opts.startY + paddingY + 2.8
+  lines.forEach((line) => {
+    doc.text(line, margin + 4, startTextY)
+    startTextY += lineHeight
+  })
+
+  return opts.startY + calculatedHeight + 6
 }

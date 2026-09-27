@@ -98,6 +98,14 @@ export function drawTable(doc: jsPDF, opts: PdfTableOptions): number {
     origLog.apply(console, args)
   }
 
+  const sumWidths = columns.reduce((sum, c) => sum + (c.width || 0), 0)
+  if (sumWidths > 0 && sumWidths > tableWidth + 0.5) {
+    /* eslint-disable-next-line no-console */
+    console.warn(
+      `[PDF Table Warning] Total column widths (${sumWidths}mm) exceed printable width (${tableWidth}mm).`
+    )
+  }
+
   try {
     autoTable(doc, {
       startY: opts.startY,
@@ -122,6 +130,7 @@ export function drawTable(doc: jsPDF, opts: PdfTableOptions): number {
         textColor: [255, 255, 255],
         fontStyle: 'bold',
         halign: 'left',
+        valign: 'middle',
         minCellHeight: 8,
       },
       footStyles: {

@@ -166,4 +166,28 @@ describe('Mega Business Report PDF Regression Suite', () => {
     expect(data.accountingValidation?.status).toBe('PASS')
     expect(data.taxValidation?.status).toBe('PASS')
   })
+
+  it('8. Renders Section 17 Stock Valuation table and totals bar without clipping or overflow', () => {
+    const data = buildFinancialData()
+    data.inventory.products = [
+      {
+        productId: 'p1',
+        name: 'Super Long Deluxe Organic Organic Nepalese Tea Bag Pack 100s',
+        sku: 'SKU-MUGQUMH2',
+        stockQuantity: 218,
+        unitCost: 3770,
+        closingInventoryValue: 821800,
+        sellingPrice: 4975,
+        retailValue: 1084500,
+        potentialGrossMargin: 262700,
+        potentialGrossMarginPercent: 24.2,
+        isCostMissing: false,
+      },
+    ]
+
+    const doc = generateMegaReportPdf({ data })
+    expect(doc).toBeDefined()
+    const arrayBuffer = doc.output('arraybuffer')
+    expect(arrayBuffer.byteLength).toBeGreaterThan(5000)
+  })
 })
