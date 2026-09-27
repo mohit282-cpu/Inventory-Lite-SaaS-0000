@@ -258,6 +258,11 @@ export abstract class BaseService {
               if (documentData.dueAmount !== undefined) {
                 isSafelyAliased = true
               }
+            } else if (lowerField === 'customerid') {
+              // customerId may be empty/optional on walk-in transactions or unprovisioned legacy collections
+              if (!documentData.customerId || String(documentData.customerId).trim() === '' || this.collectionId === 'sales_returns') {
+                isSafelyAliased = true
+              }
             }
 
             if (!isSafelyAliased && this.isCriticalOrRequiredField(fieldName)) {
