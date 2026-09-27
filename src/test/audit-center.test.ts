@@ -174,4 +174,20 @@ describe('Audit & Compliance Center Tests', () => {
     expect(kpis.inputVat).toBe(65)
     expect(kpis.netVatPosition).toBe(65)
   })
+
+  it('8. Audit Formatters safely convert objects, dates, and nulls without producing [object Object]', async () => {
+    const { formatAuditValue, formatAuditTimestamp, formatAuditUserId } = await import('@/lib/audit-formatters')
+
+    expect(formatAuditValue({ type: 'stock_in', qty: 5 })).not.toContain('[object Object]')
+    expect(formatAuditValue({ type: 'stock_in', qty: 5 })).toBe('{"type":"stock_in","qty":5}')
+    expect(formatAuditValue(null)).toBe('Not provided')
+    expect(formatAuditValue(undefined)).toBe('Not provided')
+    expect(formatAuditValue(true)).toBe('Yes')
+    expect(formatAuditValue(false)).toBe('No')
+    expect(formatAuditValue(1500, 'totalAmount')).toBe('NPR 1,500.00')
+
+    expect(formatAuditTimestamp('2026-09-27T09:58:30.415Z')).toContain('NPT')
+    expect(formatAuditUserId('6ab8c24b003a80afae2c')).toBe('6ab8c24b...')
+    expect(formatAuditUserId(null)).toBe('System')
+  })
 })
