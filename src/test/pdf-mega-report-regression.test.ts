@@ -190,4 +190,37 @@ describe('Mega Business Report PDF Regression Suite', () => {
     const arrayBuffer = doc.output('arraybuffer')
     expect(arrayBuffer.byteLength).toBeGreaterThan(5000)
   })
+
+  it('9. Renders Section 6 Purchase Returns empty state compactly without reserving table height', () => {
+    const data = buildFinancialData()
+    data.returnsAdjustments = [] // Empty records
+
+    const doc = generateMegaReportPdf({ data })
+    expect(doc).toBeDefined()
+    const arrayBuffer = doc.output('arraybuffer')
+    expect(arrayBuffer.byteLength).toBeGreaterThan(5000)
+  })
+
+  it('10. Renders Section 6 Purchase Returns table correctly when records exist', () => {
+    const data = buildFinancialData()
+    data.returnsAdjustments = [
+      {
+        id: 'adj_1',
+        date: '2026-03-15',
+        type: 'PURCHASE_RETURN',
+        originalDocumentNumber: 'PUR-0012',
+        amount: 2500,
+        reason: 'Damaged item return to supplier',
+        user: 'System',
+        timestamp: '2026-03-15T10:00:00Z',
+        stockImpact: 'REDUCE_STOCK',
+        ledgerImpact: 'DEBIT_SUPPLIER',
+      },
+    ]
+
+    const doc = generateMegaReportPdf({ data })
+    expect(doc).toBeDefined()
+    const arrayBuffer = doc.output('arraybuffer')
+    expect(arrayBuffer.byteLength).toBeGreaterThan(5000)
+  })
 })

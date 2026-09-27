@@ -225,42 +225,48 @@ export function generateMegaReportPdf(opts: MegaReportPdfOptions): jsPDF {
   }
   // ------------------------------------------------ 5. SALES RETURNS
   if (inc('sales_returns')) {
-    y = ensurePageSpace(doc, y, 22, 'portrait', data)
+    const reqSpace = data.returnsAdjustments.filter((r) => r.type === 'SALES_RETURN').length === 0 ? 20 : 35
+    y = ensurePageSpace(doc, y, reqSpace, 'portrait', data)
     sectionPageMap.set('sales_returns', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '5. SALES RETURNS', 'Customer returns and adjustments')
     y = drawReturns(doc, y, data)
   }
   // ------------------------------------------------ 6. PURCHASE RETURNS / RETURNS & ADJUSTMENTS
   if (inc('returns_adjustments')) {
-    y = ensurePageSpace(doc, y, 22, 'portrait', data)
+    const reqSpace = data.returnsAdjustments.length === 0 ? 20 : 35
+    y = ensurePageSpace(doc, y, reqSpace, 'portrait', data)
     sectionPageMap.set('returns_adjustments', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '6. PURCHASE RETURNS & ADJUSTMENTS', 'Returns, notes and inventory adjustments')
     y = drawReturnsAdjustments(doc, y, data)
   }
   // ------------------------------------------------ 7. CUSTOMERS
   if (inc('customers')) {
-    y = ensurePageSpace(doc, y, 35, 'portrait', data)
+    const reqSpace = data.customerLedgers.length === 0 ? 20 : 35
+    y = ensurePageSpace(doc, y, reqSpace, 'portrait', data)
     sectionPageMap.set('customers', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '7. CUSTOMERS', 'Customer directory')
     y = drawCustomerDirectory(doc, y, data)
   }
   // ------------------------------------------------ 8. CUSTOMER LEDGER
   if (inc('customer_ledger')) {
-    y = ensurePageSpace(doc, y, 45, 'portrait', data)
+    const reqSpace = data.customerLedgers.length === 0 ? 20 : 45
+    y = ensurePageSpace(doc, y, reqSpace, 'portrait', data)
     sectionPageMap.set('customer_ledger', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '8. CUSTOMER LEDGER', 'Per-customer opening / invoices / payments / closing')
     y = drawCustomerLedger(doc, y, data, pageHook)
   }
   // ------------------------------------------------ 9. CUSTOMER UDHAAR / RECEIVABLES
   if (inc('customer_receivables')) {
-    y = ensurePageSpace(doc, y, 40, 'portrait', data)
+    const reqSpace = data.customerLedgers.length === 0 ? 20 : 40
+    y = ensurePageSpace(doc, y, reqSpace, 'portrait', data)
     sectionPageMap.set('customer_receivables', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '9. CUSTOMER UDHAAR / RECEIVABLES', 'Outstanding receivables with aging')
     y = drawCustomerReceivables(doc, y, data)
   }
-  // ------------------------------------------------ 10. SUPPLIERS (Start fresh page to balance Customer / Supplier domains)
+  // ------------------------------------------------ 10. SUPPLIERS
   if (inc('suppliers')) {
-    y = nextPage(doc, 'portrait', data)
+    const reqSpace = data.supplierLedgers.length === 0 ? 20 : 35
+    y = ensurePageSpace(doc, y, reqSpace, 'portrait', data)
     sectionPageMap.set('suppliers', doc.getNumberOfPages())
     y = drawSectionTitle(doc, y, '10. SUPPLIERS', 'Supplier directory')
     y = drawSupplierDirectory(doc, y, data)
@@ -1959,21 +1965,39 @@ function drawIntegrity(doc: Page, y: number, data: MegaReportData): number {
 function drawEmptyNote(doc: Page, y: number, message: string): number {
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = PDF_SPACING.pageMargin
-  const inner = pageWidth - margin * 2
-
-  doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
-  doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
-  doc.roundedRect(margin, y + 1, inner, 14, 2, 2, 'FD')
-
-  doc.setFillColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
-  doc.rect(margin, y + 1, 1.5, 14, 'F')
+  const containerWidth = pageWidth - margin * 2
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
-  doc.setTextColor(PDF_COLORS.ink700[0], PDF_COLORS.ink700[1], PDF_COLORS.ink700[2])
-  doc.text('NO RECORDS FOUND — ' + truncateText(safeText(message), 110), margin + 5, y + 9.5)
 
-  return y + 18
+  const prefix = 'NO RECORDS FOUND — '
+  const fullText = prefix + safeText(message)
+  const maxTextWidth = containerWidth - 10
+
+  const lines: string[] = typeof doc.splitTextToSize === 'function'
+    ? doc.splitTextToSize(fullText, maxTextWidth)
+    : [fullText]
+
+  const lineHeight = 3.6
+  const paddingY = 3.5
+  const boxHeight = Math.max(11, lines.length * lineHeight + paddingY * 2 - 1)
+
+  doc.setFillColor(PDF_COLORS.canvas50[0], PDF_COLORS.canvas50[1], PDF_COLORS.canvas50[2])
+  doc.setDrawColor(PDF_COLORS.line200[0], PDF_COLORS.line200[1], PDF_COLORS.line200[2])
+  doc.roundedRect(margin, y + 1, containerWidth, boxHeight, 1.5, 1.5, 'FD')
+
+  doc.setFillColor(PDF_COLORS.ink500[0], PDF_COLORS.ink500[1], PDF_COLORS.ink500[2])
+  doc.rect(margin, y + 1, 1.5, boxHeight, 'F')
+
+  doc.setTextColor(PDF_COLORS.ink800[0], PDF_COLORS.ink800[1], PDF_COLORS.ink800[2])
+
+  let startTextY = y + 1 + paddingY + 2.5
+  lines.forEach((line) => {
+    doc.text(line, margin + 5, startTextY)
+    startTextY += lineHeight
+  })
+
+  return y + boxHeight + 5
 }
 
 export { sanitizeFilename }
