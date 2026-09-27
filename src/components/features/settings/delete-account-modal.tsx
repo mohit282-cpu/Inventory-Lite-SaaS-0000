@@ -105,14 +105,11 @@ export function DeleteAccountModal({
             <Trash2 className="h-5 w-5" />
           </div>
           <DialogTitle className="text-center font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
-            Delete Account & Business?
+            Delete your account permanently?
           </DialogTitle>
           <DialogDescription className="text-center text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
-            This will permanently delete your Inventory Lite business and all business data.
-            <br />
-            <span className="font-semibold text-rose-700">
-              Your authentication account will be permanently blocked from accessing Inventory Lite.
-            </span>
+            <span className="font-bold text-rose-700 block mb-1">This action cannot be undone.</span>
+            All businesses owned by your account and their associated Inventory Lite data will be permanently deleted. After deletion, your Inventory Lite account will no longer exist and you will not be able to sign in with this account.
           </DialogDescription>
         </DialogHeader>
 
@@ -123,21 +120,21 @@ export function DeleteAccountModal({
               <div className="p-3.5 bg-rose-50/70 border border-rose-200 rounded-xl space-y-2">
                 <div className="flex items-center gap-2 text-rose-900 font-bold text-xs">
                   <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
-                  <span>Data that will be PERMANENTLY ERASED:</span>
+                  <span>This will permanently delete all businesses you own, including:</span>
                 </div>
                 <ul className="text-[11px] text-slate-700 space-y-1 list-disc pl-5 font-medium grid grid-cols-2 gap-x-2">
-                  <li>Business profile & settings</li>
+                  <li>Business profiles & settings</li>
                   <li>Products & price records</li>
                   <li>Categories directory</li>
                   <li>Stock movement history</li>
-                  <li>Customer database</li>
-                  <li>Udhaar / credit balances</li>
-                  <li>Sales & sale line items</li>
-                  <li>Invoices & payment logs</li>
-                  <li>Expense entries</li>
-                  <li>Reports & analytics</li>
+                  <li>Customer database & Udhaar</li>
+                  <li>Sales, invoices & payments</li>
+                  <li>Expense transaction entries</li>
+                  <li>Financial & tax records</li>
+                  <li>Generated reports</li>
                   <li>Team memberships & roles</li>
                   <li>Uploaded business files</li>
+                  <li>Account identity & credentials</li>
                 </ul>
               </div>
 
@@ -147,7 +144,7 @@ export function DeleteAccountModal({
                   <span>Export Warning:</span>
                 </div>
                 <p className="text-[11px] text-amber-800 leading-snug pl-6">
-                  Business records will be permanently deleted. Export your data before proceeding if you need local backup files.
+                  Business records will be permanently erased from our servers. Export your data before proceeding if you need local backup files.
                 </p>
               </div>
             </div>
@@ -180,7 +177,7 @@ export function DeleteAccountModal({
                   onClick={() => setStep(2)}
                   className="w-full sm:w-auto h-10 min-h-[44px] bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs"
                 >
-                  Continue <ArrowRight className="h-3.5 w-3.5" />
+                  Continue to Security Verification <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </DialogFooter>
@@ -212,7 +209,7 @@ export function DeleteAccountModal({
 
               <div className="space-y-1.5">
                 <Label htmlFor="accountPassword" className="text-xs font-bold text-slate-800">
-                  2. Enter your current password for owner re-authentication:
+                  2. Enter your current password for security verification:
                 </Label>
                 <Input
                   id="accountPassword"
@@ -258,4 +255,3 @@ export function DeleteAccountModal({
     </Dialog>
   )
 }
-

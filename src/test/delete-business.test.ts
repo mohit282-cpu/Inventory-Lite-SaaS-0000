@@ -20,6 +20,12 @@ vi.mock('@/config/appwrite', () => {
       INVOICES: 'invoices',
       PAYMENTS: 'payments',
       EXPENSES: 'expenses',
+      USER_PREFERENCES: 'user_preferences',
+    },
+    BUCKETS: {
+      PRODUCTS: 'product_images',
+      LOGOS: 'business_logos',
+      DOCUMENTS: 'documents',
     },
     account: {
       createEmailPasswordSession: vi.fn(async (_email, password) => {
@@ -45,6 +51,14 @@ vi.mock('@/config/appwrite', () => {
         if (!mockCurrentSession) throw new Error('Unauthorized')
         return { $id: mockCurrentSession.userId }
       }),
+      delete: vi.fn(async () => {
+        mockCurrentSession = null
+        return {}
+      }),
+    },
+    storage: {
+      listFiles: vi.fn(async () => ({ files: [] })),
+      deleteFile: vi.fn(async () => ({})),
     },
     databases: {
       createDocument: vi.fn(async (_dbId, colId, id, data) => {
@@ -161,7 +175,7 @@ describe('Delete Business & Account Security Tests', () => {
     expect(remainingB.name).toBe('Prod B')
   })
 
-  it('deletes account and marks accountStatus = BLOCKED without deleting Auth identity', async () => {
+  it('deletes account and all owned business data permanently', async () => {
     const prodA = await productService.createProduct(
       { name: 'Prod A', unit: 'pcs', purchasePrice: 10, sellingPrice: 20, stockQuantity: 10 },
       bizA,
@@ -173,5 +187,29 @@ describe('Delete Business & Account Security Tests', () => {
 
     // Verify Business A product is deleted
     await expect(productService.getProduct(prodA.$id, bizA)).rejects.toThrow()
+  })
+
+  it('removes user membership in non-owned business without deleting that business', async () => {
+    // Owner A is also a member in Business B (owned by Owner B)
+    await businessMemberService.create(
+      { userId: ownerA, role: 'staff' },
+      bizB,
+      ownerB,
+      undefined,
+      `mem_${ownerA}_${bizB}`
+    )
+
+    const prodB = await productService.createProduct(
+      { name: 'Prod B', unit: 'pcs', purchasePrice: 15, sellingPrice: 30, stockQuantity: 5 },
+      bizB,
+      ownerB
+    )
+
+    // Delete Owner A account
+    await accountDeletionService.deleteAccount(ownerA, 'CorrectPass123!', 'owner@biz.com')
+
+    // Verify Business B product still exists
+    const remainingB = await productService.getProduct(prodB.$id, bizB)
+    expect(remainingB.name).toBe('Prod B')
   })
 })

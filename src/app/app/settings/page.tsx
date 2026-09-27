@@ -108,11 +108,15 @@ export default function SettingsPage() {
       email
     )
     toast({
-      title: 'Account Deleted & Blocked',
-      description: 'Your business data has been permanently deleted and your account has been blocked.',
+      title: 'Account Permanently Deleted',
+      description: 'Your account and all associated business data have been permanently erased.',
     })
-    await logout()
-    window.location.href = '/account-blocked'
+    try {
+      await logout()
+    } catch {
+      // Session already destroyed
+    }
+    window.location.href = '/sign-in?account_deleted=true'
   }
 
   // Initialize Business Form Data
@@ -911,7 +915,7 @@ export default function SettingsPage() {
                   <Trash2 className="h-5 w-5 text-red-600" /> Danger Zone — Delete Account
                 </h2>
                 <p className="text-xs text-red-700 mt-1 font-medium max-w-2xl leading-relaxed">
-                  Delete your Inventory Lite account and permanently remove all business data associated with it. This action cannot be undone. Your authentication identity will be preserved, but your account will be blocked and you will no longer be able to access Inventory Lite.
+                  Permanently delete your Inventory Lite account and all businesses owned by it. This action cannot be undone. All associated products, sales, customers, invoices, inventory, reports, and storage files will be permanently erased.
                 </p>
               </div>
 

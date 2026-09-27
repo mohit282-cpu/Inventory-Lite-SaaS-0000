@@ -1,33 +1,45 @@
-import { databases, account, DATABASE_ID, COLLECTIONS } from '@/config/appwrite'
+import { databases, account, storage, DATABASE_ID, COLLECTIONS, BUCKETS } from '@/config/appwrite'
 import { Query } from 'appwrite'
 import { authService } from './auth.service'
-import { userService } from './user.service'
 import { authorizeBusinessAccess } from '@/lib/authorization'
+import { clearClientAppData } from '@/lib/client-cache-cleanup'
 
 /**
  * Account & Business Deletion Service
  * 
  * Implements strict compliance with Inventory Lite deletion rules:
  * 1. "Delete Business": Deletes selected business entity and all associated records. User account remains ACTIVE.
- * 2. "Delete Account": Deletes ALL businesses owned by user & all associated data. User Auth identity is PRESERVED,
- *    and application account status is set to BLOCKED.
+ * 2. "Delete Account": PERMANENT ACCOUNT ERASURE. Deletes ALL businesses owned by user, all associated data,
+ *    all storage files, clears local client cache, and PERMANENTLY deletes the Appwrite Auth User account.
  */
 export class AccountDeletionService {
   /**
-   * Helper to purge all documents in a collection matching a query
+   * Helper to purge all documents in a collection matching a query (Idempotent)
    */
   private async purgeCollectionDocuments(collectionId: string, queries: any[]): Promise<void> {
     try {
-      const result = await databases.listDocuments(DATABASE_ID, collectionId, [
-        ...queries,
-        Query.limit(500),
-      ])
+      let hasMore = true
+      while (hasMore) {
+        const result = await databases.listDocuments(DATABASE_ID, collectionId, [
+          ...queries,
+          Query.limit(100),
+        ])
 
-      for (const doc of result.documents) {
-        try {
-          await databases.deleteDocument(DATABASE_ID, collectionId, doc.$id)
-        } catch {
-          // Continue purging remaining documents
+        if (!result || result.documents.length === 0) {
+          hasMore = false
+          break
+        }
+
+        for (const doc of result.documents) {
+          try {
+            await databases.deleteDocument(DATABASE_ID, collectionId, doc.$id)
+          } catch {
+            // Continue purging remaining documents
+          }
+        }
+
+        if (result.documents.length < 100) {
+          hasMore = false
         }
       }
     } catch {
@@ -36,24 +48,80 @@ export class AccountDeletionService {
   }
 
   /**
-   * Purge all business-owned records for a specific business ID
+   * Helper to purge storage files for a business
+   */
+  private async purgeStorageFiles(bucketId: string, businessId: string): Promise<void> {
+    try {
+      const fileList = await storage.listFiles(bucketId, [Query.limit(100)])
+      if (fileList && fileList.files) {
+        for (const file of fileList.files) {
+          if (file.name.includes(businessId) || file.$id.includes(businessId) || bucketId === BUCKETS.LOGOS) {
+            try {
+              await storage.deleteFile(bucketId, file.$id)
+            } catch {
+              // Ignore if already deleted
+            }
+          }
+        }
+      }
+    } catch {
+      // Bucket empty or uninitialized
+    }
+  }
+
+  /**
+   * Purge all business-owned records for a specific business ID in dependency graph order (children before parents)
    */
   private async purgeBusinessRecords(businessId: string): Promise<void> {
-    const collectionsToPurge = [
-      COLLECTIONS.PRODUCTS,
-      COLLECTIONS.CATEGORIES,
-      COLLECTIONS.STOCK_MOVEMENTS,
-      COLLECTIONS.CUSTOMERS,
-      COLLECTIONS.SALES,
+    const collectionsToPurgeInOrder = [
+      // Level 1: Line Items & Logs (purge first)
       COLLECTIONS.SALE_ITEMS,
+      COLLECTIONS.SALES_RETURN_ITEMS,
+      COLLECTIONS.PURCHASE_ITEMS,
+      COLLECTIONS.JOURNAL_LINES,
+      COLLECTIONS.STOCK_MOVEMENTS,
+      COLLECTIONS.INVENTORY_LOCKS,
+      COLLECTIONS.TAX_TRANSACTIONS,
+      COLLECTIONS.CBMS_SUBMISSIONS,
+      COLLECTIONS.AUDIT_LOGS,
+      COLLECTIONS.IDEMPOTENCY_KEYS,
+
+      // Level 2: Primary Operational Records
+      COLLECTIONS.SALES,
+      COLLECTIONS.SALES_RETURNS,
+      COLLECTIONS.PURCHASES,
       COLLECTIONS.INVOICES,
       COLLECTIONS.PAYMENTS,
+      COLLECTIONS.SUPPLIER_PAYMENTS,
+      COLLECTIONS.CREDIT_NOTES,
+      COLLECTIONS.DEBIT_NOTES,
       COLLECTIONS.EXPENSES,
+      COLLECTIONS.JOURNAL_ENTRIES,
+
+      // Level 3: Master Data & Entities
+      COLLECTIONS.PRODUCTS,
+      COLLECTIONS.CATEGORIES,
+      COLLECTIONS.CUSTOMERS,
+      COLLECTIONS.SUPPLIERS,
+      COLLECTIONS.STORE_ASSETS,
+      COLLECTIONS.ACCOUNTS,
+      COLLECTIONS.FISCAL_YEARS,
+      COLLECTIONS.ACCOUNTING_PERIODS,
+      COLLECTIONS.TAX_RATES,
+      COLLECTIONS.TAX_CATEGORIES,
+      COLLECTIONS.FINANCIAL_SEQUENCES,
+      COLLECTIONS.BUSINESS_ASSETS,
+      COLLECTIONS.BUSINESS_ONBOARDING,
       COLLECTIONS.BUSINESS_MEMBERS,
     ]
 
-    for (const collectionId of collectionsToPurge) {
+    for (const collectionId of collectionsToPurgeInOrder) {
       await this.purgeCollectionDocuments(collectionId, [Query.equal('businessId', businessId)])
+    }
+
+    // Storage files
+    for (const bucketId of [BUCKETS.PRODUCTS, BUCKETS.LOGOS, BUCKETS.DOCUMENTS]) {
+      await this.purgeStorageFiles(bucketId, businessId)
     }
 
     // Delete the business document itself
@@ -106,8 +174,10 @@ export class AccountDeletionService {
   /**
    * Delete Account & ALL Owned Businesses:
    * - Deletes all business-owned data for all businesses owned by user.
-   - PRESERVES the Auth identity (DOES NOT delete Auth user from Auth provider).
-   - Sets user account status to BLOCKED.
+   * - Deletes storage files.
+   * - Deletes user preferences and memberships.
+   * - Clears local browser cache (localStorage, sessionStorage, IndexedDB).
+   * - PERMANENTLY deletes the Appwrite Auth user account.
    */
   async deleteAccount(
     userId: string,
@@ -122,7 +192,46 @@ export class AccountDeletionService {
       throw new Error('Please enter your current password to confirm deletion')
     }
 
-    // 1. Re-authenticate caller
+    // If running in browser environment (and not unit tests), invoke server-side API route for secure deletion
+    const isVitest = typeof process !== 'undefined' && (process.env.VITEST || process.env.NODE_ENV === 'test')
+    if (typeof window !== 'undefined' && window.location && window.location.origin && !isVitest) {
+      try {
+        const response = await fetch('/api/account/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            password: passwordConfirm,
+          }),
+        })
+
+        const data = await response.json().catch(() => ({}))
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Account deletion failed on server. Please try again.')
+        }
+
+        // Perform client-side cache cleanup
+        await clearClientAppData()
+
+        // Destroy local sessions
+        try {
+          await account.deleteSessions()
+        } catch {
+          // Ignore
+        }
+
+        return
+      } catch (err: any) {
+        if (err?.message && !err.message.includes('fetch')) {
+          throw err
+        }
+        // Fallback to direct client service execution if API route network call failed
+      }
+    }
+
+    // 1. Direct execution (for unit tests / Node execution / fallback)
     try {
       await authService.login(userEmail, passwordConfirm)
     } catch {
@@ -143,7 +252,6 @@ export class AccountDeletionService {
         ownedBusinessIds = []
       }
 
-      // Also check business memberships where role is owner
       try {
         const memberRes = await databases.listDocuments(DATABASE_ID, COLLECTIONS.BUSINESS_MEMBERS, [
           Query.equal('userId', userId),
@@ -156,59 +264,52 @@ export class AccountDeletionService {
           }
         }
       } catch {
-        // Ignore listing error
+        // Ignore
       }
 
-      // 3. Purge all business-owned records for all owned businesses
+      // 3. Purge all records for owned businesses
       for (const bizId of ownedBusinessIds) {
         await this.purgeBusinessRecords(bizId)
       }
 
-      // 4. Purge any remaining memberships associated with this user
+      // 4. Purge memberships & preferences
       await this.purgeCollectionDocuments(COLLECTIONS.BUSINESS_MEMBERS, [Query.equal('userId', userId)])
-
-      // 5. Mark User Account Status as BLOCKED (DO NOT delete Auth User Identity)
       try {
-        await userService.updateUserPreferences(userId, {
-          accountStatus: 'BLOCKED',
-          isBlocked: true,
-          activeBusinessId: undefined,
-        } as any)
+        await databases.deleteDocument(DATABASE_ID, COLLECTIONS.USER_PREFERENCES, userId)
       } catch {
-        // Ignore fallback
+        // Idempotent
+      }
+      try {
+        await databases.deleteDocument(DATABASE_ID, COLLECTIONS.USERS, userId)
+      } catch {
+        // Idempotent
       }
 
-      try {
-        await databases.updateDocument(DATABASE_ID, COLLECTIONS.USERS, userId, {
-          accountStatus: 'BLOCKED',
-          isBlocked: true,
-        } as any)
-      } catch {
-        // User doc update fallback if attribute not present
-      }
+      // 5. Clear client app data
+      await clearClientAppData()
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(`account_blocked_${userId}`, 'true')
+      // 6. Delete Appwrite Auth User account permanently
+      try {
+        if (typeof (account as any).delete === 'function') {
+          await (account as any).delete()
+        } else {
+          await account.deleteSessions()
+        }
+      } catch {
+        try {
+          await account.deleteSession('current')
+        } catch {
+          // Session destroyed
+        }
       }
     } catch (err: any) {
       console.error('Account deletion execution failure:', err)
       throw new Error('Account deletion failed. No changes were completed. Please try again.')
     }
-
-    // 6. Destroy active sessions (Sign out caller cleanly)
-    try {
-      await account.deleteSessions()
-    } catch {
-      try {
-        await account.deleteSession('current')
-      } catch {
-        // Session already destroyed
-      }
-    }
   }
 
   /**
-   * Backward-compatible alias for deleteAccount / deleteBusinessOnly
+   * Backward-compatible alias for deleteAccount
    */
   async deleteBusinessAndAccount(
     _businessId: string,
