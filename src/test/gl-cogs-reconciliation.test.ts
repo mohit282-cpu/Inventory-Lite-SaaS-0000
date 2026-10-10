@@ -122,6 +122,13 @@ describe('Final Production Quality Gate: 25-Step Business Lifecycle & Reconcilia
 
     bizId = `biz_prod_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
 
+    const { databases, DATABASE_ID, COLLECTIONS } = await import('@/config/appwrite')
+    await databases.createDocument(DATABASE_ID, COLLECTIONS.BUSINESS_MEMBERS, `bm_${userId}_${bizId}`, {
+      businessId: bizId,
+      userId,
+      role: 'owner',
+    })
+
     // Provision default accounts
     await accountingService.provisionDefaultChartOfAccounts(bizId, userId)
   })

@@ -2,6 +2,8 @@ import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { AuditLog, AuditAction } from '@/types'
 import { Query } from 'appwrite'
+import { ForbiddenError } from '@/lib/security'
+import { logger } from '@/lib/logger'
 
 /**
  * Backward-compatible AuditLogEntry interface used by existing audit UI.
@@ -27,6 +29,20 @@ export class AuditLogService extends BaseService {
   }
 
   /**
+   * Immutability enforcement: audit records CANNOT be modified.
+   */
+  async update<T>(_id: string, _data: any, _businessId: string): Promise<T> {
+    throw new ForbiddenError('Audit logs are strictly immutable append-only records and cannot be modified', 'audit')
+  }
+
+  /**
+   * Immutability enforcement: audit records CANNOT be deleted.
+   */
+  async delete(_id: string, _businessId: string): Promise<boolean> {
+    throw new ForbiddenError('Audit logs are strictly immutable append-only records and cannot be deleted', 'audit')
+  }
+
+  /**
    * Record an audit log entry. This is append-only — no update or delete.
    */
   async record(params: {
@@ -40,7 +56,20 @@ export class AuditLogService extends BaseService {
     performedByName?: string
     ipAddress?: string
   }): Promise<AuditLog> {
-    const changesJson = params.changes ? JSON.stringify(params.changes) : undefined
+    // Redact sensitive keys from audit changes
+    let changesJson: string | undefined = undefined
+    if (params.changes) {
+      const sensitiveKeys = new Set(['password', 'secret', 'token', 'apikey', 'pin', 'authorization'])
+      const sanitized: Record<string, any> = {}
+      for (const [key, val] of Object.entries(params.changes)) {
+        if (sensitiveKeys.has(key.toLowerCase())) {
+          sanitized[key] = '[REDACTED]'
+        } else {
+          sanitized[key] = val
+        }
+      }
+      changesJson = JSON.stringify(sanitized)
+    }
 
     return await this.create<AuditLog>(
       {
@@ -216,8 +245,13 @@ export class AuditLogService extends BaseService {
         changes: metadata,
         performedBy: userId,
       })
-    } catch {
-      // Non-critical — log failures should not break main operations
+    } catch (err: any) {
+      logger.error('[AuditLogService] Failed to record audit log event', {
+        businessId,
+        action,
+        entityId,
+        error: err?.message,
+      })
     }
   }
 

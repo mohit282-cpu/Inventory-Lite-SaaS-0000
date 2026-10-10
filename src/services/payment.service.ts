@@ -337,7 +337,8 @@ export class PaymentService extends BaseService {
     paymentId: string,
     businessId: string,
     reversingUserId: string,
-    reason: string = 'Payment reversal'
+    reason: string = 'Payment reversal',
+    options?: { skipCustomerDueAdjustment?: boolean }
   ): Promise<Payment> {
     // Database-verified RBAC check: only owner or admin can reverse payment records
     await authorizeBusinessAccess({
@@ -390,8 +391,8 @@ export class PaymentService extends BaseService {
         )
       }
 
-      // 2. Revert customer due balance
-      if (existingPayment.customerId) {
+      // 2. Revert customer due balance (unless skipped, e.g. on full bill cancellation)
+      if (existingPayment.customerId && !options?.skipCustomerDueAdjustment) {
         try {
           await customerService.updateDueAmount(
             existingPayment.customerId,

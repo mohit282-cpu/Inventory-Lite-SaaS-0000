@@ -57,6 +57,8 @@ export const COLLECTIONS = {
   USER_PREFERENCES: 'user_preferences',
   BUSINESS_ASSETS: 'business_assets',
   BUSINESS_ONBOARDING: 'business_onboarding',
+  CONTACT_SUBMISSIONS: 'contact_submissions',
+  NEWSLETTER_SUBSCRIPTIONS: 'newsletter_subscriptions',
 } as const
 
 // Storage Bucket IDs

@@ -3,6 +3,7 @@ import { COLLECTIONS, databases, DATABASE_ID } from '@/config/appwrite'
 import { FinancialSequence, DocumentType } from '@/types'
 import { getCurrentFinancialYear } from '@/lib/financial-year'
 import { Query } from 'appwrite'
+import { sanitizeAppwriteDocId } from '@/lib/utils'
 
 export interface AllocatedNumber {
   sequenceNumber: number
@@ -78,62 +79,89 @@ export class NumberingService extends BaseService {
       }
       const prefix = prefixMap[documentType] || 'DOC'
       let allocatedNum: number
+      const docId = sanitizeAppwriteDocId(`seq_${businessId}_${documentType}_${fyInfo.shortLabel.replace('/', '_')}`)
 
       if (this.inMemorySequenceMap.has(lockKey)) {
         allocatedNum = this.inMemorySequenceMap.get(lockKey)!
         this.inMemorySequenceMap.set(lockKey, allocatedNum + 1)
-      } else {
-        let fetchedDocs: any[] = []
         try {
-          fetchedDocs = await this.list<any>(businessId, [
-            Query.equal('documentType', documentType),
-            Query.equal('financialYear', fyInfo.label),
-            Query.limit(200),
-          ])
+          await databases.updateDocument(DATABASE_ID, COLLECTIONS.FINANCIAL_SEQUENCES, docId, {
+            nextNumber: allocatedNum + 1,
+            updatedAt: new Date().toISOString(),
+          }).catch(() => {})
+        } catch {}
+      } else {
+        let seqDoc: any = null
+        try {
+          seqDoc = await databases.getDocument(DATABASE_ID, COLLECTIONS.FINANCIAL_SEQUENCES, docId)
         } catch {
-          fetchedDocs = []
+          try {
+            const fetchedDocs = await this.list<any>(businessId, [
+              Query.equal('documentType', documentType),
+              Query.equal('financialYear', fyInfo.label),
+              Query.limit(1),
+            ])
+            seqDoc = fetchedDocs.find((d) => typeof d?.nextNumber === 'number') || null
+          } catch {
+            seqDoc = null
+          }
         }
-
-        const seqDoc = (fetchedDocs || []).find((d) => typeof d?.nextNumber === 'number')
 
         if (seqDoc && typeof seqDoc.nextNumber === 'number' && seqDoc.nextNumber > 0 && seqDoc.nextNumber <= 999999) {
           allocatedNum = seqDoc.nextNumber
+          try {
+            await databases.updateDocument(DATABASE_ID, COLLECTIONS.FINANCIAL_SEQUENCES, seqDoc.$id, {
+              nextNumber: allocatedNum + 1,
+              updatedAt: new Date().toISOString(),
+            })
+          } catch {}
         } else {
           let maxNum = 0
-          for (const doc of (fetchedDocs || [])) {
-            const numStr = doc?.saleNumber || doc?.invoiceNumber || doc?.purchaseNumber || doc?.returnNumber
-            if (numStr && typeof numStr === 'string' && numStr.includes(fyInfo.shortLabel)) {
-              const val = parseInt(numStr.replace(/^[A-Z_]+-\d{2}\/\d{2}-/, ''), 10)
-              if (!isNaN(val) && val > 0 && val <= 999999 && val > maxNum) maxNum = val
+          try {
+            const colMap: Record<DocumentType, string> = {
+              SALE: COLLECTIONS.SALES,
+              INVOICE: COLLECTIONS.INVOICES,
+              PURCHASE: COLLECTIONS.PURCHASES,
+              SALES_RETURN: COLLECTIONS.SALES_RETURNS,
             }
-          }
-
-          if (maxNum === 0) {
-            try {
-              const colMap: Record<DocumentType, string> = {
-                SALE: COLLECTIONS.SALES,
-                INVOICE: COLLECTIONS.INVOICES,
-                PURCHASE: COLLECTIONS.PURCHASES,
-                SALES_RETURN: COLLECTIONS.SALES_RETURNS,
+            const colName = colMap[documentType] || COLLECTIONS.SALES
+            const existingDocs = await databases.listDocuments(DATABASE_ID, colName, [
+              Query.equal('businessId', businessId),
+              Query.limit(200),
+            ])
+            for (const doc of (existingDocs?.documents || [])) {
+              const numStr = (doc as any).saleNumber || (doc as any).invoiceNumber || (doc as any).purchaseNumber || (doc as any).returnNumber
+              if (numStr && typeof numStr === 'string' && numStr.includes(fyInfo.shortLabel)) {
+                const val = parseInt(numStr.replace(/^[A-Z_]+-\d{2}\/\d{2}-/, ''), 10)
+                if (!isNaN(val) && val > 0 && val <= 999999 && val > maxNum) maxNum = val
               }
-              const colName = colMap[documentType] || COLLECTIONS.SALES
-              const existingDocs = await databases.listDocuments(DATABASE_ID, colName, [
-                Query.equal('businessId', businessId),
-                Query.limit(200),
-              ])
-              for (const doc of (existingDocs?.documents || [])) {
-                const numStr = (doc as any).saleNumber || (doc as any).invoiceNumber || (doc as any).purchaseNumber || (doc as any).returnNumber
-                if (numStr && typeof numStr === 'string' && numStr.includes(fyInfo.shortLabel)) {
-                  const val = parseInt(numStr.replace(/^[A-Z_]+-\d{2}\/\d{2}-/, ''), 10)
-                  if (!isNaN(val) && val > 0 && val <= 999999 && val > maxNum) maxNum = val
-                }
-              }
-            } catch {
-              // Fallback non-fatal
             }
-          }
+          } catch {}
 
           allocatedNum = maxNum + 1
+
+          try {
+            await databases.createDocument(
+              DATABASE_ID,
+              COLLECTIONS.FINANCIAL_SEQUENCES,
+              docId,
+              {
+                businessId,
+                documentType,
+                financialYear: fyInfo.label,
+                nextNumber: allocatedNum + 1,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              }
+            )
+          } catch (createSeqErr: any) {
+            if (createSeqErr?.code === 409) {
+              await databases.updateDocument(DATABASE_ID, COLLECTIONS.FINANCIAL_SEQUENCES, docId, {
+                nextNumber: allocatedNum + 1,
+                updatedAt: new Date().toISOString(),
+              }).catch(() => {})
+            }
+          }
         }
 
         this.inMemorySequenceMap.set(lockKey, allocatedNum + 1)

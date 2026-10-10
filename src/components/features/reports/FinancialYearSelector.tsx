@@ -13,6 +13,16 @@ export function FinancialYearSelector({ onYearChange }: FinancialYearSelectorPro
   const [years, setYears] = useState<FinancialYearInfo[]>([])
   const [selectedYear, setSelectedYear] = useState<string>('')
 
+  const handleYearChange = (startYearStr: string) => {
+    setSelectedYear(startYearStr)
+    const bsStartYear = parseInt(startYearStr, 10)
+    const range = calendarService.getFinancialYearDateRange(bsStartYear)
+    onYearChange({
+      ...range,
+      label: `${bsStartYear}/${bsStartYear + 1}`
+    })
+  }
+
   useEffect(() => {
     // Generate last 5 financial years
     const currentFY = getCurrentFinancialYear()
@@ -34,16 +44,6 @@ export function FinancialYearSelector({ onYearChange }: FinancialYearSelectorPro
     handleYearChange(generatedYears[0].bsStartYear.toString())
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const handleYearChange = (startYearStr: string) => {
-    setSelectedYear(startYearStr)
-    const bsStartYear = parseInt(startYearStr, 10)
-    const range = calendarService.getFinancialYearDateRange(bsStartYear)
-    onYearChange({
-      ...range,
-      label: `${bsStartYear}/${bsStartYear + 1}`
-    })
-  }
 
   return (
     <div className="flex items-center space-x-2">

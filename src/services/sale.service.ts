@@ -244,6 +244,7 @@ export class SaleService extends BaseService {
       // Compensating Transaction State Tracking
       let createdItems: any[] = []
       const processedDeductions: Array<{ productId: string; quantity: number }> = []
+      let customerDueUpdated = false
 
       try {
         // 5. Persist SaleItem documents
@@ -277,6 +278,7 @@ export class SaleService extends BaseService {
         // 7. Update customer due amount if sale has remaining due balance
         if (data.customerId && data.customerId.trim() !== '' && totals.dueAmount > 0) {
           await customerService.updateDueAmount(data.customerId, totals.dueAmount, businessId)
+          customerDueUpdated = true
         }
 
         if (isFullUdhaar) {
@@ -375,6 +377,16 @@ export class SaleService extends BaseService {
           } catch (rbItemErr: any) {
             rollbackErrors.push(`Sale item rollback error for ${createdItem.$id}: ${rbItemErr?.message}`)
             console.error('Sale item rollback error:', rbItemErr)
+          }
+        }
+
+        // Rollback customer due if updated
+        if (data.customerId && customerDueUpdated) {
+          try {
+            await customerService.updateDueAmount(data.customerId, -totals.dueAmount, businessId)
+          } catch (rbCustErr: any) {
+            rollbackErrors.push(`Customer due rollback error: ${rbCustErr?.message}`)
+            console.error('Customer due rollback error:', rbCustErr)
           }
         }
 
@@ -537,7 +549,9 @@ export class SaleService extends BaseService {
       const payments = await paymentService.listPayments(businessId, { saleId })
       for (const p of payments) {
         if (p.status !== 'VOIDED' && p.status !== 'REVERSED') {
-          await paymentService.reversePayment(p.$id, businessId, userId, `Bill voided: ${reason}`)
+          await paymentService.reversePayment(p.$id, businessId, userId, `Bill voided: ${reason}`, {
+            skipCustomerDueAdjustment: true,
+          })
         }
       }
     } catch (payErr) {
