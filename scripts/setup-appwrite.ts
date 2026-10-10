@@ -223,6 +223,7 @@ export const COLLECTIONS_SCHEMA = [
     indexes: [
       { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
       { key: 'idx_biz_idemp', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'idempotencyKey'] },
+      { key: 'idx_business_saleNumber', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'saleNumber'] },
       { key: 'idx_business_customerId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'customerId'] },
       { key: 'idx_business_status', type: INDEX_TYPES.KEY, attributes: ['businessId', 'status'] },
       { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
@@ -264,7 +265,7 @@ export const COLLECTIONS_SCHEMA = [
     ],
     indexes: [
       { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
-      { key: 'idx_business_invoiceNumber', type: INDEX_TYPES.KEY, attributes: ['businessId', 'invoiceNumber'] },
+      { key: 'idx_business_invoiceNumber', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'invoiceNumber'] },
       { key: 'idx_business_saleId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'saleId'] },
       { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
     ],
@@ -370,6 +371,7 @@ export const COLLECTIONS_SCHEMA = [
     ],
     indexes: [
       { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_business_purchaseNumber', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'purchaseNumber'] },
       { key: 'idx_business_supplierId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'supplierId'] },
       { key: 'idx_business_status', type: INDEX_TYPES.KEY, attributes: ['businessId', 'status'] },
       { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
@@ -538,6 +540,369 @@ export const COLLECTIONS_SCHEMA = [
       { key: 'idx_business_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
     ],
   },
+  {
+    id: 'financial_sequences',
+    name: 'Financial Sequences',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'type', type: 'string', size: 50, required: true },
+      { key: 'currentSequence', type: 'double', required: true },
+      { key: 'prefix', type: 'string', size: 50, required: false },
+      { key: 'financialYear', type: 'string', size: 50, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: false },
+      { key: 'updatedAt', type: 'string', size: 100, required: false },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_type_fy', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'type', 'financialYear'] },
+    ],
+  },
+  {
+    id: 'inventory_locks',
+    name: 'Inventory Locks',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: false },
+      { key: 'productId', type: 'string', size: 100, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_createdAt', type: INDEX_TYPES.KEY, attributes: ['createdAt'] },
+    ],
+  },
+  {
+    id: 'idempotency_keys',
+    name: 'Idempotency Keys',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'key', type: 'string', size: 255, required: true },
+      { key: 'requestHash', type: 'string', size: 255, required: true },
+      { key: 'status', type: 'string', size: 50, required: true },
+      { key: 'response', type: 'string', size: 10000, required: false },
+      { key: 'resourceId', type: 'string', size: 100, required: false },
+      { key: 'error', type: 'string', size: 2000, required: false },
+      { key: 'expiresAt', type: 'string', size: 100, required: true },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_key', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'key'] },
+      { key: 'idx_expiresAt', type: INDEX_TYPES.KEY, attributes: ['expiresAt'] },
+    ],
+  },
+  {
+    id: 'rate_limits',
+    name: 'Rate Limits',
+    attributes: [
+      { key: 'key', type: 'string', size: 255, required: true },
+      { key: 'count', type: 'double', required: true },
+      { key: 'resetTime', type: 'double', required: true },
+      { key: 'expiresAt', type: 'string', size: 100, required: true },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_key', type: INDEX_TYPES.UNIQUE, attributes: ['key'] },
+      { key: 'idx_expiresAt', type: INDEX_TYPES.KEY, attributes: ['expiresAt'] },
+    ],
+  },
+  {
+    id: 'contact_submissions',
+    name: 'Contact Submissions',
+    attributes: [
+      { key: 'name', type: 'string', size: 255, required: true },
+      { key: 'email', type: 'string', size: 255, required: true },
+      { key: 'subject', type: 'string', size: 255, required: true },
+      { key: 'message', type: 'string', size: 5000, required: true },
+      { key: 'ip', type: 'string', size: 100, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_createdAt', type: INDEX_TYPES.KEY, attributes: ['createdAt'] },
+    ],
+  },
+  {
+    id: 'newsletter_subscriptions',
+    name: 'Newsletter Subscriptions',
+    attributes: [
+      { key: 'email', type: 'string', size: 255, required: true },
+      { key: 'ip', type: 'string', size: 100, required: false },
+      { key: 'status', type: 'string', size: 50, required: true, default: 'active' },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_email', type: INDEX_TYPES.UNIQUE, attributes: ['email'] },
+    ],
+  },
+  {
+    id: 'audit_logs',
+    name: 'Audit Logs',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'userId', type: 'string', size: 100, required: false },
+      { key: 'entityType', type: 'string', size: 100, required: true },
+      { key: 'entityId', type: 'string', size: 100, required: true },
+      { key: 'entityNumber', type: 'string', size: 100, required: false },
+      { key: 'action', type: 'string', size: 50, required: true },
+      { key: 'changes', type: 'string', size: 10000, required: false },
+      { key: 'performedBy', type: 'string', size: 100, required: true },
+      { key: 'performedByName', type: 'string', size: 255, required: false },
+      { key: 'ipAddress', type: 'string', size: 100, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_entity', type: INDEX_TYPES.KEY, attributes: ['businessId', 'entityType', 'entityId'] },
+      { key: 'idx_biz_createdAt', type: INDEX_TYPES.KEY, attributes: ['businessId', 'createdAt'] },
+    ],
+  },
+  {
+    id: 'accounts',
+    name: 'Accounts',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'code', type: 'string', size: 50, required: true },
+      { key: 'name', type: 'string', size: 255, required: true },
+      { key: 'type', type: 'string', size: 50, required: true },
+      { key: 'subType', type: 'string', size: 50, required: true },
+      { key: 'description', type: 'string', size: 1000, required: false },
+      { key: 'parentId', type: 'string', size: 100, required: false },
+      { key: 'isActive', type: 'boolean', required: true, default: true },
+      { key: 'isSystem', type: 'boolean', required: true, default: false },
+      { key: 'openingBalance', type: 'double', required: true, default: 0 },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_code', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'code'] },
+      { key: 'idx_biz_type', type: INDEX_TYPES.KEY, attributes: ['businessId', 'type'] },
+    ],
+  },
+  {
+    id: 'journal_entries',
+    name: 'Journal Entries',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'entryNumber', type: 'string', size: 100, required: true },
+      { key: 'date', type: 'string', size: 100, required: true },
+      { key: 'type', type: 'string', size: 50, required: true },
+      { key: 'status', type: 'string', size: 50, required: true },
+      { key: 'description', type: 'string', size: 1000, required: true },
+      { key: 'referenceType', type: 'string', size: 100, required: false },
+      { key: 'referenceId', type: 'string', size: 100, required: false },
+      { key: 'fiscalYear', type: 'string', size: 50, required: true },
+      { key: 'totalDebit', type: 'double', required: true },
+      { key: 'totalCredit', type: 'double', required: true },
+      { key: 'isBalanced', type: 'boolean', required: true, default: true },
+      { key: 'postedAt', type: 'string', size: 100, required: false },
+      { key: 'voidedAt', type: 'string', size: 100, required: false },
+      { key: 'voidedBy', type: 'string', size: 100, required: false },
+      { key: 'voidReason', type: 'string', size: 1000, required: false },
+      { key: 'createdBy', type: 'string', size: 100, required: true },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_entryNum', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'entryNumber'] },
+      { key: 'idx_biz_date', type: INDEX_TYPES.KEY, attributes: ['businessId', 'date'] },
+      { key: 'idx_biz_status', type: INDEX_TYPES.KEY, attributes: ['businessId', 'status'] },
+    ],
+  },
+  {
+    id: 'journal_lines',
+    name: 'Journal Lines',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'journalEntryId', type: 'string', size: 100, required: true },
+      { key: 'accountId', type: 'string', size: 100, required: true },
+      { key: 'accountCode', type: 'string', size: 50, required: true },
+      { key: 'accountName', type: 'string', size: 255, required: true },
+      { key: 'debit', type: 'double', required: true, default: 0 },
+      { key: 'credit', type: 'double', required: true, default: 0 },
+      { key: 'description', type: 'string', size: 1000, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_journalEntryId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'journalEntryId'] },
+      { key: 'idx_biz_accountId', type: INDEX_TYPES.KEY, attributes: ['businessId', 'accountId'] },
+    ],
+  },
+  {
+    id: 'fiscal_years',
+    name: 'Fiscal Years',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'name', type: 'string', size: 100, required: true },
+      { key: 'bsStartYear', type: 'double', required: true },
+      { key: 'bsEndYear', type: 'double', required: true },
+      { key: 'isoStartDate', type: 'string', size: 100, required: true },
+      { key: 'isoEndDate', type: 'string', size: 100, required: true },
+      { key: 'status', type: 'string', size: 50, required: true, default: 'OPEN' },
+      { key: 'closedAt', type: 'string', size: 100, required: false },
+      { key: 'closedBy', type: 'string', size: 100, required: false },
+      { key: 'createdBy', type: 'string', size: 100, required: true },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_name', type: INDEX_TYPES.UNIQUE, attributes: ['businessId', 'name'] },
+    ],
+  },
+  {
+    id: 'accounting_periods',
+    name: 'Accounting Periods',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'fiscalYearId', type: 'string', size: 100, required: true },
+      { key: 'name', type: 'string', size: 100, required: true },
+      { key: 'monthNumber', type: 'double', required: true },
+      { key: 'isoStartDate', type: 'string', size: 100, required: true },
+      { key: 'isoEndDate', type: 'string', size: 100, required: true },
+      { key: 'status', type: 'string', size: 50, required: true, default: 'OPEN' },
+      { key: 'closedAt', type: 'string', size: 100, required: false },
+      { key: 'closedBy', type: 'string', size: 100, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_fiscalYear', type: INDEX_TYPES.KEY, attributes: ['businessId', 'fiscalYearId'] },
+    ],
+  },
+  {
+    id: 'tax_categories',
+    name: 'Tax Categories',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'name', type: 'string', size: 255, required: true },
+      { key: 'type', type: 'string', size: 50, required: true },
+      { key: 'description', type: 'string', size: 1000, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+    ],
+  },
+  {
+    id: 'tax_rates',
+    name: 'Tax Rates',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'taxCategoryId', type: 'string', size: 100, required: false },
+      { key: 'name', type: 'string', size: 255, required: true },
+      { key: 'rate', type: 'double', required: true },
+      { key: 'type', type: 'string', size: 50, required: true },
+      { key: 'effectiveFrom', type: 'string', size: 100, required: true },
+      { key: 'effectiveTo', type: 'string', size: 100, required: false },
+      { key: 'status', type: 'string', size: 50, required: true, default: 'ACTIVE' },
+      { key: 'isDefault', type: 'boolean', required: true, default: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_rate', type: INDEX_TYPES.KEY, attributes: ['businessId', 'rate'] },
+    ],
+  },
+  {
+    id: 'tax_transactions',
+    name: 'Tax Transactions',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'taxRateId', type: 'string', size: 100, required: true },
+      { key: 'taxRateName', type: 'string', size: 255, required: true },
+      { key: 'taxRateValue', type: 'double', required: true },
+      { key: 'taxType', type: 'string', size: 50, required: true },
+      { key: 'referenceType', type: 'string', size: 100, required: true },
+      { key: 'referenceId', type: 'string', size: 100, required: true },
+      { key: 'taxableAmount', type: 'double', required: true },
+      { key: 'taxAmount', type: 'double', required: true },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_reference', type: INDEX_TYPES.KEY, attributes: ['businessId', 'referenceType', 'referenceId'] },
+    ],
+  },
+  {
+    id: 'cbms_submissions',
+    name: 'CBMS Submissions',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'invoiceId', type: 'string', size: 100, required: true },
+      { key: 'invoiceNumber', type: 'string', size: 100, required: true },
+      { key: 'invoiceDate', type: 'string', size: 100, required: true },
+      { key: 'totalAmount', type: 'double', required: true },
+      { key: 'taxAmount', type: 'double', required: true },
+      { key: 'customerPan', type: 'string', size: 50, required: false },
+      { key: 'status', type: 'string', size: 50, required: true },
+      { key: 'externalReference', type: 'string', size: 255, required: false },
+      { key: 'responseCode', type: 'string', size: 50, required: false },
+      { key: 'responseMessage', type: 'string', size: 1000, required: false },
+      { key: 'submittedAt', type: 'string', size: 100, required: false },
+      { key: 'acceptedAt', type: 'string', size: 100, required: false },
+      { key: 'rejectedAt', type: 'string', size: 100, required: false },
+      { key: 'retryCount', type: 'double', required: true, default: 0 },
+      { key: 'lastRetryAt', type: 'string', size: 100, required: false },
+      { key: 'createdBy', type: 'string', size: 100, required: true },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+      { key: 'idx_biz_invoice', type: INDEX_TYPES.KEY, attributes: ['businessId', 'invoiceId'] },
+      { key: 'idx_biz_status', type: INDEX_TYPES.KEY, attributes: ['businessId', 'status'] },
+    ],
+  },
+  {
+    id: 'user_preferences',
+    name: 'User Preferences',
+    attributes: [
+      { key: 'userId', type: 'string', size: 100, required: true },
+      { key: 'preferences', type: 'string', size: 4000, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_userId', type: INDEX_TYPES.UNIQUE, attributes: ['userId'] },
+    ],
+  },
+  {
+    id: 'business_assets',
+    name: 'Business Assets',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'name', type: 'string', size: 255, required: true },
+      { key: 'type', type: 'string', size: 50, required: true },
+      { key: 'url', type: 'string', size: 1000, required: false },
+      { key: 'metadata', type: 'string', size: 4000, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.KEY, attributes: ['businessId'] },
+    ],
+  },
+  {
+    id: 'business_onboarding',
+    name: 'Business Onboarding',
+    attributes: [
+      { key: 'businessId', type: 'string', size: 100, required: true },
+      { key: 'step', type: 'string', size: 50, required: true },
+      { key: 'completed', type: 'boolean', required: true, default: false },
+      { key: 'data', type: 'string', size: 4000, required: false },
+      { key: 'completedAt', type: 'string', size: 100, required: false },
+      { key: 'createdAt', type: 'string', size: 100, required: true },
+      { key: 'updatedAt', type: 'string', size: 100, required: true },
+    ],
+    indexes: [
+      { key: 'idx_businessId', type: INDEX_TYPES.UNIQUE, attributes: ['businessId'] },
+    ],
+  },
 ]
 
 async function apiRequest(path: string, method: string = 'GET', body?: any) {
@@ -591,12 +956,29 @@ export async function setupDatabase() {
 
   for (const schema of COLLECTIONS_SCHEMA) {
     const colCheck = await apiRequest(`/databases/${DATABASE_ID}/collections/${schema.id}`)
-    const defaultPermissions = [
-      'read("any")',
+    
+    // Enforce strict principle-of-least-privilege permissions
+    let defaultPermissions = [
+      'read("users")',
       'create("users")',
       'update("users")',
       'delete("users")',
     ]
+
+    if (schema.id === 'contact_submissions' || schema.id === 'newsletter_subscriptions') {
+      defaultPermissions = [
+        'create("any")',
+        'read("users")',
+        'update("users")',
+        'delete("users")',
+      ]
+    } else if (schema.id === 'audit_logs') {
+      // Audit logs are append-only and cannot be updated or deleted
+      defaultPermissions = [
+        'read("users")',
+        'create("users")',
+      ]
+    }
 
     if (colCheck.status === 404) {
       await apiRequest(`/databases/${DATABASE_ID}/collections`, 'POST', {

@@ -2,6 +2,7 @@ import { BaseService } from './base.service'
 import { COLLECTIONS } from '@/config/appwrite'
 import { Customer } from '@/types'
 import { Query } from 'appwrite'
+import { toMinorUnits, fromMinorUnits } from '@/lib/money'
 
 /**
  * Customer Service
@@ -213,8 +214,10 @@ export class CustomerService extends BaseService {
     businessId: string
   ): Promise<Customer> {
     const customer = await this.getCustomer(customerId, businessId)
-    const currentDue = customer.totalDue ?? customer.dueAmount ?? 0
-    const newTotalDue = Math.max(0, currentDue + delta)
+    const currentDuePaisa = toMinorUnits(customer.totalDue ?? customer.dueAmount ?? 0)
+    const deltaPaisa = toMinorUnits(delta)
+    const newTotalDuePaisa = Math.max(0, currentDuePaisa + deltaPaisa)
+    const newTotalDue = fromMinorUnits(newTotalDuePaisa)
     return await this.update<Customer>(
       customerId,
       { totalDue: newTotalDue, dueAmount: newTotalDue },

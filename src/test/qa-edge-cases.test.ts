@@ -24,6 +24,8 @@ vi.mock('@/config/appwrite', () => ({
     INVOICES: 'invoices',
     CUSTOMERS: 'customers',
     EXPENSES: 'expenses',
+    BUSINESS_MEMBERS: 'business_members',
+    FINANCIAL_SEQUENCES: 'financial_sequences',
   },
 }))
 
@@ -34,6 +36,15 @@ describe('Comprehensive QA - Edge Cases & Calculations Test Suite', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     numberingService.resetInMemorySequences()
+    vi.mocked(databases.listDocuments).mockImplementation(async (_dbId: any, colId: any) => {
+      if (colId === 'business_members') {
+        return {
+          total: 1,
+          documents: [{ $id: 'bm_qa', businessId, userId, role: 'staff' }],
+        } as any
+      }
+      return { total: 0, documents: [] } as any
+    })
   })
 
   describe('1. Calculations Verification (Totals, Discounts, 13% VAT, Dues, Profit)', () => {
@@ -101,14 +112,19 @@ describe('Comprehensive QA - Edge Cases & Calculations Test Suite', () => {
 
   describe('3. Inventory & Stock Rules (Insufficient Stock & Decrement)', () => {
     it('should reject sale completion if stock is insufficient', async () => {
-      vi.mocked(databases.getDocument).mockResolvedValueOnce({
-        $id: 'p_out_of_stock',
-        name: 'Limited Stock Laptop',
-        stockQuantity: 2,
-        sellingPrice: 50000,
-        costPrice: 40000,
-        businessId,
-      } as any)
+      vi.mocked(databases.getDocument).mockImplementation(async (_dbId, colId, docId) => {
+        if (docId === 'p_out_of_stock' || colId === 'products') {
+          return {
+            $id: 'p_out_of_stock',
+            name: 'Limited Stock Laptop',
+            stockQuantity: 2,
+            sellingPrice: 50000,
+            costPrice: 40000,
+            businessId,
+          } as any
+        }
+        return { $id: docId, businessId, ownerId: userId } as any
+      })
 
       await expect(
         saleService.createSale(

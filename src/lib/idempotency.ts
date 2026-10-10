@@ -28,6 +28,34 @@ interface CacheRecord {
 }
 
 /**
+ * Helper to identify Appwrite 404 document not found
+ */
+export function isDocumentNotFoundError(err: any): boolean {
+  if (!err) return false
+  const code = err.code || err.status
+  const type = err.type
+  const message = String(err.message || '').toLowerCase()
+  if (type === 'document_not_found') return true
+  if (code === 404 && !message.includes('collection') && !message.includes('database')) return true
+  if (message.includes('document') && message.includes('not found')) return true
+  return false
+}
+
+/**
+ * Helper to identify missing collection / schema error
+ */
+export function isCollectionNotFoundError(err: any): boolean {
+  if (!err) return false
+  const code = err.code || err.status
+  const type = err.type
+  const message = String(err.message || '').toLowerCase()
+  if (type === 'collection_not_found' || type === 'database_not_found') return true
+  if (code === 404 && (message.includes('collection') || message.includes('database'))) return true
+  if (message.includes('collection with the requested id could not be found')) return true
+  return false
+}
+
+/**
  * Compute deterministic hash of request payload for idempotency verification
  */
 export function computePayloadHash(payload: any): string {
@@ -105,7 +133,8 @@ export class IdempotencyManager {
   /**
    * Process a transaction idempotently with persistent storage, stale lock recovery, and payload hash validation (P0-2).
    * Prevents duplicate financial transactions across serverless processes, tabs, and network retries.
-   * Utilizes Appwrite collection for authoritative distributed lock.
+   * Utilizes Appwrite collection for authoritative distributed records.
+   * In-memory cache is used strictly for in-process Promise memoization within the same Node/browser runtime.
    */
   async executeIdempotentTransaction<T>(
     params: {
@@ -114,21 +143,28 @@ export class IdempotencyManager {
       operationType: string
       payload?: any
       resourceType?: string
+      enforceKey?: boolean
     },
     persistentCheck: () => Promise<T | null>,
     operation: () => Promise<T>
   ): Promise<T> {
-    const { idempotencyKey, businessId, operationType, payload, resourceType } = params
+    const { idempotencyKey, businessId, operationType, payload, resourceType, enforceKey = false } = params
 
-    if (!idempotencyKey || idempotencyKey.trim() === '') {
-      return await operation()
+    const hasExplicitKey = Boolean(idempotencyKey && idempotencyKey.trim() !== '')
+    if (enforceKey && !hasExplicitKey) {
+      throw new Error(
+        `IDEMPOTENCY_KEY_REQUIRED: Financial operation '${operationType}' requires a valid non-empty idempotency key.`
+      )
     }
 
-    const key = idempotencyKey.trim()
-    const compositeKey = sanitizeAppwriteDocId(`${key}_${businessId}_${operationType}`, 'idemp')
     const requestHash = computePayloadHash(payload)
+    const key = hasExplicitKey
+      ? idempotencyKey!.trim()
+      : `auto_${businessId}_${operationType}_${requestHash}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
 
-    // 1. In-memory lock per composite key (prevents duplicate execution within same JS runtime)
+    const compositeKey = sanitizeAppwriteDocId(`${key}_${businessId}_${operationType}`, 'idemp')
+
+    // 1. In-process memoization per composite key (collapses duplicate concurrent calls within the same Node/browser process)
     const now = Date.now()
     const cached = this.cache.get(compositeKey)
     if (cached && now - cached.timestamp < this.ttlMs) {
@@ -142,28 +178,61 @@ export class IdempotencyManager {
 
     const taskPromise = (async (): Promise<T> => {
       // 2. Check distributed persistent store for completed or active record
+      let memRecord: any = null
       try {
-        const memRecord = await databases.getDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey)
-        if (memRecord) {
-          if (memRecord.requestHash !== requestHash) {
-            throw new Error(
-              `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${key}' was already used for a different payload in ${operationType}`
-            )
-          }
-          if (memRecord.status === 'COMPLETED' && memRecord.result) {
-            return JSON.parse(memRecord.result) as T
-          }
-          if (memRecord.status === 'PROCESSING') {
-            const createdAt = new Date(memRecord.createdAt).getTime()
-            if (Date.now() - createdAt < 60000) {
-              throw new Error(`IDEMPOTENCY_TRANSACTION_IN_PROGRESS: Transaction with key '${key}' is currently being processed`)
+        memRecord = await databases.getDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey)
+      } catch (err: any) {
+        if (isDocumentNotFoundError(err)) {
+          memRecord = null
+        } else if (isCollectionNotFoundError(err)) {
+          throw new Error(
+            `IDEMPOTENCY_STORE_NOT_PROVISIONED: Idempotency collection '${COLLECTIONS.IDEMPOTENCY_KEYS}' is not provisioned in Appwrite database '${DATABASE_ID}'. Operations fail closed to prevent duplicate financial processing.`
+          )
+        } else {
+          // Never interpret an unavailable or erroneous idempotency store as proof that a transaction has not already occurred
+          throw new Error(
+            `IDEMPOTENCY_STORE_UNAVAILABLE: Authoritative idempotency store query failed (${err?.message || 'unknown database error'}). Cannot safely verify if transaction already occurred.`
+          )
+        }
+      }
+
+      if (memRecord) {
+        if (memRecord.requestHash && memRecord.requestHash !== requestHash) {
+          throw new Error(
+            `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${key}' was already used for a different payload in ${operationType}`
+          )
+        }
+        if (memRecord.status === 'COMPLETED') {
+          if (memRecord.result) {
+            try {
+              return JSON.parse(memRecord.result) as T
+            } catch {
+              return memRecord.result as T
             }
           }
         }
-      } catch (err: any) {
-        // Ignore 404 (document not found)
-        if (err?.code !== 404) {
-          // Fall through, might be network error, we will just proceed with cautious checks
+        if (memRecord.status === 'PROCESSING') {
+          const createdAt = new Date(memRecord.createdAt).getTime()
+          const elapsedMs = Date.now() - createdAt
+          if (elapsedMs < this.ttlMs) {
+            throw new Error(
+              `IDEMPOTENCY_TRANSACTION_IN_PROGRESS: Transaction with key '${key}' is currently being processed`
+            )
+          }
+
+          // Safe recovery for abandoned processing records: verify domain entity first
+          const existingDoc = await persistentCheck()
+          if (existingDoc) {
+            try {
+              await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
+                status: 'COMPLETED',
+                resourceId: (existingDoc as any)?.$id || (existingDoc as any)?.id || (existingDoc as any)?.sale?.$id || '',
+                result: JSON.stringify(existingDoc),
+                completedAt: new Date().toISOString(),
+              })
+            } catch {}
+            return existingDoc
+          }
         }
       }
 
@@ -177,7 +246,7 @@ export class IdempotencyManager {
               `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${key}' was already used for a different payload in ${operationType}`
             )
           }
-          
+
           try {
             await databases.createDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
               idempotencyKey: key,
@@ -192,13 +261,16 @@ export class IdempotencyManager {
               completedAt: new Date().toISOString(),
             })
           } catch (e: any) {
-            if (e?.code === 409) {
-              // Already exists, we update it
+            if (e?.code === 409 || e?.type === 'document_already_exists') {
               await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
                 status: 'COMPLETED',
                 result: JSON.stringify(existingDoc),
                 completedAt: new Date().toISOString(),
               })
+            } else if (isCollectionNotFoundError(e)) {
+              throw new Error(
+                `IDEMPOTENCY_STORE_NOT_PROVISIONED: Idempotency collection '${COLLECTIONS.IDEMPOTENCY_KEYS}' is not provisioned in Appwrite database '${DATABASE_ID}'. Operations fail closed to prevent duplicate financial processing.`
+              )
             }
           }
 
@@ -207,7 +279,8 @@ export class IdempotencyManager {
       } catch (err: any) {
         if (
           err.message?.includes('IDEMPOTENCY_KEY_REUSE_MISMATCH') ||
-          err.message?.includes('IDEMPOTENCY_TRANSACTION_IN_PROGRESS')
+          err.message?.includes('IDEMPOTENCY_TRANSACTION_IN_PROGRESS') ||
+          err.message?.includes('IDEMPOTENCY_STORE_')
         ) {
           throw err
         }
@@ -223,49 +296,79 @@ export class IdempotencyManager {
         resourceType: resourceType || 'unknown',
         createdAt: new Date().toISOString(),
       }
-      
+
       try {
         await databases.createDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, processingRecord)
       } catch (e: any) {
-        if (e?.code === 404 || (e?.message && e.message.toLowerCase().includes('could not be found'))) {
-          // Idempotency collection not provisioned in Appwrite, fallback directly to operation
-          return await operation()
+        if (isCollectionNotFoundError(e)) {
+          throw new Error(
+            `IDEMPOTENCY_STORE_NOT_PROVISIONED: Idempotency collection '${COLLECTIONS.IDEMPOTENCY_KEYS}' is not provisioned in Appwrite database '${DATABASE_ID}'. Operations fail closed to prevent duplicate financial processing.`
+          )
         }
-        if (e?.code === 409) {
-           // Document already exists, someone else created it
-           try {
-             const existing = await databases.getDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey)
-             if (existing.status === 'COMPLETED') {
-               return JSON.parse(existing.result) as T
-             }
-           } catch {
-             // Fallback
-           }
-           throw new Error(`IDEMPOTENCY_TRANSACTION_IN_PROGRESS: Transaction with key '${key}' is currently being processed`)
+        if (e?.code === 409 || e?.type === 'document_already_exists') {
+          // Document already exists, someone else created it concurrently
+          try {
+            const existing = await databases.getDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey)
+            if (existing.requestHash && existing.requestHash !== requestHash) {
+              throw new Error(
+                `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${key}' was already used for a different payload in ${operationType}`
+              )
+            }
+            if (existing.status === 'COMPLETED' && existing.result) {
+              return JSON.parse(existing.result) as T
+            }
+          } catch (fetchErr: any) {
+            if (fetchErr.message?.includes('IDEMPOTENCY_KEY_REUSE_MISMATCH')) throw fetchErr
+          }
+          throw new Error(`IDEMPOTENCY_TRANSACTION_IN_PROGRESS: Transaction with key '${key}' is currently being processed`)
         }
         throw e
       }
 
       // 5. Execute operation
+      let result: T
       try {
-        const result = await operation()
-        
-        await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
-          status: 'COMPLETED',
-          resourceId: (result as any)?.$id || (result as any)?.id || '',
-          result: JSON.stringify(result),
-          completedAt: new Date().toISOString(),
-        })
-
-        return result
+        result = await operation()
       } catch (err: any) {
-        await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
-          status: 'FAILED',
-          error: err?.message || 'Operation failed',
-          completedAt: new Date().toISOString(),
-        })
+        try {
+          await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
+            status: 'FAILED',
+            error: err?.message || 'Operation failed',
+            completedAt: new Date().toISOString(),
+          })
+        } catch (failUpdateErr) {
+          console.error(`[IdempotencyManager] Failed to record FAILED status for key ${key}:`, failUpdateErr)
+        }
         throw err
       }
+
+      // 6. Finalize COMPLETED status with retries so successful writes are never silently lost
+      let finalizeRetries = 3
+      while (finalizeRetries > 0) {
+        try {
+          await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
+            status: 'COMPLETED',
+            resourceId: (result as any)?.$id || (result as any)?.id || (result as any)?.sale?.$id || '',
+            result: JSON.stringify(result),
+            completedAt: new Date().toISOString(),
+          })
+          break
+        } catch (finalErr: any) {
+          finalizeRetries--
+          if (finalizeRetries === 0) {
+            console.error(
+              `[CRITICAL_IDEMPOTENCY_FINALIZATION_FAILURE] Transaction with key '${key}' succeeded but idempotency store finalization failed:`,
+              finalErr
+            )
+            // Do NOT throw an error that masks the successful financial transaction.
+            // Returning result ensures caller does not duplicate the transaction.
+          } else {
+            await new Promise((r) => setTimeout(r, 50))
+          }
+        }
+      }
+
+      return result
     })()
 
     this.cache.set(compositeKey, {

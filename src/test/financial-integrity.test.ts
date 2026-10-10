@@ -18,6 +18,9 @@ vi.mock('@/config/appwrite', () => {
       SALE_ITEMS: 'sale_items',
       INVOICES: 'invoices',
       PAYMENTS: 'payments',
+      FINANCIAL_SEQUENCES: 'financial_sequences',
+      IDEMPOTENCY_KEYS: 'idempotency_keys',
+      INVENTORY_LOCKS: 'inventory_locks',
     },
     account: {
       get: vi.fn(async () => ({ $id: 'user_owner_A' })),
@@ -37,7 +40,12 @@ vi.mock('@/config/appwrite', () => {
       }),
       getDocument: vi.fn(async (_dbId, colId, id) => {
         const doc = mockStore.get(`${colId}:${id}`)
-        if (!doc) throw new Error(`Document ${id} not found`)
+        if (!doc) {
+          const err: any = new Error(`Document ${id} not found`)
+          err.code = 404
+          err.type = 'document_not_found'
+          throw err
+        }
         return { ...doc }
       }),
       updateDocument: vi.fn(async (_dbId, colId, id, data) => {
@@ -94,6 +102,23 @@ describe('Mandatory 12 Financial Transaction Integrity Tests', () => {
     mockStore.clear()
 
     bizId = `biz_fin_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+
+    mockStore.set(`businesses:${bizId}`, {
+      $id: bizId,
+      $collectionId: 'businesses',
+      name: 'Financial Audit Store',
+      ownerId: userId,
+      createdBy: userId,
+      taxRegistrationType: 'VAT',
+      vatNumber: '123456789',
+    })
+    mockStore.set(`business_members:mem_${userId}_${bizId}`, {
+      $id: `mem_${userId}_${bizId}`,
+      $collectionId: 'business_members',
+      businessId: bizId,
+      userId: userId,
+      role: 'owner',
+    })
 
     const prod = await productService.createProduct(
       {

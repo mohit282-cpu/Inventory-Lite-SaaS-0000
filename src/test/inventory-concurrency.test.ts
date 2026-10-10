@@ -89,8 +89,18 @@ describe('Inventory Consistency & Concurrency Hardening Tests', () => {
   const bizId = 'biz_concurrency_test'
   const userId = 'user_owner_A'
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks()
+    const { databases, DATABASE_ID, COLLECTIONS } = await import('@/config/appwrite')
+    try {
+      await databases.createDocument(DATABASE_ID, COLLECTIONS.BUSINESS_MEMBERS, 'bm_userA_biz', {
+        businessId: bizId,
+        userId: userId,
+        role: 'owner',
+      })
+    } catch {
+      // Already exists in in-memory store
+    }
   })
 
   it('Scenario: Initial stock = 10. Tx A sells 7, Tx B sells 7 simultaneously. Exactly one succeeds.', async () => {

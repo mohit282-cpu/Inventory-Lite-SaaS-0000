@@ -3,6 +3,7 @@ import { COLLECTIONS } from '@/config/appwrite'
 import { BusinessMember, UserRole } from '@/types'
 import { Query, Permission, Role } from 'appwrite'
 import { authorizeBusinessAccess } from '@/lib/authorization'
+import { ForbiddenError } from '@/lib/security'
 
 /**
  * Business Member Service
@@ -26,16 +27,35 @@ export class BusinessMemberService extends BaseService {
     businessId: string,
     creatorUserId: string
   ): Promise<BusinessMember> {
-    // If creating initial owner membership during business onboarding setup, bypass pre-membership RBAC query
-    const isInitialOwner = data.role === 'owner' && data.userId === creatorUserId
+    let isInitialOwner = false
+    if (data.role === 'owner' && data.userId === creatorUserId) {
+      // Validate that creator is actually the registered owner/creator of this business in the database
+      try {
+        const { businessService } = await import('@/services/business.service')
+        const business = await businessService.getById<any>(businessId, SYSTEM_TENANT_ID).catch(() => null)
+        if (business && (business.ownerId === creatorUserId || business.createdBy === creatorUserId)) {
+          const existingMembers = await this.listMembers(businessId).catch(() => [])
+          const hasOwner = existingMembers.some((m) => m.role === 'owner')
+          if (!hasOwner) {
+            isInitialOwner = true
+          }
+        }
+      } catch {
+        // Fallback: not initial owner
+      }
+    }
 
     if (!isInitialOwner) {
-      // Database-verified RBAC check: caller must be owner or admin
-      await authorizeBusinessAccess({
+      // Database-verified RBAC check: caller must have owner or admin role
+      // Only existing owners can add another owner to prevent admin privilege escalation
+      const auth = await authorizeBusinessAccess({
         userId: creatorUserId,
         businessId,
-        requiredRole: ['owner', 'admin'],
+        requiredRole: data.role === 'owner' ? 'owner' : ['owner', 'admin'],
       })
+      if (data.role === 'owner' && auth.memberRole !== 'owner') {
+        throw new ForbiddenError('Only business owners can grant owner membership', 'admin')
+      }
     }
 
     // Check if target user is already a member
@@ -95,11 +115,30 @@ export class BusinessMemberService extends BaseService {
     updatingUserId: string
   ): Promise<BusinessMember> {
     // Database-verified RBAC check: caller must be owner or admin
-    await authorizeBusinessAccess({
+    const auth = await authorizeBusinessAccess({
       userId: updatingUserId,
       businessId,
       requiredRole: ['owner', 'admin'],
     })
+
+    const targetMember = await this.getMember(memberId, businessId)
+    if (!targetMember) {
+      throw new Error('Member not found')
+    }
+
+    // Admins cannot grant owner role or modify existing owners
+    if ((role === 'owner' || targetMember.role === 'owner') && auth.memberRole !== 'owner') {
+      throw new ForbiddenError('Only business owners can manage owner roles', 'admin')
+    }
+
+    // Owner cannot demote self if they are the sole owner
+    if (targetMember.role === 'owner' && role !== 'owner') {
+      const allMembers = await this.listMembers(businessId)
+      const ownerCount = allMembers.filter((m) => m.role === 'owner').length
+      if (ownerCount <= 1) {
+        throw new Error('Cannot demote the sole owner of a business')
+      }
+    }
 
     return await this.update<BusinessMember>(memberId, { role }, businessId)
   }
@@ -113,11 +152,28 @@ export class BusinessMemberService extends BaseService {
     removingUserId: string
   ): Promise<void> {
     // Database-verified RBAC check: caller must be owner or admin
-    await authorizeBusinessAccess({
+    const auth = await authorizeBusinessAccess({
       userId: removingUserId,
       businessId,
       requiredRole: ['owner', 'admin'],
     })
+
+    const targetMember = await this.getMember(memberId, businessId)
+    if (!targetMember) {
+      throw new Error('Member not found')
+    }
+
+    // Admins cannot remove owners
+    if (targetMember.role === 'owner') {
+      if (auth.memberRole !== 'owner') {
+        throw new ForbiddenError('Only business owners can remove an owner', 'admin')
+      }
+      const allMembers = await this.listMembers(businessId)
+      const ownerCount = allMembers.filter((m) => m.role === 'owner').length
+      if (ownerCount <= 1) {
+        throw new Error('Cannot remove the sole owner of a business')
+      }
+    }
 
     await this.delete(memberId, businessId)
   }

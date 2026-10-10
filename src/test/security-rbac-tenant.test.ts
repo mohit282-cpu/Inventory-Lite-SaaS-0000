@@ -83,6 +83,7 @@ vi.mock('@/config/appwrite', () => {
 import { productService } from '@/services/product.service'
 import { saleService } from '@/services/sale.service'
 import { paymentService } from '@/services/payment.service'
+import { businessMemberService } from '@/services/business-member.service'
 import { authorizeBusinessAccess, checkRolePermission } from '@/lib/authorization'
 import { generateSecureToken, validateFileUpload } from '@/lib/security'
 import { calculateSaleTotals, validateFinancialInvariants } from '@/lib/money'
@@ -92,8 +93,15 @@ describe('Production Hardening & Comprehensive Security Tests', () => {
   const bizB = 'business_B'
   const user1 = 'user_123'
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    await businessMemberService.create(
+      { userId: user1, role: 'owner' },
+      bizA,
+      user1,
+      undefined,
+      `mem_${user1}_${bizA}`
+    )
   })
 
   // -------------------------------------------------------------

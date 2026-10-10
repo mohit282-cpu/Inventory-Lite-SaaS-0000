@@ -96,6 +96,12 @@ describe('Feature 3 — Sales Return Workflow Tests', () => {
 
   beforeEach(async () => {
     mockStore.clear()
+    const { databases, DATABASE_ID, COLLECTIONS } = await import('@/config/appwrite')
+    await databases.createDocument(DATABASE_ID, COLLECTIONS.BUSINESS_MEMBERS, 'bm_owner_returns', {
+      businessId,
+      userId,
+      role: 'owner',
+    })
     // Create product with 20 items stock
     const prod = await productService.createProduct(
       {

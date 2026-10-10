@@ -80,3 +80,30 @@ export class RateLimiter {
 
 export const rateLimiter = new RateLimiter()
 
+/**
+ * Safely extracts trusted client IP behind Vercel edge infrastructure.
+ * Prioritizes trusted edge headers (x-real-ip, x-vercel-forwarded-for)
+ * over user-spoofable client x-forwarded-for headers to prevent rate limit bypasses.
+ */
+export function getTrustedClientIp(request: Request): string {
+  const realIp = request.headers.get('x-real-ip')
+  if (realIp && realIp.trim()) {
+    return realIp.trim()
+  }
+
+  const vercelForwardedFor = request.headers.get('x-vercel-forwarded-for')
+  if (vercelForwardedFor && vercelForwardedFor.trim()) {
+    return vercelForwardedFor.trim()
+  }
+
+  const forwarded = request.headers.get('x-forwarded-for')
+  if (forwarded) {
+    const parts = forwarded.split(',').map((p) => p.trim()).filter(Boolean)
+    if (parts.length > 0) {
+      return parts[parts.length - 1]
+    }
+  }
+
+  return 'anonymous_client'
+}
+

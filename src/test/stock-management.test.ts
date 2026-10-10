@@ -74,8 +74,19 @@ describe('Stock Management Module Tests', () => {
   const bizB = 'business_B'
   const user1 = 'user_123'
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    const { databases, DATABASE_ID, COLLECTIONS } = await import('@/config/appwrite')
+    await databases.createDocument(DATABASE_ID, COLLECTIONS.BUSINESS_MEMBERS, 'bm_user1_bizA', {
+      businessId: bizA,
+      userId: user1,
+      role: 'owner',
+    })
+    await databases.createDocument(DATABASE_ID, COLLECTIONS.BUSINESS_MEMBERS, 'bm_user1_bizB', {
+      businessId: bizB,
+      userId: user1,
+      role: 'owner',
+    })
   })
 
   it('processes Stock In correctly and updates product quantity', async () => {

@@ -97,6 +97,17 @@ describe('Feature 1 & Feature 2 — Supplier Management and Purchase Stock Intak
 
   beforeEach(async () => {
     mockStore.clear()
+    const { databases, DATABASE_ID, COLLECTIONS } = await import('@/config/appwrite')
+    await databases.createDocument(DATABASE_ID, COLLECTIONS.BUSINESS_MEMBERS, 'bm_owner_purch_A', {
+      businessId: businessA,
+      userId: userOwner,
+      role: 'owner',
+    })
+    await databases.createDocument(DATABASE_ID, COLLECTIONS.BUSINESS_MEMBERS, 'bm_owner_purch_B', {
+      businessId: businessB,
+      userId: userOwner,
+      role: 'owner',
+    })
     // Create test product for businessA
     const prod = await productService.createProduct(
       {

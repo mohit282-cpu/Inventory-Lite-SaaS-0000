@@ -20,6 +20,8 @@ vi.mock('@/config/appwrite', () => {
       PAYMENTS: 'payments',
       EXPENSES: 'expenses',
       FINANCIAL_SEQUENCES: 'financial_sequences',
+      INVENTORY_LOCKS: 'inventory_locks',
+      IDEMPOTENCY_KEYS: 'idempotency_keys',
     },
     account: {
       get: vi.fn(async () => ({ $id: 'user_owner_A' })),
@@ -28,7 +30,7 @@ vi.mock('@/config/appwrite', () => {
       createDocument: vi.fn(async (_dbId, colId, id, data) => {
         const docId = id || `doc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
         if (store.has(`${colId}:${docId}`)) {
-          throw { code: 409, message: 'Document already exists' }
+          throw { code: 409, message: 'Document already exists', type: 'document_already_exists' }
         }
         const doc = {
           $id: docId,
@@ -43,7 +45,12 @@ vi.mock('@/config/appwrite', () => {
       }),
       getDocument: vi.fn(async (_dbId, colId, id) => {
         const doc = store.get(`${colId}:${id}`)
-        if (!doc) throw new Error(`Document ${id} not found`)
+        if (!doc) {
+          const err: any = new Error(`Document ${id} not found`)
+          err.code = 404
+          err.type = 'document_not_found'
+          throw err
+        }
         return { ...doc }
       }),
       updateDocument: vi.fn(async (_dbId, colId, id, data) => {
@@ -95,10 +102,22 @@ describe('P0 & P1 Hardening: Concurrency, Idempotency, Payment Reversal & Invoic
   const bizId = 'biz_p0_hardening_test'
   const userId = 'user_owner_A'
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks()
     idempotencyManager.clear()
     if ((databases as any).__clearStore) (databases as any).__clearStore()
+    await databases.createDocument('inventory_lite_db', 'businesses', bizId, {
+      name: 'Hardening Test Store',
+      ownerId: userId,
+      createdBy: userId,
+      taxRegistrationType: 'VAT',
+      vatNumber: '123456789',
+    })
+    await databases.createDocument('inventory_lite_db', 'business_members', `mem_${userId}_${bizId}`, {
+      businessId: bizId,
+      userId: userId,
+      role: 'owner',
+    })
   })
 
   it('P0-1 Stock Concurrency Test: Initial stock = 10, 10 concurrent requests of qty = 7 (Repeated 50 iterations)', async () => {

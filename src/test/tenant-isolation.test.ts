@@ -4,6 +4,7 @@ import { CategoryService } from '@/services/category.service'
 import { ExpenseService } from '@/services/expense.service'
 import { CustomerService } from '@/services/customer.service'
 import { InvoiceService } from '@/services/invoice.service'
+import { businessMemberService } from '@/services/business-member.service'
 
 // Mock Appwrite databases client
 vi.mock('@/config/appwrite', () => {
@@ -84,12 +85,26 @@ describe('Multi-Tenant Data Isolation & Service Layer Tests', () => {
   const businessB = 'business_222'
   const user1 = 'user_999'
 
-  beforeEach(() => {
+  beforeEach(async () => {
     productService = new ProductService()
     categoryService = new CategoryService()
     expenseService = new ExpenseService()
     customerService = new CustomerService()
     invoiceService = new InvoiceService()
+    await businessMemberService.create(
+      { userId: user1, role: 'owner' },
+      businessA,
+      user1,
+      undefined,
+      `mem_${user1}_${businessA}`
+    )
+    await businessMemberService.create(
+      { userId: user1, role: 'owner' },
+      businessB,
+      user1,
+      undefined,
+      `mem_${user1}_${businessB}`
+    )
   })
 
   it('enforces businessId scope on product creation', async () => {
