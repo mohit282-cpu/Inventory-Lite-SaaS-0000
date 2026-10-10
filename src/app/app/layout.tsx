@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/auth-context'
 import { Sidebar } from '@/components/layout/sidebar'
 import { TopNav } from '@/components/layout/top-nav'
 import { MobileNav } from '@/components/layout/mobile-nav'
@@ -8,8 +10,16 @@ import { MobileBottomBar } from '@/components/layout/mobile-bottom-bar'
 import { WifiOff } from 'lucide-react'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const { authStatus, isLoading } = useAuth()
+  const router = useRouter()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
+
+  useEffect(() => {
+    if (!isLoading && authStatus === 'UNAUTHENTICATED') {
+      router.replace('/auth/login')
+    }
+  }, [authStatus, isLoading, router])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
