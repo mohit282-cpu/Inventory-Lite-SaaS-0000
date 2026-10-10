@@ -8,7 +8,7 @@ on:
 
 jobs:
   quality-gate:
-    name: Typecheck, Lint, Security, Unit, E2E & Build Gate
+    name: Typecheck, Lint, Security, Unit, Build & E2E Gate
     runs-on: ubuntu-latest
 
     env:
@@ -27,37 +27,112 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: Install Dependencies
+      - name: 1. Install Dependencies
+        id: install
         run: npm ci
 
-      - name: 1. TypeScript Static Typecheck
+      - name: 2. TypeScript Static Typecheck
+        id: typecheck
+        if: "!cancelled() && steps.install.outcome == 'success'"
         run: npm run typecheck
 
-      - name: 2. ESLint Code Quality Inspection
+      - name: 3. ESLint Code Quality Inspection
+        id: lint
+        if: "!cancelled() && steps.install.outcome == 'success'"
         run: npm run lint
 
-      - name: 3. Dependency Vulnerability Audit
+      - name: 4. Dependency Vulnerability Audit
         id: audit
-        continue-on-error: true
+        if: "!cancelled() && steps.install.outcome == 'success'"
         run: npm audit --audit-level=high
 
-      - name: 4. Vitest Unit, Security, & Concurrency Test Suite
+      - name: 5. Vitest Unit, Security, & Concurrency Test Suite
+        id: test
+        if: "!cancelled() && steps.install.outcome == 'success'"
         run: npm run test
 
-      - name: 5. Install Playwright Browsers
-        run: npx playwright install --with-deps
-
-      - name: 6. Playwright End-to-End Browser Tests
-        run: npx playwright test
-
-      - name: 7. Production Build Verification
+      - name: 6. Production Build Verification
+        id: build
+        if: "!cancelled() && steps.install.outcome == 'success'"
         run: npm run build
 
-      - name: 8. Mandatory Security Release Gate Evaluation
+      - name: 7a. Install Playwright Browsers
+        id: playwright-install
+        if: "!cancelled() && steps.install.outcome == 'success' && steps.build.outcome == 'success'"
+        run: npx playwright install --with-deps
+
+      - name: 7b. Playwright End-to-End Browser Tests
+        id: e2e
+        if: "!cancelled() && steps.install.outcome == 'success' && steps.build.outcome == 'success'"
+        run: npx playwright test
+
+      - name: 8. Mandatory Quality, Security & Production Release Gate Evaluation
+        id: release-gate
+        if: always()
         shell: bash
         run: |
+          echo "=========================================================="
+          echo "   Production Readiness & Release Gate Status Evaluation  "
+          echo "=========================================================="
+          FAILED=0
+
+          if [ "${{ steps.install.outcome }}" != "success" ]; then
+            echo "::error::[GATE FAILED] Dependency installation (npm ci) failed."
+            FAILED=1
+          else
+            echo "✓ 1. Dependencies installed successfully."
+          fi
+
+          if [ "${{ steps.typecheck.outcome }}" != "success" ]; then
+            echo "::error::[GATE FAILED] TypeScript static typecheck failed."
+            FAILED=1
+          else
+            echo "✓ 2. TypeScript typecheck passed."
+          fi
+
+          if [ "${{ steps.lint.outcome }}" != "success" ]; then
+            echo "::error::[GATE FAILED] ESLint code quality inspection failed."
+            FAILED=1
+          else
+            echo "✓ 3. ESLint code quality inspection passed."
+          fi
+
           if [ "${{ steps.audit.outcome }}" != "success" ]; then
-            echo "::error::Security Release Gate: Unresolved high-severity dependency vulnerabilities detected."
+            echo "::error::[GATE FAILED] Dependency vulnerability audit failed (unresolved high-severity findings)."
+            FAILED=1
+          else
+            echo "✓ 4. Dependency security audit passed."
+          fi
+
+          if [ "${{ steps.test.outcome }}" != "success" ]; then
+            echo "::error::[GATE FAILED] Vitest unit and integration test suite failed."
+            FAILED=1
+          else
+            echo "✓ 5. Vitest unit and integration tests passed."
+          fi
+
+          if [ "${{ steps.build.outcome }}" != "success" ]; then
+            echo "::error::[GATE FAILED] Production Next.js build verification failed."
+            FAILED=1
+          else
+            echo "✓ 6. Production Next.js build passed."
+          fi
+
+          if [ "${{ steps.e2e.outcome }}" != "success" ]; then
+            if [ "${{ steps.build.outcome }}" != "success" ]; then
+              echo "::error::[GATE FAILED] Playwright E2E tests were skipped because production build failed."
+            else
+              echo "::error::[GATE FAILED] Playwright E2E tests failed."
+            fi
+            FAILED=1
+          else
+            echo "✓ 7. Playwright E2E browser tests passed."
+          fi
+
+          echo "=========================================================="
+          if [ $FAILED -ne 0 ]; then
+            echo "::error::Release Gate REJECTED: One or more required quality, security, build, or test gates failed."
             exit 1
           fi
-          echo "All quality, testing, security, and build gates passed."
+
+          echo "★ All quality, security, test, build, and E2E gates passed successfully!"
