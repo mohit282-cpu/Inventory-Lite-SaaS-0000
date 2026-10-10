@@ -14,4 +14,16 @@ test.describe('Inventory Lite SaaS - Application Page Navigation & Accessibility
     await page.goto('/auth/signup')
     await expect(page.locator('h1, h2, form').first()).toBeVisible({ timeout: 20000 })
   })
+
+  test('Protected App Route Redirects Unauthenticated Users to Login', async ({ page }) => {
+    await page.goto('/app/dashboard')
+    await expect(page).toHaveURL(/.*\/auth\/login.*/, { timeout: 15000 })
+    await expect(page.locator('form, h1, h2').first()).toBeVisible({ timeout: 15000 })
+  })
+
+  test('Interactive Demo Sandbox Loads with Navigation Tabs', async ({ page }) => {
+    await page.goto('/demo')
+    await expect(page).toHaveTitle(/Demo Sandbox/, { timeout: 15000 })
+    await expect(page.locator('header, h1, nav').first()).toBeVisible({ timeout: 15000 })
+  })
 })
