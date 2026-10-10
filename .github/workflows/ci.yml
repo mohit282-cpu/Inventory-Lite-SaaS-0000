@@ -37,6 +37,8 @@ jobs:
         run: npm run lint
 
       - name: 3. Dependency Vulnerability Audit
+        id: audit
+        continue-on-error: true
         run: npm audit --audit-level=high
 
       - name: 4. Vitest Unit, Security, & Concurrency Test Suite
@@ -50,3 +52,12 @@ jobs:
 
       - name: 7. Production Build Verification
         run: npm run build
+
+      - name: 8. Mandatory Security Release Gate Evaluation
+        shell: bash
+        run: |
+          if [ "${{ steps.audit.outcome }}" != "success" ]; then
+            echo "::error::Security Release Gate: Unresolved high-severity dependency vulnerabilities detected."
+            exit 1
+          fi
+          echo "All quality, testing, security, and build gates passed."
