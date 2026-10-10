@@ -276,6 +276,32 @@ describe('Stock Management Module Tests', () => {
     ).rejects.toThrow(/Product creation failed: Unable to record opening stock audit trail/)
   })
 
+  it('rolls back product stock if movement record creation fails in createMovement', async () => {
+    const prod = await productService.createProduct(
+      {
+        name: 'Fault Injection Product',
+        sku: 'SKU-FAULT-1',
+        unit: 'pcs',
+        purchasePrice: 100,
+        sellingPrice: 150,
+        stockQuantity: 20,
+      },
+      bizA,
+      user1
+    )
+
+    // Spy on stockMovementService.create to simulate failure when persisting stock movement document
+    vi.spyOn(stockMovementService as any, 'create').mockRejectedValueOnce(new Error('Appwrite DB timeout during movement creation'))
+
+    await expect(
+      stockMovementService.processStockIn(prod.$id, 10, bizA, user1, 'Fault restock')
+    ).rejects.toThrow(/Failed to create stock movement record: Appwrite DB timeout during movement creation\. Product stock was safely rolled back to 20\./)
+
+    // Verify product stock was NOT changed to 30, but rolled back to 20
+    const refreshed = await productService.getProduct(prod.$id, bizA)
+    expect(refreshed.stockQuantity).toBe(20)
+  })
+
   it('formats raw stock movement type enums into human-readable labels', () => {
     expect(formatMovementTypeLabel('stock_in')).toBe('Stock In')
     expect(formatMovementTypeLabel('STOCK_IN')).toBe('Stock In')

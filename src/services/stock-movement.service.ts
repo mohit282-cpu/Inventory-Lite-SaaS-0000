@@ -99,7 +99,23 @@ export class StockMovementService extends BaseService {
             createdBy: userId,
           }
 
-          const movement = await this.create<StockMovement>(movementData, businessId, userId)
+          let movement: StockMovement
+          try {
+            movement = await this.create<StockMovement>(movementData, businessId, userId)
+          } catch (movementErr: any) {
+            // Compensate / Rollback product stock to previousQuantity to prevent stock/ledger drift
+            try {
+              await productService.updateStockQuantity(data.productId, previousQuantity, businessId)
+            } catch (rollbackErr: any) {
+              console.error(
+                `[CRITICAL_STOCK_DRIFT] Failed to rollback product stock after movement record creation failed for product ${data.productId}:`,
+                rollbackErr
+              )
+            }
+            throw new Error(
+              `Failed to create stock movement record: ${movementErr?.message || 'Unknown database error'}. Product stock was safely rolled back to ${previousQuantity}.`
+            )
+          }
           return movement
         })
       } catch (err: any) {
