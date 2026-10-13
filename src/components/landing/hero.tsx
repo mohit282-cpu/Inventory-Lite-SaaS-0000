@@ -127,11 +127,9 @@ export function LandingHero() {
                   <Image
                     src="/screenshots/hero-dashboard.png"
                     alt="Inventory Lite Dashboard — Stock, sales, Udhaar and business overview"
-                    width={1280}
-                    height={800}
                     priority
                     unoptimized
-                    className="w-full h-auto object-cover object-top max-h-[250px] sm:max-h-[420px] lg:max-h-[580px]"
+                    className="w-full h-auto object-cover object-top max-h-[400px] sm:max-h-[500px] lg:max-h-[600px]"
                     onError={() => setImgError(true)}
                   />
                   {/* Callout badges overlaid on screenshot */}

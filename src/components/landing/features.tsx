@@ -34,7 +34,7 @@ export function LandingFeatures() {
               className="flex items-center gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl bg-slate-50 border border-slate-200 shadow-xs hover:border-indigo-300 transition-colors"
             >
               <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 shrink-0" />
-              <span className="text-sm sm:text-sm lg:text-base font-bold text-slate-900 leading-snug">
+              <span className="max-w-24 text-sm sm:text-sm lg:text-base font-bold text-slate-900 leading-snug">
                 {feat}
               </span>
             </div>

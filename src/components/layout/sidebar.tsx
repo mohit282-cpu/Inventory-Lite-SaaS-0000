@@ -314,6 +314,5 @@ export function canRoleAccessRoute(role: string | undefined, item: NavItem): boo
           </div>
         </footer>
       )}
-    </aside>
-  )
+    )
 }

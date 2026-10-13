@@ -49,7 +49,7 @@ export function LandingPricing() {
                 key={plan.id}
                 className={`relative flex flex-col rounded-2xl border p-5 sm:p-7 lg:p-8 transition-all duration-200 ${
                   plan.isFeatured
-                    ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-200 md:scale-[1.03] bg-gradient-to-b from-indigo-50/60 via-white to-white'
+                    ? 'border-indigo-500 shadow-xl ring-2 ring-indigo-200 bg-gradient-to-b from-indigo-50/60 via-white to-white'
                     : 'border-slate-200 shadow-sm bg-white hover:border-slate-300'
                 }`}
               >
