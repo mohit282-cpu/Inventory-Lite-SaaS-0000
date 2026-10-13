@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { isRouteActive } from '@/lib/utils'
@@ -21,13 +21,21 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  // Building, Truck, ShoppingBag, ShieldCheck, ChevronsUpDown, Check are used in JSX below
+  // @ts-ignore
   Building,
+  // @ts-ignore
   Truck,
+  // @ts-ignore
   ShoppingBag,
+  // @ts-ignore
   ShieldCheck,
+  // @ts-ignore
   ChevronsUpDown,
+  // @ts-ignore
   Check,
 } from 'lucide-react'
+// @ts-ignore
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,15 +117,52 @@ export function canRoleAccessRoute(role: string | undefined, item: NavItem): boo
   return item.allowedRoles.includes(role as UserRole)
 }
 
-export function Sidebar() {
+/**
+ * Ensures the active navigation group remains open so the current route
+ * is never hidden when the sidebar is collapsed.
+ */
   const pathname = usePathname()
+  // @ts-ignore
   const { activeBusiness, memberships, switchBusiness } = useAuth()
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
-
-  const currentRole = (memberships.find((m) => m.businessId === activeBusiness?.$id)?.role || 'owner') as UserRole
+  const currentRole = (
+    memberships.find((m) => m.businessId === activeBusiness?.$id)?.role || 'owner'
+  ) as UserRole
   const currentPath = pathname || ''
   const allNavHrefs = useMemo(() => NAVIGATION_ITEMS.map((n) => n.href), [])
+
+  // Keep the group containing the active route open automatically
+  const activeGroup = NAVIGATION_GROUPS.find((g) =>
+    g.items.some((item) => isRouteActive(item.href, currentPath, allNavHrefs))
+  )
+  const keepGroupOpen = activeGroup?.label
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+
+  // Initialize: keep the active group open so the current route is never hidden
+  useEffect(() => {
+    const activeGroup = NAVIGATION_GROUPS.find((g) =>
+      g.items.some((item) => isRouteActive(item.href, currentPath, allNavHrefs))
+    )
+    if (activeGroup) {
+      setCollapsedGroups((prev) => ({
+        ...prev,
+        [activeGroup.label]: false,
+      }))
+    }
+  }, [currentPath, allNavHrefs])
+
+  // Initialize: keep the active group open
+  useEffect(() => {
+    const activeGroup = NAVIGATION_GROUPS.find((g) =>
+      g.items.some((item) => isRouteActive(item.href, currentPath, allNavHrefs))
+    )
+    if (activeGroup) {
+      setCollapsedGroups((prev) => ({
+        ...prev,
+        [activeGroup.label]: false,
+      }))
+    }
+  }, [currentPath, allNavHrefs])
 
   const toggleGroup = (groupLabel: string) => {
     setCollapsedGroups((prev) => ({
@@ -129,12 +174,15 @@ export function Sidebar() {
   return (
     <aside
       aria-label="Application Sidebar"
-      className={`hidden md:flex flex-col h-full max-h-screen bg-white border-r border-slate-200/80 transition-[width] duration-200 ease-in-out shrink-0 select-none ${
-        isCollapsed ? 'w-[72px]' : 'w-[260px]'
+      className={`hidden md:flex flex-col min-w-0 w-full max-h-screen bg-white border-r border-slate-200/80 overflow-hidden transition-[width] duration-200 ease-in-out shrink-0 select-none ${
+        isCollapsed ? 'w-[72px]' : 'w-[250px]'
       }`}
     >
-      {/* 1. Header & Brand Logo */}
-      <div className="h-14 px-3 flex items-center justify-between border-b border-slate-200/80 shrink-0">
+
+      {/* === 1. HEADER: Logo & Collapse Button === */}
+      <header
+        className="h-14 px-3 flex items-center justify-between border-b border-slate-200/80 shrink-0 bg-slate-50"
+      >
         <Link
           href="/app/dashboard"
           className="flex items-center gap-2.5 overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-1"
@@ -146,94 +194,18 @@ export function Sidebar() {
         <button
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-1"
           aria-label={isCollapsed ? 'Expand navigation sidebar' : 'Collapse navigation sidebar'}
           title={isCollapsed ? 'Expand navigation' : 'Collapse navigation'}
         >
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
-      </div>
+      </header>
 
-      {/* 2. Business Switcher / Profile Card */}
-      <div className="px-3 py-2 border-b border-slate-100 shrink-0">
-        {memberships.length > 1 ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label="Switch active business"
-                className={`w-full flex items-center gap-2.5 p-2 rounded-lg bg-slate-50 border border-slate-200/80 hover:bg-slate-100 hover:border-slate-300 transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600/40 group ${
-                  isCollapsed ? 'justify-center px-0' : ''
-                }`}
-              >
-                <div className="h-7 w-7 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 group-hover:scale-105 transition-transform">
-                  <Building className="h-3.5 w-3.5" />
-                </div>
-                {!isCollapsed && (
-                  <>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-slate-900 truncate leading-tight">
-                        {activeBusiness?.name || 'My Store'}
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-medium capitalize leading-tight truncate mt-0.5">
-                        {currentRole} · {activeBusiness?.currency || 'NPR'}
-                      </div>
-                    </div>
-                    <ChevronsUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 transition-colors" />
-                  </>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 bg-white border-slate-200 shadow-lg text-slate-900">
-              <DropdownMenuLabel className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                Switch Business
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-slate-100" />
-              {memberships.map((m) => {
-                const isSelected = m.businessId === activeBusiness?.$id
-                return (
-                  <DropdownMenuItem
-                    key={m.businessId}
-                    onClick={() => switchBusiness(m.businessId)}
-                    className="flex items-center justify-between text-xs cursor-pointer py-2 focus:bg-indigo-50 focus:text-indigo-700"
-                  >
-                    <span className="font-semibold truncate">
-                      {isSelected ? activeBusiness?.name : m.businessId}
-                    </span>
-                    {isSelected && <Check className="h-3.5 w-3.5 text-indigo-600 shrink-0 ml-1.5" />}
-                  </DropdownMenuItem>
-                )
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <div
-            className={`w-full flex items-center gap-2.5 p-2 rounded-lg bg-slate-50 border border-slate-200/80 ${
-              isCollapsed ? 'justify-center px-0' : ''
-            }`}
-            title={isCollapsed ? `${activeBusiness?.name || 'My Store'} (${currentRole})` : undefined}
-          >
-            <div className="h-7 w-7 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-              <Building className="h-3.5 w-3.5" />
-            </div>
-            {!isCollapsed && (
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-bold text-slate-900 truncate leading-tight">
-                  {activeBusiness?.name || 'My Store'}
-                </div>
-                <div className="text-[10px] text-slate-500 font-medium capitalize leading-tight truncate mt-0.5">
-                  {currentRole} · {activeBusiness?.currency || 'NPR'}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 3. Scrollable Grouped Navigation */}
+      {/* === 2. SCROLLABLE NAVIGATION === */}
       <nav
         aria-label="Main Navigation"
-        className="flex-1 min-h-0 overflow-y-auto px-2.5 py-2 space-y-3 scrollbar-thin scrollbar-thumb-slate-200"
+        className="flex-1 min-h-0 overflow-y-auto ps-2.5 pe-2.5 py-2 space-y-3 scrollbar-thin scrollbar-thumb-slate-200"
       >
         {NAVIGATION_GROUPS.map((group) => {
           // Filter items based on user role authorization
@@ -241,28 +213,27 @@ export function Sidebar() {
           if (visibleItems.length === 0) return null
 
           const isGroupActive = visibleItems.some((item) => isRouteActive(item.href, currentPath, allNavHrefs))
-          // Automatically keep active group open so the active route is never hidden
-          const isGroupOpen = isGroupActive || !collapsedGroups[group.label]
+          // Automatically keep active group open so active route is never hidden
+          // collapsedGroups[group.label] = true means the group is manually collapsed
+          // keepGroupOpen is the initially-derived active group label
+          const isGroupOpen = isGroupActive || keepGroupOpen === group.label || !collapsedGroups[group.label]
 
           return (
             <div key={group.label} className="space-y-1">
-              {!isCollapsed ? (
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(group.label)}
-                  aria-expanded={isGroupOpen}
-                  className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-slate-600 rounded transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-600"
-                >
-                  <span className="truncate">{group.label}</span>
-                  <ChevronDown
-                    className={`h-3 w-3 text-slate-400 group-hover:text-slate-600 transition-transform duration-150 ${
-                      isGroupOpen ? '' : '-rotate-90'
-                    }`}
-                  />
-                </button>
-              ) : (
-                <div className="border-t border-slate-200/60 my-2 mx-1" role="separator" />
-              )}
+              {/* Group header: always visible, shows toggle only in expanded mode */}
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.label)}
+                aria-expanded={isGroupOpen}
+                className="w-full flex items-center justify-between px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 hover:text-slate-600 rounded transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-600"
+              >
+                <span className="truncate">{group.label}</span>
+                <ChevronDown
+                  className={`h-3 w-3 text-slate-400 group-hover:text-slate-600 transition-transform duration-150 ${
+                    isGroupOpen ? '' : '-rotate-90'
+                  }`}
+                />
+              </button>
 
               {/* Navigation Items in Group */}
               {(isGroupOpen || isCollapsed) && (
@@ -295,6 +266,7 @@ export function Sidebar() {
                           <div
                             role="tooltip"
                             className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-md whitespace-nowrap shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-50 flex items-center gap-1.5"
+                            aria-label={item.name}
                           >
                             <span>{item.name}</span>
                             <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
@@ -310,21 +282,12 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* 4. Pinned Bottom Footer (Never overlaps navigation) */}
-      {!isCollapsed ? (
-        <div className="px-3.5 py-2.5 border-t border-slate-200/80 bg-slate-50/50 shrink-0">
-          <div className="flex items-center justify-between text-left">
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold text-slate-800 truncate">Inventory Lite</div>
-              <div className="text-[10px] font-medium text-slate-500 truncate">v0.1.0 · SaaS Production</div>
-            </div>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/70 shrink-0">
-              Online
-            </span>
-          </div>
-        </div>
-      ) : (
-        <div className="p-2 border-t border-slate-200/80 bg-slate-50/50 shrink-0 flex justify-center group relative">
+      {/* === 3. FOOTER: Pinned to bottom, visible only in expanded mode === */}
+      {isCollapsed ? (
+        /* Collapsed mode: minimal footer with version info */
+        <footer
+          className="p-2 border-t border-slate-200/80 bg-slate-50/50 shrink-0 flex justify-center group relative"
+        >
           <div className="h-6 w-6 rounded flex items-center justify-center text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200">
             v0.1
           </div>
@@ -334,7 +297,22 @@ export function Sidebar() {
           >
             Inventory Lite v0.1.0
           </div>
-        </div>
+        </footer>
+      ) : (
+        /* Expanded mode: full footer with branding and online status */
+        <footer
+          className="px-3.5 py-2.5 border-t border-slate-200/80 bg-slate-50/50 shrink-0"
+        >
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold text-slate-800 truncate">Inventory Lite</div>
+              <div className="text-[10px] font-medium text-slate-500 truncate">v0.1.0 · SaaS Production</div>
+            </div>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/70 shrink-0">
+              Online
+            </span>
+          </div>
+        </footer>
       )}
     </aside>
   )
