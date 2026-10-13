@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { productFormSchema } from '@/lib/validations'
 import { z } from 'zod'
+import { generateSku } from '@/lib/skuGenerator'
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,7 @@ export function ProductFormDialog({
 }: ProductFormDialogProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isAutoSku, setIsAutoSku] = useState(false)
+  const [manualSkuEdit, setManualSkuEdit] = useState(false)
 
   const {
     register,
@@ -94,6 +96,7 @@ export function ProductFormDialog({
         isActive: initialData.isActive ?? true,
       })
       setIsAutoSku(false)
+      setManualSkuEdit(false)
     } else {
       reset({
         name: '',
@@ -109,15 +112,29 @@ export function ProductFormDialog({
         isActive: true,
       })
       setIsAutoSku(false)
+      setManualSkuEdit(false)
     }
     setServerError(null)
   }, [initialData, isOpen, reset])
 
+  // Auto-suggest SKU when product name changes, if auto-generation is enabled
+  // and the user hasn't manually edited the SKU
+  useEffect(
+    () => {
+      if (!isAutoSku || manualSkuEdit) return
+      const suggested = generateSku(watch('name'), new Set())
+      setValue('sku', suggested, { shouldValidate: false })
+    },
+    [isAutoSku, manualSkuEdit]
+  )
+
   const handleGenerateSku = () => {
-    const generated = `SKU-${Date.now().toString(36).toUpperCase()}`
-    setValue('sku', generated, { shouldValidate: true })
-    setIsAutoSku(true)
-  }
+  // Generate suggested SKU based on product name
+  const suggested = generateSku(watch('name'), new Set())
+  setValue('sku', suggested, { shouldValidate: true })
+  setIsAutoSku(true)
+  setManualSkuEdit(false)
+}
 
   const handleFormSubmit = async (data: ProductFormValues) => {
     try {
@@ -127,7 +144,7 @@ export function ProductFormDialog({
       const normalizedName = data.name.trim()
       const normalizedSku = data.sku && data.sku.trim() !== '' 
         ? data.sku.trim().toUpperCase() 
-        : `SKU-${Date.now().toString(36).toUpperCase()}`
+        : generateSku(data.name, new Set())
       const normalizedBarcode = data.barcode ? data.barcode.trim() : undefined
 
       const submissionData: ProductFormValues = {
@@ -245,19 +262,33 @@ export function ProductFormDialog({
                   <Input
                     id="sku"
                     placeholder="Leave blank to auto-generate"
-                    {...register('sku')}
+                    {...register('sku', {
+                      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                        const value = e.target.value
+                        setValue('sku', value, { shouldValidate: true })
+                        if (value.trim() !== '' && !isAutoSku) {
+                          setManualSkuEdit(true)
+                        }
+                      },
+                    })}
                     className="font-mono"
                   />
-                  {isAutoSku && (
+                  {isAutoSku && !manualSkuEdit && (
                     <span className="absolute right-2.5 top-2.5 text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded">
                       <Check className="h-3 w-3" /> Generated
                     </span>
                   )}
+                  {manualSkuEdit && (
+                    <span className="absolute right-2.5 top-2.5 text-[10px] font-bold text-red-600 flex items-center gap-0.5 bg-red-50 px-1.5 py-0.5 rounded">
+                      <AlertTriangle className="h-3 w-3" /> Manual
+                    </span>
+                  )}
                 </div>
-                {errors.sku && <p className="text-xs text-red-600 font-medium">{errors.sku.message}</p>}
-              </div>
 
-              <div className="space-y-1.5">
+                {errors.sku && <p className="text-xs text-red-600 font-medium">{errors.sku.message}</p>}
+                <p className="text-xs text-slate-500 mt-1">
+                  Automatically generated from the product name. You can edit it if needed.
+                </p>
                 <Label htmlFor="barcode" className="text-xs font-bold text-slate-700">
                   Barcode (EAN / UPC)
                 </Label>

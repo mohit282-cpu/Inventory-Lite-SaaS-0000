@@ -1,6 +1,7 @@
 import { BaseService } from './base.service'
 import { COLLECTIONS, databases, DATABASE_ID } from '@/config/appwrite'
 import { Product } from '@/types'
+import { generateBaseSku, findNextSuffix } from '@/lib/skuGenerator'
 import { Query } from 'appwrite'
 import { sanitizeAppwriteDocId } from '@/lib/utils'
 import { toMinorUnits, fromMinorUnits } from '@/lib/money'
@@ -92,8 +93,15 @@ export class ProductService extends BaseService {
     }
 
     const name = data.name.trim()
-    const sku = data.sku ? data.sku.trim().toUpperCase() : ''
+    const providedSku = data.sku ? data.sku.trim() : ''
+    let sku = providedSku ? providedSku.toUpperCase() : ''
     const barcode = data.barcode ? data.barcode.trim() : ''
+
+    // If no SKU provided, generate one from product name
+    let generatedBaseSku = ''
+    if (!providedSku) {
+      generatedBaseSku = generateBaseSku(data.name)
+    }
 
     if (!name) {
       throw new Error('Product name cannot be empty')
@@ -111,23 +119,49 @@ export class ProductService extends BaseService {
     let barcodeLockId = ''
 
     try {
-      // Uniqueness validation across active business products
-      if (sku) {
-        skuLockId = sanitizeAppwriteDocId(`sku_${businessId}_${sku}`, 'sku')
+      // Determine the SKU to validate: use provided SKU or generate from product name
+      const skuToCheck = sku || generatedBaseSku
+      const existingSkus = new Set<string>()
+
+      // If we generated a SKU (no provided SKU), find next available suffix early
+      let finalSku = sku
+      if (!providedSku && skuToCheck) {
+        finalSku = `${generatedBaseSku}-${findNextSuffix(existingSkus, generatedBaseSku)}`
+      }
+
+      // Always perform uniqueness validation for the SKU
+      if (skuToCheck) {
+        skuLockId = sanitizeAppwriteDocId(`sku_${businessId}_${skuToCheck}`, 'sku')
         try {
           await databases.createDocument(DATABASE_ID, COLLECTIONS.INVENTORY_LOCKS, skuLockId, { productId: 'sku_check', createdAt: new Date().toISOString() })
         } catch (err: any) {
-          if (err?.code === 409) throw new Error(`Product with SKU "${sku}" already exists or is being created`)
+          if (err?.code === 409) throw new Error(`Product with SKU "${skuToCheck}" already exists or is being created`)
           if (err?.code === 404 || (err?.message && err.message.toLowerCase().includes('could not be found'))) {
             // Collection not found, proceed to database query check
           } else {
             throw err
           }
         }
-        
-        const existingSku = await this.list<Product>(businessId, [Query.equal('sku', sku)])
-        if (existingSku.length > 0) {
-          throw new Error(`Product with SKU "${sku}" already exists in this business`)
+
+        // Collect existing SKUs for suffix collision handling
+        const existingSkuList = await this.list<Product>(businessId, [Query.equal('sku', skuToCheck)])
+        if (existingSkuList.length > 0) {
+          // SKU already exists; build a set of existing SKUs
+          existingSkuList.forEach((p) => existingSkus.add(p.sku))
+        }
+
+        // If the generated SKU conflicted, try the next one
+        if (!providedSku && existingSkus.has(skuToCheck)) {
+          // Use the already-computed finalSku
+        }
+
+        // If we have a final resolved SKU, use it; otherwise use skuToCheck
+        const resolvedSku = !providedSku && existingSkus.has(skuToCheck) ? finalSku : skuToCheck
+
+        // Check if the resolved SKU already exists (extra safety)
+        const finalExisting = await this.list<Product>(businessId, [Query.equal('sku', resolvedSku)])
+        if (finalExisting.length > 0) {
+          throw new Error(`Product with SKU "${resolvedSku}" already exists in this business`)
         }
       }
 
@@ -148,6 +182,13 @@ export class ProductService extends BaseService {
         if (existingBarcode.length > 0) {
           throw new Error(`Product with Barcode "${barcode}" already exists in this business`)
         }
+      }
+
+      // Generate SKU from product name if not provided
+      if (!providedSku) {
+        const base = generateBaseSku(data.name)
+        const suffix = findNextSuffix(new Set(), base)
+        sku = `${base}-${suffix}`
       }
 
       const payload = {
