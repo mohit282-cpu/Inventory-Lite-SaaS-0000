@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { productFormSchema } from '@/lib/validations'
 import { z } from 'zod'
 import { generateSku } from '@/lib/skuGenerator'
-import { calculateGrossProfitMetrics } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -20,7 +19,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Wand2, Check, AlertTriangle, Plus } from 'lucide-react'
-import { formatCurrency } from '@/lib/money'
 import { Product, Category } from '@/types'
 
 type ProductFormValues = z.infer<typeof productFormSchema>
@@ -49,12 +47,6 @@ export function ProductFormDialog({
   const [serverError, setServerError] = useState<string | null>(null)
   const [isAutoSku, setIsAutoSku] = useState(false)
   const [manualSkuEdit, setManualSkuEdit] = useState(false)
-  const [profitSummary, setProfitSummary] = useState<{
-    formattedProfit: string
-    formattedMargin: string
-    formattedMarginPercent: string
-    isLoss: boolean
-  } | null>(null)
 
   const {
     register,
@@ -87,64 +79,6 @@ export function ProductFormDialog({
 
   const isBelowCost =
     purchasePriceVal > 0 && sellingPriceVal > 0 && Number(sellingPriceVal) < Number(purchasePriceVal)
-
-  // Compute profit summary live as prices change
-  const profitSummary = useMemo(() => {
-    const purchase = Number(purchasePriceVal ?? 0)
-    const selling = Number(sellingPriceVal ?? 0)
-
-    // Handle empty/missing/zero values
-    if (purchase <= 0 && selling <= 0) {
-      return {
-        formattedProfit: '-',
-        formattedMargin: 'N/A',
-        formattedMarginPercent: 'N/A',
-        isLoss: false,
-      }
-    }
-
-    if (purchase <= 0 || selling <= 0) {
-      // One of the prices is missing/zero - show profit as '-' and margin as N/A
-      // but still show loss indicator if applicable
-      const profit = selling - purchase
-      const isLoss = profit < 0
-      return {
-        formattedProfit: isLoss ? `-NPR ${Math.abs(profit).toFixed(2)}` : '-',
-        formattedMargin: 'N/A',
-        formattedMarginPercent: 'N/A',
-        isLoss,
-      }
-    }
-
-    // Both prices positive - calculate profit and margin
-    const profit = selling - purchase
-    const margin = (profit / selling) * 100
-    const isLoss = profit < 0
-
-    let formattedProfit: string
-    if (isLoss) {
-      formattedProfit = `-NPR ${Math.abs(profit).toFixed(2)}`
-    } else {
-      formattedProfit = `NPR ${profit.toFixed(2)}`
-    }
-
-    let formattedMargin: string
-    let formattedMarginPercent: string
-    if (isLoss) {
-      formattedMargin = `-${margin.toFixed(1)}%`
-      formattedMarginPercent = `${margin.toFixed(1)}%`
-    } else {
-      formattedMargin = `${margin.toFixed(1)}%`
-      formattedMarginPercent = `${margin.toFixed(1)}%`
-    }
-
-    return {
-      formattedProfit,
-      formattedMargin,
-      formattedMarginPercent,
-      isLoss,
-    }
-  }, [purchasePriceVal, sellingPriceVal, currencyCode])
 
   useEffect(() => {
     if (initialData) {
@@ -479,57 +413,14 @@ export function ProductFormDialog({
             </div>
 
             {/* Non-blocking selling price below purchase cost warning */}
-{isBelowCost && (
+            {isBelowCost && (
               <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2 font-medium">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                 <span>
-                  Selling price is below purchase cost ({currencyCode} {Number(sellingPriceVal).toFixed(2)} < {currencyCode} {Number(purchasePriceVal).toFixed(2)}). This may result in a negative gross margin.
+                  Selling price is below purchase cost ({currencyCode} {Number(sellingPriceVal).toFixed(2)} &lt; {currencyCode} {Number(purchasePriceVal).toFixed(2)}). This may result in a negative gross margin.
                 </span>
               </div>
             )}
-
-            {/* Live Profit Summary */}
-            <div className="mt-2 flex flex-col sm:flex-row gap-2 sm:gap-4">
-              <div>
-                <Label htmlFor="profitAmount" className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                  Profit per Unit
-                </Label>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-[12px] font-medium text-slate-600">{currencyCode} </span>
-                  <span
-                    className={`
-                      text-[12px] font-medium ${
-                        profitSummary?.isLoss ? 'text-red-600' : 'text-emerald-600'
-                      } transition-colors
-                    `}
-                  >
-                    {profitSummary?.formattedProfit}
-                  </span>
-                </div>
-                {profitSummary?.isLoss && (
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Margin: {profitSummary?.formattedMargin}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="profitMargin" className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                  Profit Margin
-                </Label>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-[12px] font-medium text-slate-600">%</span>
-                  <span
-                    className={`
-                      text-[12px] font-medium ${
-                        profitSummary?.isLoss ? 'text-red-400' : 'text-emerald-400'
-                      } transition-colors
-                    `}
-                  >
-                    {profitSummary?.formattedMarginPercent}
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Footer Actions */}
