@@ -49,3 +49,8 @@ next-env.d.ts
 # Samples
 /starter-for-nextjs/
 
+# Playwright
+node_modules/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
