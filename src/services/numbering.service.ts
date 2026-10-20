@@ -86,7 +86,7 @@ export class NumberingService extends BaseService {
         this.inMemorySequenceMap.set(lockKey, allocatedNum + 1)
         try {
           await databases.updateDocument(DATABASE_ID, COLLECTIONS.FINANCIAL_SEQUENCES, docId, {
-            nextNumber: allocatedNum + 1,
+            currentSequence: allocatedNum + 1,
             updatedAt: new Date().toISOString(),
           }).catch(() => {})
         } catch {}
@@ -97,21 +97,26 @@ export class NumberingService extends BaseService {
         } catch {
           try {
             const fetchedDocs = await this.list<any>(businessId, [
-              Query.equal('documentType', documentType),
+              Query.equal('type', documentType),
               Query.equal('financialYear', fyInfo.label),
               Query.limit(1),
             ])
-            seqDoc = fetchedDocs.find((d) => typeof d?.nextNumber === 'number') || null
+            seqDoc = fetchedDocs.find((d) => typeof d?.currentSequence === 'number' || typeof d?.nextNumber === 'number') || null
           } catch {
             seqDoc = null
           }
         }
 
-        if (seqDoc && typeof seqDoc.nextNumber === 'number' && seqDoc.nextNumber > 0 && seqDoc.nextNumber <= 999999) {
-          allocatedNum = seqDoc.nextNumber
+        // Appwrite schema uses 'currentSequence' for the next number field and 'type' for the documentType field
+        const seqNextNumber = seqDoc
+          ? (typeof (seqDoc as any).currentSequence === 'number' ? (seqDoc as any).currentSequence : (seqDoc as any).nextNumber)
+          : null
+
+        if (seqDoc && typeof seqNextNumber === 'number' && seqNextNumber > 0 && seqNextNumber <= 999999) {
+          allocatedNum = seqNextNumber
           try {
             await databases.updateDocument(DATABASE_ID, COLLECTIONS.FINANCIAL_SEQUENCES, seqDoc.$id, {
-              nextNumber: allocatedNum + 1,
+              currentSequence: allocatedNum + 1,
               updatedAt: new Date().toISOString(),
             })
           } catch {}
@@ -146,10 +151,12 @@ export class NumberingService extends BaseService {
               COLLECTIONS.FINANCIAL_SEQUENCES,
               docId,
               {
+                // Map to actual Appwrite collection attribute names:
+                // 'type' (required) = documentType, 'currentSequence' (required) = nextNumber
                 businessId,
-                documentType,
+                type: documentType,
                 financialYear: fyInfo.label,
-                nextNumber: allocatedNum + 1,
+                currentSequence: allocatedNum + 1,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
               }
@@ -157,7 +164,7 @@ export class NumberingService extends BaseService {
           } catch (createSeqErr: any) {
             if (createSeqErr?.code === 409) {
               await databases.updateDocument(DATABASE_ID, COLLECTIONS.FINANCIAL_SEQUENCES, docId, {
-                nextNumber: allocatedNum + 1,
+                currentSequence: allocatedNum + 1,
                 updatedAt: new Date().toISOString(),
               }).catch(() => {})
             }
@@ -195,7 +202,7 @@ export class NumberingService extends BaseService {
       let seqDoc: FinancialSequence | null = null
       try {
         const docs = await this.list<FinancialSequence>(businessId, [
-          Query.equal('documentType', documentType),
+          Query.equal('type', documentType),
           Query.equal('financialYear', fyInfo.label),
           Query.limit(1),
         ])
@@ -209,15 +216,16 @@ export class NumberingService extends BaseService {
       let startNumber = 1
 
       if (seqDoc) {
-        startNumber = seqDoc.nextNumber
-        const nextNumber = startNumber + blockSize
+        // Support both 'currentSequence' (actual schema) and 'nextNumber' (legacy TypeScript type)
+        startNumber = (seqDoc as any).currentSequence ?? seqDoc.nextNumber ?? 1
+        const nextSequence = startNumber + blockSize
         try {
           await databases.updateDocument(
             DATABASE_ID,
             COLLECTIONS.FINANCIAL_SEQUENCES,
             seqDoc.$id,
             {
-              nextNumber,
+              currentSequence: nextSequence,
               updatedAt: new Date().toISOString(),
             }
           )
@@ -225,7 +233,7 @@ export class NumberingService extends BaseService {
           try {
             await this.update<FinancialSequence>(
               seqDoc.$id,
-              { nextNumber },
+              { currentSequence: nextSequence } as any,
               businessId
             )
           } catch {
@@ -233,14 +241,14 @@ export class NumberingService extends BaseService {
           }
         }
       } else {
-        const nextNumber = startNumber + blockSize
+        const nextSequence = startNumber + blockSize
         try {
           await this.create<FinancialSequence>(
             {
-              documentType,
+              type: documentType,
               financialYear: fyInfo.label,
-              nextNumber,
-            },
+              currentSequence: nextSequence,
+            } as any,
             businessId
           )
         } catch {

@@ -203,11 +203,13 @@ export class IdempotencyManager {
           )
         }
         if (memRecord.status === 'COMPLETED') {
-          if (memRecord.result) {
+          // 'response' is the actual schema field name; fallback to 'result' for backward compat
+          const stored = memRecord.response ?? memRecord.result
+          if (stored) {
             try {
-              return JSON.parse(memRecord.result) as T
+              return JSON.parse(stored) as T
             } catch {
-              return memRecord.result as T
+              return stored as T
             }
           }
         }
@@ -248,24 +250,26 @@ export class IdempotencyManager {
           }
 
           try {
+            const _now = new Date().toISOString()
+            const _expires = new Date(Date.now() + 86400000).toISOString() // 24h TTL
             await databases.createDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
-              idempotencyKey: key,
+              // Map to actual Appwrite schema field names
+              key,
               businessId,
-              operationType,
               requestHash,
               status: 'COMPLETED',
-              resourceType,
               resourceId: (existingDoc as any)?.$id || (existingDoc as any)?.id || (existingDoc as any)?.sale?.$id || '',
-              result: JSON.stringify(existingDoc),
-              createdAt: new Date().toISOString(),
-              completedAt: new Date().toISOString(),
+              response: (() => { try { const s = JSON.stringify(existingDoc); return s.length > 9000 ? s.slice(0, 9000) : s } catch { return '' } })(),
+              createdAt: _now,
+              updatedAt: _now,
+              expiresAt: _expires,
             })
           } catch (e: any) {
             if (e?.code === 409 || e?.type === 'document_already_exists') {
               await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
                 status: 'COMPLETED',
-                result: JSON.stringify(existingDoc),
-                completedAt: new Date().toISOString(),
+                response: (() => { try { const s = JSON.stringify(existingDoc); return s.length > 9000 ? s.slice(0, 9000) : s } catch { return '' } })(),
+                updatedAt: new Date().toISOString(),
               })
             } else if (isCollectionNotFoundError(e)) {
               throw new Error(
@@ -287,14 +291,18 @@ export class IdempotencyManager {
       }
 
       // 4. Reserve 'PROCESSING' record atomically in distributed store
+      const _procNow = new Date().toISOString()
+      const _procExpires = new Date(Date.now() + 86400000).toISOString() // 24h TTL
       const processingRecord = {
-        idempotencyKey: key,
+        // Map to actual Appwrite schema field names
+        key,
         businessId,
-        operationType,
         requestHash,
         status: 'PROCESSING',
-        resourceType: resourceType || 'unknown',
-        createdAt: new Date().toISOString(),
+        resourceId: '',
+        createdAt: _procNow,
+        updatedAt: _procNow,
+        expiresAt: _procExpires,
       }
 
       try {
@@ -314,8 +322,10 @@ export class IdempotencyManager {
                 `IDEMPOTENCY_KEY_REUSE_MISMATCH: Idempotency key '${key}' was already used for a different payload in ${operationType}`
               )
             }
-            if (existing.status === 'COMPLETED' && existing.result) {
-              return JSON.parse(existing.result) as T
+            // 'response' is the actual schema field; fallback to 'result' for backward compat
+            const _stored = existing.response ?? existing.result
+            if (existing.status === 'COMPLETED' && _stored) {
+              return JSON.parse(_stored) as T
             }
           } catch (fetchErr: any) {
             if (fetchErr.message?.includes('IDEMPOTENCY_KEY_REUSE_MISMATCH')) throw fetchErr
@@ -333,8 +343,8 @@ export class IdempotencyManager {
         try {
           await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
             status: 'FAILED',
-            error: err?.message || 'Operation failed',
-            completedAt: new Date().toISOString(),
+            error: (err?.message || 'Operation failed').slice(0, 1999),
+            updatedAt: new Date().toISOString(),
           })
         } catch (failUpdateErr) {
           console.error(`[IdempotencyManager] Failed to record FAILED status for key ${key}:`, failUpdateErr)
@@ -349,8 +359,8 @@ export class IdempotencyManager {
           await databases.updateDocument(DATABASE_ID, COLLECTIONS.IDEMPOTENCY_KEYS, compositeKey, {
             status: 'COMPLETED',
             resourceId: (result as any)?.$id || (result as any)?.id || (result as any)?.sale?.$id || '',
-            result: JSON.stringify(result),
-            completedAt: new Date().toISOString(),
+            response: (() => { try { const s = JSON.stringify(result); return s.length > 9000 ? s.slice(0, 9000) : s } catch { return '' } })(),
+            updatedAt: new Date().toISOString(),
           })
           break
         } catch (finalErr: any) {
