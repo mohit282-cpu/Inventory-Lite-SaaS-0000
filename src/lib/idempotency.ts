@@ -148,7 +148,7 @@ export class IdempotencyManager {
     persistentCheck: () => Promise<T | null>,
     operation: () => Promise<T>
   ): Promise<T> {
-    const { idempotencyKey, businessId, operationType, payload, resourceType, enforceKey = false } = params
+    const { idempotencyKey, businessId, operationType, payload, resourceType: _resourceType, enforceKey = false } = params
 
     const hasExplicitKey = Boolean(idempotencyKey && idempotencyKey.trim() !== '')
     if (enforceKey && !hasExplicitKey) {
