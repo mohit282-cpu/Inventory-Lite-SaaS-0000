@@ -47,6 +47,8 @@ export function ProductFormDialog({
   const [serverError, setServerError] = useState<string | null>(null)
   const [isAutoSku, setIsAutoSku] = useState(false)
   const [manualSkuEdit, setManualSkuEdit] = useState(false)
+  const [profit, setProfit] = useState<number | null>(null)
+  const [profitMargin, setProfitMargin] = useState<number | null>(null)
 
   const {
     register,
@@ -79,6 +81,32 @@ export function ProductFormDialog({
 
   const isBelowCost =
     purchasePriceVal > 0 && sellingPriceVal > 0 && Number(sellingPriceVal) < Number(purchasePriceVal)
+
+  // Live profit calculation
+  useEffect(() => {
+    const cost = Number(purchasePriceVal)
+    const price = Number(sellingPriceVal)
+
+    // Reset profit summary when either price changes
+    if (isNaN(cost) || isNaN(price) || cost < 0 || price < 0) {
+      setProfit(null)
+      setProfitMargin(null)
+      return
+    }
+
+    if (price === 0) {
+      // Avoid division by zero; show zero profit with neutral margin
+      setProfit(cost === 0 ? 0 : null)
+      setProfitMargin(null)
+      return
+    }
+
+    const profitValue = price - cost
+    const marginValue = (profitValue / price) * 100
+
+    setProfit(profitValue)
+    setProfitMargin(marginValue)
+  }, [purchasePriceVal, sellingPriceVal])
 
   useEffect(() => {
     if (initialData) {
@@ -408,6 +436,31 @@ export function ProductFormDialog({
                 />
                 {errors.sellingPrice && (
                   <p className="text-xs text-red-600 font-medium">{errors.sellingPrice.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs font-medium text-slate-600">Profit per Unit</span>
+                  <span className="text-xs font-mono">
+                    {profit !== null
+                      ? currencyCode === 'NPR'
+                        ? 'NPR ' + profit.toLocaleString('en-US', {'minimumFractionDigits': 2, 'maximumFractionDigits': 2})
+                        : 'NPR ' + profit.toFixed(2)
+                      : '—'}
+                  </span>
+                </div>
+                {profitMargin !== null && sellingPriceVal > 0 && (
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs font-medium text-slate-600">Profit Margin</span>
+                    <span className="text-xs font-mono">
+                      {profitMargin >= 0
+                        ? profitMargin.toFixed(2) + '%'
+                        : '-' + Math.abs(profitMargin).toFixed(2) + '%'}
+                    </span>
+                  </div>
+                )}
+                {profitMargin === null && sellingPriceVal === 0 && (
+                  <div className="text-xs text-slate-500">0%</div>
                 )}
               </div>
             </div>
