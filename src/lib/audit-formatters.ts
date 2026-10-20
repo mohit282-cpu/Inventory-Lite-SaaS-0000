@@ -24,6 +24,7 @@ export function formatAuditTimestamp(ts: string | Date | number | undefined | nu
       minute: '2-digit',
       second: '2-digit',
       hour12: true,
+      timeZone: 'Asia/Kathmandu',
     })
     return `${formatted} NPT`
   } catch {

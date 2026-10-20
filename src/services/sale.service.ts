@@ -622,7 +622,7 @@ export class SaleService extends BaseService {
       const { paymentService } = await import('./payment.service')
       const payments = await paymentService.listPayments(businessId, { saleId })
       for (const p of payments) {
-        if (p.status !== 'VOIDED' && p.status !== 'REVERSED') {
+        if (p.$id && (p.status === 'POSTED')) {
           try {
             await paymentService.reversePayment(
               p.$id,

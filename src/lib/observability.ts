@@ -44,7 +44,14 @@ function sanitizeMetadata(data?: Record<string, any>): Record<string, any> | und
     const k = key.toLowerCase()
     if (k.includes('password') || k.includes('secret') || k.includes('token') || k.includes('key')) {
       sanitized[key] = '[REDACTED]'
-    } else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+    } else if (Array.isArray(val)) {
+      sanitized[key] = val.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return sanitizeMetadata(item) || item
+        }
+        return item
+      })
+    } else if (typeof val === 'object' && val !== null) {
       sanitized[key] = sanitizeMetadata(val)
     } else {
       sanitized[key] = val

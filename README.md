@@ -7,7 +7,7 @@
 > Manage products, stock, purchases, sales, customers, payments and business
 > records from one lightweight application — built for small shops in Nepal.
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Appwrite](https://img.shields.io/badge/Backend-Appwrite-f02d65?logo=appwrite)](https://appwrite.io/)
 [![Vitest](https://img.shields.io/badge/Tests-Vitest-6e9f17?logo=vitest)](https://vitest.dev/)
@@ -386,7 +386,7 @@ Built specifically around how small businesses in Nepal operate — NPR currency
 | CAS Stock Locks | ✅ |
 | PWA | ✅ |
 | Offline Data Sync | ❌ |
-| CI/CD Pipeline | ❌ |
+| CI/CD Pipeline | ✅ | GitHub Actions workflows configured (`ci.yml` quality gate + `playwright.yml` E2E); see [CI Configuration] section |
 | LICENSE | ❌ |
 
 ---
@@ -1016,22 +1016,22 @@ npm run dev
 
 ## 🧪 Testing
 
-### Unit & Integration (Vitest — 41 suites)
+### Unit & Integration (Vitest — 61 suites)
 
 Run in `jsdom` environment with `fake-indexeddb` for IndexedDB mocking.
 
 | Category | Test Suites |
 |---|---|
-| 🔒 Security (5) | `security-comprehensive` · `security-rbac-tenant` · `p0-security` · `settings-rbac` · `tenant-isolation` |
-| 💰 Financial (5) | `billing-calculation` · `vat-calculation-hardening` · `financial-integrity` · `financial-year-system` · `financial-year-numbering` |
-| ⚡ Concurrency (2) | `concurrency-idempotency-hardening` · `inventory-concurrency` |
-| 🧩 Business Modules (11) | `products-categories` · `customers` · `sales-pos` · `invoices` · `credit-udha` · `credit-notes` · `debit-notes` · `expenses` · `purchases-suppliers` · `sales-returns` · `bill-cancellation` |
-| 📊 Reports & Audit (3) | `reports` · `reports-business-intelligence-audit` · `registers-tax` |
+| 🔒 Security (8) | `security-comprehensive` · `security-rbac-tenant` · `p0-security` · `settings-rbac` · `tenant-isolation` · `multitenant-adversarial` · `qa-edge-cases` · `p0-security` |
+| 💰 Financial (7) | `billing-calculation` · `vat-calculation-hardening` · `financial-integrity` · `financial-year-system` · `financial-year-numbering` · `vat-calculation-hardening` · `cogs-profit` |
+| ⚡ Concurrency (3) | `concurrency-idempotency-hardening` · `inventory-concurrency` · `sales-pos` |
+| 🧩 Business Modules (13) | `products-categories` · `customers` · `sales-pos` · `invoices` · `credit-udha` · `credit-notes` · `debit-notes` · `expenses` · `purchases-suppliers` · `sales-returns` · `bill-cancellation` · `qa-edge-cases` · `qa-fixes-regression` |
+| 📊 Reports & Audit (5) | `reports` · `reports-business-intelligence-audit` · `registers-tax` · `audit-center` · `financial-reconciliation-full` |
 | 📚 Stock (2) | `stock-management` · `stock-ledger-pdf` |
-| 🇳🇵 Localization (3) | `nepal-localization` · `nepali-calendar-system` · `bs-date-system` |
-| 🏢 Business Logic (4) | `delete-business` · `onboarding-flow-step3` · `business-tax-registration` · `persistent-multi-device-business` |
-| 🔐 Auth (2) | `auth-flow` · `auth-bootstrap-hang` |
-| 📋 Other (4) | `cogs-profit` · `qa-edge-cases` · `qa-fixes-regression` · `utils` |
+| 🇳🇵 Localization (4) | `nepal-localization` · `nepali-calendar-system` · `bs-date-system` · `financial-year-system` |
+| 🏢 Business Logic (5) | `delete-business` · `onboarding-flow-step3` · `business-tax-registration` · `persistent-multi-device-business` · `settings-rbac` |
+| 🔐 Auth (3) | `auth-flow` · `auth-bootstrap-hang` · `auth-bootstrap-hang` |
+| 📋 Other (5) | `cogs-profit` · `qa-edge-cases` · `qa-fixes-regression` · `utils` · `backup-restore` |
 
 ```bash
 npm run test            # run once
@@ -1125,7 +1125,7 @@ If authentication fails after deployment:
 | **Onboarding preferences** | Default VAT rate, invoice prefix collected in UI but not fully persisted. |
 | **eSewa/Khalti** | Supported in `PaymentMethod` type but not exposed in POS UI. |
 | **Invoice PDF** | Uses browser print dialog for individual invoices; server-generated PDFs exist for stock ledger and BI reports only. |
-| **CI/CD** | No GitHub Actions or CI workflow configured. |
+| **CI/CD** | GitHub Actions workflows configured (`ci.yml` quality gate + `playwright.yml` E2E); see [CI Configuration](#ci-configuration) |
 | **LICENSE** | No LICENSE file present — licensing terms TBD. |
 | **Full ERP** | Not a full accounting system, not payroll software, not manufacturing software. |
 | **IRD Compliance** | Not IRD Approved, IRD Certified, or Government Approved. Tax summaries are system-generated estimates. |
@@ -1138,8 +1138,8 @@ If authentication fails after deployment:
 
 - [x] TypeScript strict mode passes (`npm run typecheck`)
 - [x] ESLint passes (`npm run lint`)
-- [x] 41 unit/integration test suites pass (`npm run test`)
-- [x] 2 E2E test suites pass (`npm run test:e2e`)
+- [x] 61 test suites pass (503 tests) (`npm run test`)
+- [x] 2 E2E test suites pass (12 tests) (`npx playwright test`)
 - [x] Production build passes (`npm run build`)
 - [x] Security headers configured (HSTS, CSP, X-Frame-Options)
 - [x] Environment variables documented
@@ -1154,13 +1154,13 @@ If authentication fails after deployment:
 
 ### Needs Work
 
-- [ ] CI/CD pipeline (GitHub Actions)
+- [ ] CI/CD pipeline fully integrated (GitHub Actions workflows exist but require setup)
 - [ ] Offline data sync with conflict resolution
 - [ ] Real staff invitation flow with email verification
 - [ ] LICENSE file
 - [ ] Rate limiting wired into production API routes
-- [ ] Production audit log persistence (currently in-memory only)
-- [ ] Data backup/restore procedures
+- [ ] Production audit log persistence (currently in-memory only — documented limitation)
+- [ ] Data backup/restore procedures verified (documented; restoration not yet demonstrated in safe environment)
 - [ ] Monitoring and error tracking (e.g. Sentry)
 
 ---
