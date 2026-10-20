@@ -339,7 +339,7 @@ export class PaymentService extends BaseService {
     reversingUserId: string,
     reason: string = 'Payment reversal',
     options?: { skipCustomerDueAdjustment?: boolean }
-  ): Promise<Payment> {
+  ): Promise<{ reversal: Payment; wasAlreadyReversed: boolean }> {
     // Database-verified RBAC check: only owner or admin can reverse payment records
     await authorizeBusinessAccess({
       userId: reversingUserId,
@@ -352,8 +352,21 @@ export class PaymentService extends BaseService {
       throw new Error('Payment record not found')
     }
 
+    // Idempotency check: if already VOIDED or REVERSED, return the existing reversal record
     if (existingPayment.status === 'VOIDED' || existingPayment.status === 'REVERSED') {
-      throw new Error('Payment record has already been reversed or voided')
+      // Return the existing reversal document; try to find it in the payment list
+      const existingReversals = await this.listPayments(businessId, {
+        saleId: existingPayment.saleId,
+        customerId: existingPayment.customerId,
+      })
+      const reversal = existingReversals.find(
+        (p) => p.referenceNumber?.startsWith(`REV_${paymentId}`) && (p.status === 'REVERSED' || p.status === 'VOIDED')
+      )
+      if (reversal) {
+        return { reversal, wasAlreadyReversed: true }
+      }
+      // Fallback: return existing payment marked as VOIDED
+      return { reversal: { ...existingPayment, status: 'VOIDED' } as Payment, wasAlreadyReversed: true }
     }
 
     const rawAmount = existingPayment.amount ?? 0
@@ -373,7 +386,7 @@ export class PaymentService extends BaseService {
         },
         businessId
       )
-      return { ...existingPayment, status: 'VOIDED' } as Payment
+      return { reversal: { ...existingPayment, status: 'VOIDED' } as Payment, wasAlreadyReversed: true }
     }
 
     // 1. Revert sale paid amount and update status
@@ -433,7 +446,7 @@ export class PaymentService extends BaseService {
       reversingUserId
     )
 
-    return reversalDoc
+    return { reversal: reversalDoc, wasAlreadyReversed: false }
   }
 
   /**

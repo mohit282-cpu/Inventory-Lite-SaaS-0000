@@ -169,7 +169,7 @@ describe('Feature 4 — Bill Cancellation / Void Tests', () => {
       userOwner,
       'Billed wrong items by accident'
     )
-    expect(success).toBe(true)
+    expect(success.success).toBe(true)
 
     // Verify sale status is now 'cancelled'
     const cancelledSale = await saleService.getSale(sale.$id, businessId)
@@ -268,7 +268,7 @@ describe('Feature 4 — Bill Cancellation / Void Tests', () => {
       userOwner,
       'Udhaar order cancelled by customer'
     )
-    expect(success).toBe(true)
+    expect(success.success).toBe(true)
 
     const cancelledSale = await saleService.getSale(sale.$id, businessId)
     expect(cancelledSale.status).toBe('cancelled')

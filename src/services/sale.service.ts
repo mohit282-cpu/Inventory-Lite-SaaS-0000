@@ -487,15 +487,31 @@ export class SaleService extends BaseService {
   }
 
   /**
+   * Cancellation states for the sale lifecycle.
+   * - null/undefined: No cancellation in progress
+   * - 'cancel_pending': Cancellation initiated, reversal operations in progress
+   * - 'cancelled': Fully cancelled - all reversals succeeded
+   * - 'cancel_failed': Cancellation initiated but one or more reversals failed; requires reconciliation
+   */
+  CANCELLATION_STATUSES = {
+    PENDING: 'cancel_pending',
+    COMPLETED: 'cancelled',
+    FAILED: 'cancel_failed',
+  }
+
+  /**
    * Cancel / Void a sale transaction safely (Non-destructive).
    * Restores product stock, adjusts customer due balance, voids payments, and preserves item records.
+   * Only marks the sale as 'cancelled' after ALL required reversal operations are confirmed successful.
+   * Uses idempotency keys to prevent double-processing on retry.
    */
   async cancelSale(
     saleId: string,
     businessId: string,
     userId: string,
-    reason: string = 'Manual bill cancellation'
-  ): Promise<boolean> {
+    reason: string = 'Manual bill cancellation',
+    options?: { idempotencyKey?: string }
+  ): Promise<{ success: boolean; cancellationStatus: string; error?: string }> {
     await authorizeBusinessAccess({
       userId,
       businessId,
@@ -515,10 +531,60 @@ export class SaleService extends BaseService {
       throw new Error('Sale transaction has already been cancelled')
     }
 
-    const cancelledAt = new Date().toISOString()
+    if (sale.cancellationStatus === this.CANCELLATION_STATUSES.COMPLETED) {
+      throw new Error('Sale transaction has already been fully cancelled')
+    }
 
-    // 1. Fetch sale items and restore stock (compensating stock movement)
+    if (sale.cancellationStatus === this.CANCELLATION_STATUSES.FAILED) {
+      throw new Error('Sale cancellation previously failed. Use reconciliation to review and retry.')
+    }
+
+    const cancelledAt = new Date().toISOString()
+    const idempotencyKey = options?.idempotencyKey?.trim()
+
+    // Idempotency check: if key provided and a completed cancellation exists for this key, return early
+    if (idempotencyKey) {
+      const persistentCheck = async (): Promise<Sale | null> => {
+        const matches = await this.list<Sale>(businessId, [
+          Query.equal('idempotencyKey', idempotencyKey),
+          Query.limit(1),
+        ])
+        const matchedSale = matches.length > 0 ? matches[0] : null
+        if (matchedSale && matchedSale.$id === sale.$id) {
+          return matchedSale
+        }
+        return null
+      }
+
+      const existing = await idempotencyManager.executeIdempotentTransaction(
+        {
+          idempotencyKey,
+          businessId,
+          operationType: 'cancel_sale',
+          payload: { saleId, reason },
+          resourceType: 'sale',
+          enforceKey: true,
+        },
+        persistentCheck,
+        async () => {
+          // Main cancellation operation
+          return null
+        }
+      )
+
+      if (existing?.cancellationStatus === this.CANCELLATION_STATUSES.COMPLETED) {
+        return { success: true, cancellationStatus: 'cancelled' }
+      }
+      if (existing?.cancellationStatus === this.CANCELLATION_STATUSES.FAILED) {
+        return { success: false, cancellationStatus: 'cancel_failed', error: existing.error || 'Previous cancellation failed' }
+      }
+}
+
+// 1. Fetch sale items and restore stock (compensating stock movement)
     const items = await saleItemService.listSaleItems(saleId, businessId)
+    const stockRestoreErrors: string[] = []
+    const successfullyRestoredProducts: Set<string> = new Set()
+
     for (const item of items) {
       try {
         await stockMovementService.processStockIn(
@@ -529,49 +595,119 @@ export class SaleService extends BaseService {
           `Bill Void: Sale #${sale.saleNumber || sale.$id} (${reason})`,
           sale.$id
         )
+        successfullyRestoredProducts.add(item.productId)
       } catch (stockErr) {
-        console.error('Failed to restore stock on sale cancellation:', stockErr)
+        console.error(`Failed to restore stock for product ${item.productId} on sale cancellation:`, stockErr)
+        stockRestoreErrors.push(`product ${item.productId}: ${stockErr instanceof Error ? stockErr.message : String(stockErr)}`)
       }
     }
 
     // 2. Adjust customer due balance if remaining due balance exists
+    const customerDueErrors: string[] = []
+
     if (sale.customerId && sale.dueAmount > 0) {
       try {
         await customerService.updateDueAmount(sale.customerId, -sale.dueAmount, businessId)
+        // customerDueAdjusted tracking removed - use error arrays instead
       } catch (custErr) {
         console.error('Failed to adjust customer due balance on sale cancellation:', custErr)
+        customerDueErrors.push(custErr instanceof Error ? custErr.message : String(custErr))
       }
     }
 
     // 3. Void/Reverse any associated payment records
+    const paymentReversalErrors: string[] = []
+
     try {
       const { paymentService } = await import('./payment.service')
       const payments = await paymentService.listPayments(businessId, { saleId })
       for (const p of payments) {
         if (p.status !== 'VOIDED' && p.status !== 'REVERSED') {
-          await paymentService.reversePayment(p.$id, businessId, userId, `Bill voided: ${reason}`, {
-            skipCustomerDueAdjustment: true,
-          })
+          try {
+            await paymentService.reversePayment(
+              p.$id,
+              businessId,
+              userId,
+              `Bill voided: ${reason}`,
+              { skipCustomerDueAdjustment: true }
+            )
+          } catch (revErr) {
+            console.error(`Failed to reverse payment ${p.$id} on sale cancellation:`, revErr)
+            paymentReversalErrors.push(`payment ${p.$id}: ${revErr instanceof Error ? revErr.message : String(revErr)}`)
+          }
         }
       }
     } catch (payErr) {
       console.warn('Payment reversal warning on sale cancellation:', payErr)
+      paymentReversalErrors.push(`payment list/query error: ${payErr instanceof Error ? payErr.message : String(payErr)}`)
     }
 
-    // 4. Update Sale document status to 'cancelled' (preserving sale document and items)
+    // 4. Only mark sale as 'cancelled' if ALL required reversal operations succeeded
+    const hasStockRestorationErrors = stockRestoreErrors.length > 0
+    const hasCustomerDueErrors = customerDueErrors.length > 0
+    const hasPaymentReversalErrors = paymentReversalErrors.length > 0
+
+    if (hasStockRestorationErrors || hasCustomerDueErrors || hasPaymentReversalErrors) {
+      // One or more reversals failed - mark as cancel_failed, do NOT update status to 'cancelled'
+      const failureReasons: string[] = []
+      if (hasStockRestorationErrors) failureReasons.push(`Stock restoration: ${stockRestoreErrors.join('; ')}`)
+      if (hasCustomerDueErrors) failureReasons.push(`Customer due adjustment: ${customerDueErrors.join('; ')}`)
+      if (hasPaymentReversalErrors) failureReasons.push(`Payment reversal: ${paymentReversalErrors.join('; ')}`)
+
+      await this.update<Sale>(
+        saleId,
+        {
+          cancellationStatus: this.CANCELLATION_STATUSES.FAILED,
+          cancellationReason: reason.trim(),
+          cancelledBy: userId,
+          cancelledAt,
+          notes: `${sale.notes || ''} [CANCELATION FAILED by ${userId} on ${cancelledAt}: ${failureReasons.join('; ')}]`.trim(),
+          dueAmount: 0, // Clear due amount even on failure for consistency in UI display
+        },
+        businessId
+      )
+
+      // Record durable failure for reconciliation
+      try {
+        await auditLogService.logEvent(
+          businessId,
+          userId,
+          'sale_cancellation_failed',
+          saleId,
+          {
+            saleNumber: sale.saleNumber,
+            total: sale.total,
+            cancelledBy: userId,
+            reason: reason.trim(),
+            stockRestoreErrors,
+            customerDueErrors,
+            paymentReversalErrors,
+            reconciliationRequired: true,
+          }
+        )
+      } catch {
+        // Non-fatal audit log
+      }
+
+      return { success: false, cancellationStatus: 'cancel_failed', error: failureReasons.join('; ') }
+    }
+
+    // All reversals succeeded - mark as fully cancelled
     await this.update<Sale>(
       saleId,
       {
         status: 'cancelled',
         dueAmount: 0,
+        cancellationStatus: this.CANCELLATION_STATUSES.COMPLETED,
+        cancellationReason: reason.trim(),
         cancelledBy: userId,
         cancelledAt,
-        cancellationReason: reason.trim(),
         notes: `${sale.notes || ''} [CANCELLED by ${userId} on ${cancelledAt}: ${reason.trim()}]`.trim(),
       },
       businessId
     )
 
+    // Record successful cancellation in audit log
     try {
       await auditLogService.logEvent(
         businessId,
@@ -584,14 +720,37 @@ export class SaleService extends BaseService {
       // Non-fatal audit log
     }
 
-    return true
+    // Record idempotency completion
+    if (idempotencyKey) {
+      try {
+        await idempotencyManager.executeIdempotentTransaction(
+          {
+            idempotencyKey,
+            businessId,
+            operationType: 'cancel_sale',
+            payload: { saleId, reason },
+            resourceType: 'sale',
+          },
+          async (): Promise<Sale | null> => null,
+          async () => {
+            // Finalization is best-effort; do not throw if it fails
+            return null
+          }
+        )
+      } catch {
+        // Non-fatal - idempotency finalization failure does not undo the cancellation
+      }
+    }
+
+    return { success: true, cancellationStatus: 'cancelled' }
   }
 
   /**
    * Hard delete sale (restricted for cleanup)
    */
   async deleteSale(saleId: string, businessId: string, userId: string): Promise<boolean> {
-    return await this.cancelSale(saleId, businessId, userId)
+    const result = await this.cancelSale(saleId, businessId, userId)
+    return result.success
   }
 }
 
