@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { AppLogo } from '@/components/ui/app-logo'
 import { Button } from '@/components/ui/button'
-import { CookieConsent } from '@/components/ui/cookie-consent'
 import { ArrowLeft, Lock, Play } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -34,7 +33,6 @@ export default function PrivacyPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-8">
-        <CookieConsent autoShow={false} />
         <div className="space-y-3 border-b border-slate-200 pb-6">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-100">
             <Lock className="h-4 w-4 text-emerald-600" />
@@ -96,10 +94,9 @@ export default function PrivacyPage() {
             <p>
               Inventory Lite uses browser localStorage to store non-sensitive preferences such as your language selection, calendar settings, and onboarding progress. This data stays on your device and is not transmitted to our servers.
             </p>
-            <p className="mt-2">
+<p className="mt-2">
               Inventory Lite does not use IndexedDB or offline data synchronization. An active internet connection is required to use the application.
             </p>
-            <CookieConsent autoShow={false} />
           </section>
 
           <section className="space-y-2">
