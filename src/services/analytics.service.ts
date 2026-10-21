@@ -58,6 +58,7 @@ export interface ProductProfitBreakdown {
   cogs: number
   grossProfit: number
   marginPercent: number
+  markupPercent: number
 }
 
 export interface CategoryProfitBreakdown {
@@ -67,6 +68,7 @@ export interface CategoryProfitBreakdown {
   cogs: number
   grossProfit: number
   marginPercent: number
+  markupPercent: number
 }
 
 export interface DetailedProfitReport extends ProfitEstimateReport {
@@ -393,6 +395,7 @@ export class AnalyticsService {
       const gp = p.revenue - p.cogs
       const margin = p.revenue > 0 ? (gp / p.revenue) * 100 : 0
 
+      const markup = p.cogs > 0 ? (gp / p.cogs) * 100 : 0
       productBreakdown.push({
         productId: p.productId,
         productName: p.productName,
@@ -404,6 +407,7 @@ export class AnalyticsService {
         cogs: Math.round(p.cogs * 100) / 100,
         grossProfit: Math.round(gp * 100) / 100,
         marginPercent: Math.round(margin * 10) / 10,
+        markupPercent: Math.round(markup * 10) / 10,
       })
 
       const catKey = p.categoryId || 'uncategorized'
@@ -417,6 +421,7 @@ export class AnalyticsService {
     const categoryBreakdown: CategoryProfitBreakdown[] = []
     for (const [catId, cVal] of categoryAgg.entries()) {
       const margin = cVal.revenue > 0 ? (cVal.grossProfit / cVal.revenue) * 100 : 0
+      const markup = cVal.cogs > 0 ? (cVal.grossProfit / cVal.cogs) * 100 : 0
       categoryBreakdown.push({
         categoryId: catId,
         categoryName: categoryMap.get(catId) || 'General / Uncategorized',
@@ -424,6 +429,7 @@ export class AnalyticsService {
         cogs: Math.round(cVal.cogs * 100) / 100,
         grossProfit: Math.round(cVal.grossProfit * 100) / 100,
         marginPercent: Math.round(margin * 10) / 10,
+        markupPercent: Math.round(markup * 10) / 10,
       })
     }
 

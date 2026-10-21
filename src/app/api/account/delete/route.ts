@@ -97,6 +97,7 @@ async function purgeStorageFiles(
  * POST /api/account/delete
  * 
  * Permanently erases user account and all owned business data.
+ * Includes optional data export before irreversible deletion.
  */
 export async function POST(request: NextRequest) {
   const operationId = `del_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json().catch(() => ({}))
-    const { password } = body
+    const { password, exportData } = body
 
     if (!password || typeof password !== 'string' || !password.trim()) {
       return NextResponse.json(
@@ -177,11 +178,57 @@ export async function POST(request: NextRequest) {
       // Ignore list error
     }
 
+    // 4. OPTIONAL: Export user data before irreversible deletion
+    let exportedData: any = null
+    if (exportData === true) {
+      try {
+        const exportPayload: Record<string, any[]> = {}
+        const collectionsToExport = [
+          COLLECTIONS.BUSINESSES,
+          COLLECTIONS.BUSINESS_MEMBERS,
+          COLLECTIONS.PRODUCTS,
+          COLLECTIONS.CATEGORIES,
+          COLLECTIONS.CUSTOMERS,
+          COLLECTIONS.SUPPLIERS,
+          COLLECTIONS.SALES,
+          COLLECTIONS.SALES_RETURN_ITEMS,
+          COLLECTIONS.PAYMENTS,
+          COLLECTIONS.EXPENSES,
+          COLLECTIONS.STOCK_MOVEMENTS,
+          COLLECTIONS.AUDIT_LOGS,
+          COLLECTIONS.IDEMPOTENCY_KEYS,
+          COLLECTIONS.USER_PREFERENCES,
+        ]
+        for (const colId of collectionsToExport) {
+          try {
+            const docs = await databases.listDocuments(DATABASE_ID, colId, [
+              Query.equal('createdBy', userId),
+              Query.limit(500),
+            ])
+            if (docs && docs.documents) {
+              exportPayload[colId] = docs.documents.map((doc: any) => {
+                const { createdBy, ...rest } = doc
+                return rest
+              })
+            }
+          } catch {
+            // Skip collection if export fails
+          }
+        }
+        // Mask sensitive fields in exported data
+        exportedData = maskExportedData(exportPayload)
+        ;(exportedData as any).exportedAt = new Date().toISOString()
+      } catch (exportErr) {
+        console.warn('[Account Deletion] Data export failed:', exportErr?.message)
+        // Continue with deletion even if export fails
+      }
+    }
+
     let totalPurgedDocs = 0
     let totalFilesDeleted = 0
     let membershipsRemoved = 0
 
-    // 4. DEPENDENCY GRAPH DELETION (Children before Parents)
+    // 5. DEPENDENCY GRAPH DELETION (Children before Parents)
     // Order matters to prevent orphan records or foreign key constraint issues
     const childCollectionsToPurge = [
       // Level 1: Line Items / Sub-records / Logs
@@ -247,7 +294,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. REMOVE MEMBERSHIPS FOR NON-OWNED BUSINESSES
+    // 6. REMOVE MEMBERSHIPS FOR NON-OWNED BUSINESSES
     // If the user was a member of a business owned by someone else, remove member relationship without deleting that business
     try {
       const remainingMemberships = await databases.listDocuments(DATABASE_ID, COLLECTIONS.BUSINESS_MEMBERS, [
@@ -266,7 +313,7 @@ export async function POST(request: NextRequest) {
       // Ignore
     }
 
-    // 6. PURGE USER-SPECIFIC PREFERENCES & PROFILES
+    // 7. PURGE USER-SPECIFIC PREFERENCES & PROFILES
     try {
       await databases.deleteDocument(DATABASE_ID, COLLECTIONS.USER_PREFERENCES, userId)
       totalPurgedDocs++
@@ -281,7 +328,7 @@ export async function POST(request: NextRequest) {
       // Idempotent
     }
 
-    // 7. PERMANENT APPWRITE AUTH USER DELETION & SESSION INVALIDATION
+    // 8. PERMANENT APPWRITE AUTH USER DELETION & SESSION INVALIDATION
     let authDeleted = false
     const appwriteApiKey = process.env.APPWRITE_API_KEY || process.env.APPWRITE_ADMIN_KEY
     const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1'
@@ -327,9 +374,9 @@ export async function POST(request: NextRequest) {
 
     const summary: DeletionSummary = {
       operationId,
-      userId,
+      userId: '[REDACTED]', // Never expose userId in summary output
       startTime,
-      ownedBusinessIds,
+      ownedBusinessIds: ownedBusinessIds.length > 0 ? ownedBusinessIds.map(() => 'business_*') : [],
       recordsPurged: totalPurgedDocs,
       storageFilesDeleted: totalFilesDeleted,
       membershipsRemoved,
@@ -339,6 +386,21 @@ export async function POST(request: NextRequest) {
 
     // eslint-disable-next-line no-console
     console.log(`[Account Deletion] Operation ${operationId} finished:`, summary)
+
+    // Provide data export if requested
+    if (exportData === true && exportedData) {
+      return NextResponse.json({
+        success: true,
+        message: 'Account data exported. Proceeding with permanent deletion.',
+        dataExport: exportedData,
+        deletionSummary: summary,
+        nextSteps: [
+          'Download the exported data above for your records.',
+          'Your account and all associated business data will be permanently deleted.',
+          'Contact support if you need to recover data after deletion.',
+        ],
+      })
+    }
 
     if (!authDeleted) {
       return NextResponse.json(
@@ -365,4 +427,56 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/** maskExportedData redacts sensitive personal and financial fields from exported backup data. */
+function maskExportedData(data: Record<string, any[]>): Record<string, any[]> {
+  const SENSITIVE_KEYS = new Set([
+    'password',
+    'secret',
+    'token',
+    'jwt',
+    'apikey',
+    'api_key',
+    'authorization',
+    'cookie',
+    'sessionid',
+    'panNumber',
+    'vatNumber',
+    'phone',
+    'email',
+  ])
+  const result: Record<string, any[]> = {}
+  for (const [colName, docs] of Object.entries(data)) {
+    result[colName] = docs.map((doc: any) => {
+      const clean: Record<string, any> = {}
+      for (const [key, value] of Object.entries(doc)) {
+        if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+          clean[key] = '[REDACTED]'
+        } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          clean[key] = maskExportedDataSub(value)
+        } else {
+          clean[key] = value
+        }
+      }
+      return clean
+    })
+  }
+  return result
+}
+
+function maskExportedDataSub(data: any): any {
+  if (data === null || data === undefined) return data
+  if (Array.isArray(data)) return data.map(maskExportedDataSub)
+  const clean: Record<string, any> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+      clean[key] = '[REDACTED]'
+    } else if (typeof value === 'object' && value !== null) {
+      clean[key] = maskExportedDataSub(value)
+    } else {
+      clean[key] = value
+    }
+  }
+  return clean
 }

@@ -54,6 +54,10 @@ export const registerSchema = z
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, 'Password is required'),
+  // Open redirect prevention: do not accept returnUrl from login form;
+  // always use a safe internal redirect target.
+  // If a returnUrl is needed, it must be validated server-side against allowed origins.
+  // returnUrl: z.string().url().optional(),
 })
 
 export const forgotPasswordSchema = z.object({

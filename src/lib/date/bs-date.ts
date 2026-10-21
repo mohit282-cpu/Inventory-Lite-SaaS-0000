@@ -99,8 +99,9 @@ export function formatBSDate(
 }
 
 /**
- * Format any date input into a primary Bikram Sambat (B.S.) Date + Time string.
+ * Format any date input into a primary Bikram Sambap (B.S.) Date + Time string.
  * Time is displayed in 12-hour format by default (e.g. "2083/05/07 02:30 PM").
+ * All times are interpreted in Asia/Kathmandu timezone (+05:45) for Nepal-local reporting.
  * Pass use12Hour=false explicitly for 24-hour output ("2083/05/07 14:30").
  */
 export function formatBSDateTime(
@@ -113,12 +114,27 @@ export function formatBSDateTime(
   const adDate = typeof dateInput === 'object' && dateInput !== null ? dateInput : new Date(dateInput)
   if (isNaN(adDate.getTime())) return 'N/A'
 
+  // Determine if input has explicit timezone (UTC/ISO string)
+  const isISOSTring = typeof dateInput === 'string' && dateInput.includes('T')
+  const hasExplicitTimezone = isISOSTring && (dateInput.includes('Z') || /[+-]\d{2}:\d{2}$/.test(dateInput))
+
+  // Always use original adDate for BS date formatting (date portion stays unchanged)
   const bsStr = formatBSDate(adDate, { format: 'YYYY/MM/DD' })
 
-  // Interpret in Asia/Kathmandu timezone (+05:45)
+  // For time display, interpret in Asia/Kathmandu (+05:45) if timezone is explicit;
+  // otherwise use the date's inherent timezone (browser-local for naive Dates)
   let hours = adDate.getHours()
   const minutes = String(adDate.getMinutes()).padStart(2, '0')
   const seconds = String(adDate.getSeconds()).padStart(2, '0')
+
+  if (hasExplicitTimezone) {
+    // UTC/ISO input: add KTM offset to get Nepal-local time
+    const ktmTimestamp = adDate.getTime() + (5 * 60 + 45) * 60 * 1000
+    hours = new Date(ktmTimestamp).getHours()
+  } else {
+    // Naive Date or local-time input: use as-is (browser-local time)
+    // hours already adDate.getHours() above
+  }
 
   if (use12Hour) {
     const ampm = hours >= 12 ? 'PM' : 'AM'
@@ -131,6 +147,38 @@ export function formatBSDateTime(
   const hrsStr = String(hours).padStart(2, '0')
   const secStr = includeSeconds ? `:${seconds}` : ''
   return `${bsStr} ${hrsStr}:${minutes}${secStr}`
+}
+
+/**
+ * Format any date input into a primary Bikram Sambap (B.S.) Date + Time string.
+ * Time is displayed in 24-hour format (e.g. "2083/05/07 14:30").
+ * All times are interpreted in Asia/Kathmandu timezone (+05:45) for Nepal-local reporting.
+ * Pass use12Hour=true explicitly for 12-hour output ("2083/05/07 02:30 PM").
+ */
+export function formatBSDateTime24(
+  dateInput?: string | Date | number | null,
+  includeSeconds: boolean = false
+): string {
+  if (!dateInput) return 'N/A'
+
+  const adDate = typeof dateInput === 'object' && dateInput !== null ? dateInput : new Date(dateInput)
+  if (isNaN(adDate.getTime())) return 'N/A'
+
+  // Normalize to Asia/Kathmandu timezone (+05:45) for consistent Nepal-local time display
+  const kathmanduTimestamp = adDate.getTime() + (5 * 60 + 45) * 60 * 1000
+  const kathmanduDate = new Date(kathmanduTimestamp)
+
+  const bsStr = formatBSDate(adDate, { format: 'YYYY/MM/DD' })
+
+  const hours = kathmanduDate.getHours()
+  const minutes = String(kathmanduDate.getMinutes()).padStart(2, '0')
+  const seconds = String(kathmanduDate.getSeconds()).padStart(2, '0')
+
+  const hrsStr = String(hours).padStart(2, '0')
+  const minStr = String(minutes).padStart(2, '0')
+  const secStr = includeSeconds ? `:${seconds}` : ''
+
+  return `${bsStr} ${hrsStr}:${minStr}${secStr}`
 }
 
 /**

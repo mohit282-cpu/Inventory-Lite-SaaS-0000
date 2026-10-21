@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { AppLogo } from '@/components/ui/app-logo'
 import { Button } from '@/components/ui/button'
+import { CookieConsent } from '@/components/ui/cookie-consent'
 import { ArrowLeft, Lock, Play } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -33,6 +34,7 @@ export default function PrivacyPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-8">
+        <CookieConsent autoShow={false} />
         <div className="space-y-3 border-b border-slate-200 pb-6">
           <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-100">
             <Lock className="h-4 w-4 text-emerald-600" />
@@ -97,6 +99,7 @@ export default function PrivacyPage() {
             <p className="mt-2">
               Inventory Lite does not use IndexedDB or offline data synchronization. An active internet connection is required to use the application.
             </p>
+            <CookieConsent autoShow={false} />
           </section>
 
           <section className="space-y-2">
@@ -106,10 +109,14 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li><strong>Appwrite</strong> — Cloud database and authentication provider for account management and data storage.</li>
+              <li><strong>Plausible Analytics</strong> — Anonymous website analytics platform (cookie-based)</li>
             </ul>
             <p className="mt-2">
-              These services process data on our behalf according to their respective privacy policies. We do not integrate with any advertising, analytics, or tracking third-party services on the customer-facing application.
+              Plausible Analytics uses cookies to collect aggregated, anonymous data about website traffic and user interactions. This data helps us understand how the website is used and improve the user experience. No personalidentifiable information is collected.
             </p>
+          </section>
+
+          <section className="space-y-2">
           </section>
 
           <section className="space-y-2">
