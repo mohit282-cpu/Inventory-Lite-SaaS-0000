@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
         exportedData = maskExportedData(exportPayload)
         ;(exportedData as any).exportedAt = new Date().toISOString()
       } catch (exportErr) {
-        console.warn('[Account Deletion] Data export failed:', exportErr?.message)
+        console.warn('[Account Deletion] Data export failed:', exportErr instanceof Error ? exportErr.message : String(exportErr))
         // Continue with deletion even if export fails
       }
     }
@@ -429,23 +429,24 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const SENSITIVE_KEYS = new Set([
+  'password',
+  'secret',
+  'token',
+  'jwt',
+  'apikey',
+  'api_key',
+  'authorization',
+  'cookie',
+  'sessionid',
+  'panNumber',
+  'vatNumber',
+  'phone',
+  'email',
+])
+
 /** maskExportedData redacts sensitive personal and financial fields from exported backup data. */
 function maskExportedData(data: Record<string, any[]>): Record<string, any[]> {
-  const SENSITIVE_KEYS = new Set([
-    'password',
-    'secret',
-    'token',
-    'jwt',
-    'apikey',
-    'api_key',
-    'authorization',
-    'cookie',
-    'sessionid',
-    'panNumber',
-    'vatNumber',
-    'phone',
-    'email',
-  ])
   const result: Record<string, any[]> = {}
   for (const [colName, docs] of Object.entries(data)) {
     result[colName] = docs.map((doc: any) => {

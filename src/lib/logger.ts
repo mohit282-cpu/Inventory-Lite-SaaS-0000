@@ -77,26 +77,6 @@ function sanitizeData(data: any): any {
   return cleanObj
 }
 
-/** Recursively mask sensitive nested objects that may not have string keys. */
-function maskNestedSensitive(obj: any): any {
-  if (obj === null || obj === undefined) return obj
-  if (Array.isArray(obj)) return obj.map(maskNestedSensitive)
-  if (typeof obj !== 'object') return obj
-
-  const clean: Record<string, any> = {}
-  for (const [key, value] of Object.entries(obj)) {
-    const lowerKey = key.toLowerCase()
-    if (SENSITIVE_KEYS.has(lowerKey)) {
-      clean[key] = '[REDACTED]'
-    } else if (typeof value === 'object' && value !== null) {
-      clean[key] = maskNestedSensitive(value)
-    } else {
-      clean[key] = value
-    }
-  }
-  return clean
-}
-
 export const logger = {
   /**
    * Log an error with correlation ID, category, and context. Sensitive data
@@ -148,7 +128,7 @@ export const logger = {
     const sanitizedContext = sanitizeData(context)
 
     if (process.env.NODE_ENV === 'production') {
-      console.warn(JSON.stringify({ timestamp, level: 'WARN', path, message, context: sanitizedContext }))
+      console.warn(JSON.stringify({ timestamp, level: 'WARN', category, path, message, context: sanitizedContext }))
     } else {
       console.warn(`[WARN] ${message}:`, context)
     }
@@ -161,7 +141,7 @@ export const logger = {
     if (process.env.NODE_ENV === 'development') {
       const timestamp = new Date().toISOString()
       const category = context.category || 'RUNTIME'
-      console.info(`[${category}] [INFO] ${message}:`, context)
+      console.info(`[${category}] [INFO] ${timestamp} ${message}:`, context)
     }
   },
 
